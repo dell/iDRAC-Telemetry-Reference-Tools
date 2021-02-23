@@ -1,0 +1,221 @@
+// Licensed to You under the Apache License, Version 2.0.
+
+package databus
+
+import (
+	"encoding/json"
+	"log"
+	"time"
+
+	"github.com/mitchellh/mapstructure"
+
+	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus"
+)
+
+type DataValue struct {
+	ID        string
+	Context   string
+	Label     string
+	Value     string
+	System    string
+	Timestamp string
+}
+
+type DataGroup struct {
+	ID       string
+	Label    string
+	Sequence string
+	Values   []DataValue
+}
+
+type DataProducer struct {
+	Hostname  string
+	Username  string
+	State     string
+	LastEvent time.Time
+}
+
+const (
+	STARTING = "Starting"
+	RUNNING  = "Running"
+	STOPPED  = "Stopped"
+)
+
+const (
+	GET          = "get"
+	SUBSCRIBE    = "subscribe"
+	GETPRODUCERS = "getproducers"
+	TERMINATE    = "terminate"
+)
+
+type Command struct {
+	Command      string `json:"command"`
+	RecieveQueue string `json:"recieveQueue"`
+	ReportData   string `json:"reportdata,omitempty"`
+}
+
+type Response struct {
+	Command  string      `json:"command"`
+	DataType string      `json:"dataType"`
+	Data     interface{} `json:"data"`
+}
+
+const CommandQueue = "/databus"
+
+type DataBusService struct {
+	Recievers []string
+	Bus       messagebus.Messagebus
+}
+
+type DataBusClient struct {
+	Bus messagebus.Messagebus
+}
+
+func (d *DataBusService) SendResponse(queue string, command string, dataType string, data interface{}) {
+	res := new(Response)
+	res.Command = command
+	res.DataType = dataType
+	res.Data = data
+	jsonStr, _ := json.Marshal(res)
+	err := d.Bus.SendMessage(jsonStr, queue)
+	if err != nil {
+		log.Printf("Failed to send response %v", err)
+	}
+}
+
+func (d *DataBusService) SendMultipleResponses(command string, dataType string, data interface{}) {
+	res := new(Response)
+	res.Command = command
+	res.DataType = dataType
+	res.Data = data
+	jsonStr, _ := json.Marshal(res)
+	for _, queue := range d.Recievers {
+		err := d.Bus.SendMessage(jsonStr, queue)
+		if err != nil {
+			log.Printf("Failed to send response %v", err)
+		}
+	}
+}
+
+func (d *DataBusService) SendGroup(group DataGroup) {
+	d.SendMultipleResponses(SUBSCRIBE, "DataGroup", group)
+}
+
+func (d *DataBusService) SendGroupToQueue(group DataGroup, queue string) {
+	d.SendResponse(queue, GET, "DataGroup", group)
+}
+
+func (d *DataBusService) SendProducersToQueue(producer []*DataProducer, queue string) {
+	d.SendResponse(queue, GETPRODUCERS, "DataProducer", producer)
+}
+
+func (d *DataBusService) RecieveCommand(commands chan<- *Command) {
+	messages := make(chan string, 10)
+
+	go func() {
+		_, err := d.Bus.ReceiveMessage(messages, CommandQueue)
+		if err != nil {
+			log.Printf("Error recieving messages %v", err)
+		}
+	}()
+	for {
+		message := <-messages
+		command := new(Command)
+		err := json.Unmarshal([]byte(message), command)
+		if err != nil {
+			log.Print("Error reading command queue: ", err)
+		}
+		if command.Command == SUBSCRIBE {
+			found := false
+			for _, rec := range d.Recievers {
+				if rec == command.RecieveQueue {
+					found = true
+				}
+			}
+			if !found {
+				d.Recievers = append(d.Recievers, command.RecieveQueue)
+			}
+		} else {
+			commands <- command
+		}
+	}
+}
+
+func (d *DataBusClient) SendCommand(command Command) {
+	jsonStr, _ := json.Marshal(command)
+	err := d.Bus.SendMessage(jsonStr, CommandQueue)
+	if err != nil {
+		log.Printf("Failed to send command %v", err)
+	}
+}
+
+func (d *DataBusClient) Get(queue string) {
+	var command Command
+	command.Command = GET
+	command.RecieveQueue = queue
+	d.SendCommand(command)
+}
+
+func (d *DataBusClient) Subscribe(queue string) {
+	var command Command
+	command.Command = SUBSCRIBE
+	command.RecieveQueue = queue
+	d.SendCommand(command)
+}
+
+func (d *DataBusClient) ReadOneMessage(queue string) string {
+	messages := make(chan string)
+	sub, err := d.Bus.ReceiveMessage(messages, queue)
+	if err != nil {
+		log.Println("Error receiving message: ", err)
+		return ""
+	}
+	message := <-messages
+	//log.Println("Got message: ", message)
+	sub.Close()
+	return message
+}
+
+func (d *DataBusClient) GetResponse(queue string) *Response {
+	message := d.ReadOneMessage(queue)
+	resp := new(Response)
+	err := json.Unmarshal([]byte(message), resp)
+	if err != nil {
+		log.Print("Error reading queue: ", err)
+	}
+	return resp
+}
+
+func (d *DataBusClient) GetProducers(queue string) []*DataProducer {
+	var command Command
+	command.Command = GETPRODUCERS
+	command.RecieveQueue = queue
+	d.SendCommand(command)
+
+	resp := d.GetResponse(queue)
+	return resp.Data.([]*DataProducer)
+}
+
+func (d *DataBusClient) GetGroup(groups chan<- *DataGroup, queue string) {
+	messages := make(chan string, 10)
+
+	go func() {
+		_, err := d.Bus.ReceiveMessage(messages, queue)
+		if err != nil {
+			log.Printf("Error recieving messages %v", err)
+		}
+	}()
+	for {
+		message := <-messages
+		resp := new(Response)
+		err := json.Unmarshal([]byte(message), resp)
+		if err != nil {
+			log.Print("Error reading queue: ", err)
+		}
+
+		group := DataGroup{}
+		mapstructure.Decode(resp.Data, &group)
+//		group := resp.Data.(DataGroup)
+		groups <- &group
+	}
+}

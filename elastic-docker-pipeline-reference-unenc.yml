@@ -1,0 +1,133 @@
+version: '3.5'
+
+services:
+
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.1
+    container_name: es01
+    environment:
+      - node.name=es01
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es02,es03
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - elastic
+
+    healthcheck:
+      test: curl http://localhost:9200 >/dev/null; if [[ $$? == 52 ]]; then echo 0; else echo 1; fi
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  es02:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.1
+    container_name: es02
+    environment:
+      - node.name=es02
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es01,es03
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - elastic
+
+  es03:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.1
+    container_name: es03
+    environment:
+      - node.name=es03
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es01,es02
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - elastic
+
+  kib01:
+    image: docker.elastic.co/kibana/kibana:7.10.1
+    container_name: kib01
+    depends_on: {"es01": {"condition": "service_healthy"}}
+    environment:
+      ELASTICSEARCH_URL: http://es01:9200
+      ELASTICSEARCH_HOSTS: http://es01:9200
+    networks:
+      - elastic
+
+  activemq:
+    image: rmohr/activemq:5.10.0 
+    container_name: activemq
+    networks:
+      - elastic
+
+  discapp:
+    image: golang:1.15
+    volumes:
+      - .:/go/src/github.com/telemetry-reference-tools
+    working_dir: 
+      /go/src/github.com/telemetry-reference-tools
+    command:
+      go run cmd/simpledisc/simpledisc.go
+    networks:
+      - elastic
+    depends_on:
+      - "activemq"
+
+  authapp:
+    image: golang:1.15
+    volumes:
+      - .:/go/src/github.com/telemetry-reference-tools
+    working_dir: 
+      /go/src/github.com/telemetry-reference-tools
+    command:
+      go run cmd/simpleauth/simpleauth.go
+    networks:
+      - elastic
+    depends_on:
+      - "activemq"
+
+  redfishreadapp:
+    image: golang:1.15
+    volumes:
+      - .:/go/src/github.com/telemetry-reference-tools
+    working_dir: 
+      /go/src/github.com/telemetry-reference-tools
+    command:
+      go run cmd/redfishread/redfishread.go
+    networks:
+      - elastic
+    depends_on:
+      - "activemq"
+
+  elasticsearchpump:
+    image: golang:1.15
+    volumes:
+      - .:/go/src/github.com/telemetry-reference-tools
+    working_dir: 
+      /go/src/github.com/telemetry-reference-tools
+    command:
+      go run cmd/elkpump/elkpump-basic.go
+    networks:
+      - elastic
+    depends_on: {"es01": {"condition": "service_healthy"}}
+    depends_on:
+      - "activemq"
+    environment:
+      ELASTICSEARCH_URL: http://es01:9200
+
+networks:
+  elastic:
+    driver: bridge
+
