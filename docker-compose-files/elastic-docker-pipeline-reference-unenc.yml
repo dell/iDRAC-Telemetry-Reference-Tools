@@ -75,7 +75,7 @@ services:
   discapp:
     image: golang:1.15
     volumes:
-      - .:/go/src/github.com/telemetry-reference-tools
+      - ./../.:/go/src/github.com/telemetry-reference-tools
     working_dir: 
       /go/src/github.com/telemetry-reference-tools
     command:
@@ -88,7 +88,7 @@ services:
   authapp:
     image: golang:1.15
     volumes:
-      - .:/go/src/github.com/telemetry-reference-tools
+      - ./../.:/go/src/github.com/telemetry-reference-tools
     working_dir: 
       /go/src/github.com/telemetry-reference-tools
     command:
@@ -101,7 +101,7 @@ services:
   redfishreadapp:
     image: golang:1.15
     volumes:
-      - .:/go/src/github.com/telemetry-reference-tools
+      - ./../.:/go/src/github.com/telemetry-reference-tools
     working_dir: 
       /go/src/github.com/telemetry-reference-tools
     command:
@@ -114,7 +114,7 @@ services:
   elasticsearchpump:
     image: golang:1.15
     volumes:
-      - .:/go/src/github.com/telemetry-reference-tools
+      - ./../.:/go/src/github.com/telemetry-reference-tools
     working_dir: 
       /go/src/github.com/telemetry-reference-tools
     command:

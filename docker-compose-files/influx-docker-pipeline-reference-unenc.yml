@@ -1,0 +1,100 @@
+version: '3.5'
+
+services:
+  influx:
+    image: influxdb:1.8
+    volumes:
+      - influxdb-storage:/var/lib/influxdb
+    container_name: influx
+    environment:
+      - node.name=influx
+      - INFLUXDB_DB=poweredge_telemetry_metrics
+    networks:
+      - influxpipeline
+    healthcheck:
+      test: curl http://localhost:8086 >/dev/null; if [[ $$? == 52 ]]; then echo 0; else echo 1; fi
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./grafana-provisioning/:/etc/grafana/provisioning
+    depends_on: {"influx": {"condition": "service_healthy"}}
+    container_name: grafana
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+    networks:
+      - influxpipeline
+
+  activemq:
+    image: rmohr/activemq:5.10.0 
+    container_name: activemq
+    networks:
+      - influxpipeline
+
+  discapp:
+    image: golang:1.15
+    volumes:
+      - ./../.:/go/src/github.com/telemetry-reference-tools
+    working_dir: 
+      /go/src/github.com/telemetry-reference-tools
+    command:
+      go run cmd/simpledisc/simpledisc.go
+    networks:
+      - influxpipeline
+    depends_on:
+      - "activemq"
+
+  authapp:
+    image: golang:1.15
+    volumes:
+      - ./../.:/go/src/github.com/telemetry-reference-tools
+    working_dir: 
+      /go/src/github.com/telemetry-reference-tools
+    command:
+      go run cmd/simpleauth/simpleauth.go
+    networks:
+      - influxpipeline
+    depends_on:
+      - "activemq"
+
+  redfishreadapp:
+    image: golang:1.15
+    volumes:
+      - ./../.:/go/src/github.com/telemetry-reference-tools
+    working_dir: 
+      /go/src/github.com/telemetry-reference-tools
+    command:
+      go run cmd/redfishread/redfishread.go
+    networks:
+      - influxpipeline
+    depends_on:
+      - "activemq"
+
+  influxpump:
+    image: golang:1.15
+    volumes:
+      - ./../.:/go/src/github.com/telemetry-reference-tools
+    working_dir: 
+      /go/src/github.com/telemetry-reference-tools
+    command:
+      go run cmd/influxpump/influxpump.go
+    environment:
+      - INFLUXDB_SERVER=influx
+      - INFLUXDB_DB=poweredge_telemetry_metrics
+    networks:
+      - influxpipeline
+    depends_on: {"influx": {"condition": "service_healthy"}}
+    depends_on:
+      - "activemq"
+
+networks:
+  influxpipeline:
+    driver: bridge
+
+volumes:
+  influxdb-storage:
+  grafana-storage:
