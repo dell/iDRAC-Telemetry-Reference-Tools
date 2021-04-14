@@ -14,7 +14,6 @@ import (
 	"gopkg.in/ini.v1"
 
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/databus"
-	//"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/amqp"
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
 )
 
@@ -56,6 +55,7 @@ func doFQDDGuage(value databus.DataValue, registry *prometheus.Registry) {
 }
 
 func doNonFQDDGuage(value databus.DataValue, registry *prometheus.Registry) {
+	value.Context = strings.Replace(value.Context, " ", "", -1)
 	if collectors[value.Context] == nil {
 		collectors[value.Context] = make(map[string]*prometheus.GaugeVec)
 	}
@@ -85,6 +85,7 @@ func handleGroups(groupsChan chan *databus.DataGroup, registry *prometheus.Regis
 	for {
 		group := <-groupsChan
 		for _, value := range group.Values {
+			log.Print("value: ", value)
 			if strings.Contains(value.Context, ".") {
 				doFQDDGuage(value, registry)
 			} else {
@@ -104,12 +105,9 @@ func main() {
 		log.Fatalf("Fail to read file: %v", err)
 	}
 
-	//amqpHost := config.Section("General").Key("AmpqHost").MustString("0.0.0.0")
-	//amqpPort := config.Section("General").Key("AmqpPort").MustInt(5672)
 	stompHost := config.Section("General").Key("StompHost").MustString("0.0.0.0")
 	stompPort := config.Section("General").Key("StompPort").MustInt(61613)
 
-	//mb, err := amqp.NewAmqpMessageBus(amqpHost, amqpPort)
 	mb, err := stomp.NewStompMessageBus(stompHost, stompPort)
 	if err != nil {
 		log.Fatal("Could not connect to message bus: ", err)
