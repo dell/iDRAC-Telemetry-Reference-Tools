@@ -22,7 +22,9 @@ import (
 )
 
 var configStrings = map[string]string{
-	"timescaleDBHost": "postgres:postgres@localhost",
+	"timescaleuser": "postgres",
+	"timescalepwd": "postgres",
+	"timescaleDBHost": "localhost",
 	"timescaleDBHostPort": "5432",
 	"timescaleDBName": "poweredge_telemetry_metrics",
 }
@@ -81,7 +83,9 @@ func handleGroups(groupsChan chan *databus.DataGroup, dbpool *pgxpool.Pool, ctx 
 
 func initalizePQLWithTimescale(ctx context.Context) (*pgxpool.Pool, error) {
 	// Connect to the postgresql database
-	connStr := fmt.Sprintf("postgresql://%s:%s/%s", 
+	connStr := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", 
+					configStrings["timescaleuser"],
+					configStrings["timescalepwd"],
 					configStrings["timescaleDBHost"],
 					configStrings["timescaleDBHostPort"],
 					configStrings["timescaleDBName"])
@@ -89,7 +93,6 @@ func initalizePQLWithTimescale(ctx context.Context) (*pgxpool.Pool, error) {
 	if err != nil {
 		return dbpool, err
 	}
-
 	/********************************************/
 	// setup timescaledb extension on postgresql
 	queryAddTimescaleDBExtn := `CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;`
@@ -117,7 +120,7 @@ func initalizePQLWithTimescale(ctx context.Context) (*pgxpool.Pool, error) {
 }
 
 func main() {
-
+	var dbpool *pgxpool.Pool
 	configName := flag.String("config", "config.ini", "The configuration ini file")
 
 	flag.Parse()
@@ -129,6 +132,23 @@ func main() {
 
 	stompHost := config.Section("General").Key("StompHost").MustString("0.0.0.0")
 	stompPort := config.Section("General").Key("StompPort").MustInt(61613)
+
+	username := os.Getenv("POSTGRES_USER")
+	if len(username) > 0 {
+		configStrings["timescaleuser"] = username
+	}
+	pwd := os.Getenv("POSTGRES_DEFAULT_PWD")
+	if len(pwd) > 0 {
+		configStrings["timescalepwd"] = pwd
+	}
+	host := os.Getenv("TIMESCALE_SERVER")
+	if len(host) > 0 {
+		configStrings["timescaleDBHost"] = host
+	}
+	db := os.Getenv("TIMESCALE_DB")
+	if len(db) > 0 {
+		configStrings["timescaleDBName"] = db
+	}
 
 	dbClient := new(databus.DataBusClient)
     for {
@@ -150,13 +170,16 @@ func main() {
 
 	//Initialize timescale client
 	ctx := context.Background()
-	dbpool, err := initalizePQLWithTimescale(ctx)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to PQL database: %v\n", err)
-		os.Exit(1)
-	}
-	defer dbpool.Close()
- 
+    for {
+		dbpool, err = initalizePQLWithTimescale(ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to connect to PQL database: %v\n", err)
+            time.Sleep(5 * time.Second)
+		} else {
+			defer dbpool.Close()
+            break
+		}
+    }
 
 	go handleGroups(groupsIn, dbpool, ctx)
 

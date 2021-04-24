@@ -1,0 +1,72 @@
+version: '3.1'
+
+services:
+  timescale:
+    image: timescale/timescaledb:latest-pg12
+    volumes:
+      - ./../.:/go/src/github.com/telemetry-reference-tools
+    working_dir: 
+      /go/src/github.com/telemetry-reference-tools
+    restart: always
+    environment:
+      - node.name=timescale
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - TIMESCALE_DB=poweredge_telemetry_metrics
+    entrypoint: ["/bin/sh","-c"]
+    command:
+      - |
+        cmd/initialize_timescaledb.sh
+    networks:
+      - timescalepipeline
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    networks:
+      - timescalepipeline
+
+  activemq:
+    image: rmohr/activemq:5.10.0 
+    container_name: activemq
+    networks:
+      - timescalepipeline
+
+  idrac-telemetry-receiver:
+    image: golang:1.15
+    container_name: telemetry-receiver
+    volumes:
+      - ./../.:/go/src/github.com/telemetry-reference-tools
+    working_dir: 
+      /go/src/github.com/telemetry-reference-tools
+    entrypoint: ["/bin/sh","-c"]
+    command:
+      - |
+        cmd/idrac-telemetry-receiver.sh
+    networks:
+      - timescalepipeline
+    depends_on:
+      - "activemq"
+
+  timescale-ingester:
+    image: golang:1.15
+    container_name: timescale-ingester
+    volumes:
+      - ./../.:/go/src/github.com/telemetry-reference-tools
+    working_dir: 
+      /go/src/github.com/telemetry-reference-tools
+    command:
+      go run cmd/timescalepump/timescalepump.go
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_DEFAULT_PWD=postgres
+      - TIMESCALE_SERVER=timescale
+      - TIMESCALE_DB=poweredge_telemetry_metrics
+    networks:
+      - timescalepipeline
+    depends_on:
+      - "activemq"
+
+networks:
+  timescalepipeline:
+    driver: bridge

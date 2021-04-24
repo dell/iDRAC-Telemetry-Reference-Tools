@@ -241,20 +241,23 @@ func main() {
 	dataBusService := new(databus.DataBusService)
        
 	for {
-                mb, err := stomp.NewStompMessageBus(stompHost, stompPort)
-                if err != nil {
-                        log.Printf("Could not connect to message bus: ", err)
-                        time.Sleep(5 * time.Second)
-                } else{
+        mb, err := stomp.NewStompMessageBus(stompHost, stompPort)
+        if err != nil {
+            log.Printf("Could not connect to message bus: ", err)
+            time.Sleep(5 * time.Second)
+        } else{
 			authClient.Bus = mb
 			dataBusService.Bus = mb
 			defer mb.Close()
 			break
 		}
-        }
+    }
 
 	serviceIn := make(chan *auth.Service, 10)
 	commands := make(chan *databus.Command)
+
+	log.Print("Refish Telemetry Read Service is initialized")
+
 	authClient.ResendAll()
 	go authClient.GetService(serviceIn)
 	go handleAuthServiceChannel(serviceIn, dataBusService)

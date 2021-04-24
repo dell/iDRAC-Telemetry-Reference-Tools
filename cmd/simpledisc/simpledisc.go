@@ -56,7 +56,7 @@ func main() {
 		mb, err := stomp.NewStompMessageBus(stompHost, stompPort)
 		if err != nil {
 			log.Printf("Could not connect to message bus: ", err)
-		        time.Sleep(5 * time.Second)
+		    time.Sleep(5 * time.Second)
 		} else {
 			discoveryService.Bus = mb
 			defer mb.Close()
@@ -64,6 +64,8 @@ func main() {
 		}
 	}
 	commands := make(chan *disc.Command)
+
+	log.Print("Discovery Service is initialized")
 
 	for _, element := range services {
 		go func(elem disc.Service) {

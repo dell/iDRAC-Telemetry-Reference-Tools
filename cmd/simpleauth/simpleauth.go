@@ -123,20 +123,21 @@ func main() {
 	authorizationService := new(auth.AuthorizationService)
         
 	for {
-                mb, err := stomp.NewStompMessageBus(stompHost, stompPort)
-                if err != nil {
-                        log.Printf("Could not connect to message bus: ", err)
-                        time.Sleep(5 * time.Second)
-                } else {
+        mb, err := stomp.NewStompMessageBus(stompHost, stompPort)
+        if err != nil {
+            log.Printf("Could not connect to message bus: ", err)
+            time.Sleep(5 * time.Second)
+        } else {
 			discoveryClient.Bus = mb
 			authorizationService.Bus = mb
 			defer mb.Close()
 			break
 		}
-        }
-
+	}   
 	serviceIn := make(chan *disc.Service, 10)
 	commands := make(chan *auth.Command)
+
+	log.Print("Auth Service is initialized")
 
 	discoveryClient.ResendAll()
 	go discoveryClient.GetService(serviceIn)

@@ -1,0 +1,60 @@
+version: '3.1'
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.1.0
+    restart: always
+    container_name: prometheus
+    environment:
+      - node.name=prometheus
+      - PROMETHEUS_DB=poweredge_telemetry_metrics
+    networks:
+      - prometheuspipeline
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    networks:
+      - prometheuspipeline
+
+  activemq:
+    image: rmohr/activemq:5.10.0 
+    container_name: activemq
+    networks:
+      - prometheuspipeline
+
+  idrac-telemetry-receiver:
+    image: golang:1.15
+    container_name: telemetry-receiver
+    volumes:
+      - ./../.:/go/src/github.com/telemetry-reference-tools
+    working_dir: 
+      /go/src/github.com/telemetry-reference-tools
+    entrypoint: ["/bin/sh","-c"]
+    command:
+      - |
+        cmd/idrac-telemetry-receiver.sh
+    networks:
+      - prometheuspipeline
+    depends_on:
+      - "activemq"
+
+  prometheus-ingester:
+    image: golang:1.15
+    container_name: prometheus-ingester
+    volumes:
+      - ./../.:/go/src/github.com/telemetry-reference-tools
+    working_dir: 
+      /go/src/github.com/telemetry-reference-tools
+    command:
+      go run cmd/prometheuspump/prometheuspump.go
+    environment:
+      - PROMETHEUSDB_SERVER=prometheus
+    networks:
+      - prometheuspipeline
+    depends_on:
+      - "activemq"
+
+networks:
+  prometheuspipeline:
+    driver: bridge
