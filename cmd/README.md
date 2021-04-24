@@ -18,12 +18,12 @@ Following big databases/analytics platforms are intergrated and tested at this t
 
 ## Components 
 
-* idrac-telemetry-receiver
-    simpleauth and simpledisc applications - Abstracts the discovery and authentication functions
-    redfishread application - Make SSE (Server Sent Event) connection with each discovered data sources(iDRACs) and process the telemetry report streams. iDRAC Telemetry reports are DMTF redfish compliant.   
-* sink applications - Ingest the report streams into specific analytical solution.
-    timescalepump - Ingest timeseries metrics into Elasticsearch database.
-    influxpump - Ingest timeseries metrics into InfluxDB database.
-    prometheuspump - Ingest timeseries metrics into Prometheus database.
-    timescalepump - Ingest timeseries metrics into TimeScale database.
+_**idrac-telemetry-receiver**_
+* simpleauth and simpledisc applications - Abstracts the discovery and authentication functions
+* redfishread application - Make SSE (Server Sent Event) connection with each discovered data sources(iDRACs) and process the telemetry report streams. iDRAC Telemetry reports are DMTF redfish compliant.
 
+_**sink applications - Ingest the report streams into specific analytical solution**_
+* timescalepump - Ingest timeseries metrics into Elasticsearch database.
+* influxpump - Ingest timeseries metrics into InfluxDB database.
+* prometheuspump - Ingest timeseries metrics into Prometheus database.
+* timescalepump - Ingest timeseries metrics into TimeScale database.
