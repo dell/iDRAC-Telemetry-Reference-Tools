@@ -5,17 +5,14 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"log"
 	"math"
 	"net/http"
+	"os"
 
 	"strconv"
-//	"strings"
 	"time"
-
-	"gopkg.in/ini.v1"
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
@@ -24,25 +21,27 @@ import (
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
 )
 
-
+var configStrings = map[string]string{
+	"mbhost": "activemq",
+	"mbport": "61613",
+}
 
 type DataValueElasticSearch struct {
-	ID        string
-	Context   string
-	Label     string
-	Value     string
-	System    string
-	Timestamp string
+	ID                string
+	Context           string
+	Label             string
+	Value             string
+	System            string
+	Timestamp         string
 	ValueAggregatable float64
 }
 
-
 var (
 	countSuccessful uint64
-)	
-	
-func handleGroups(groupsChan chan *databus.DataGroup, 
-					es *elasticsearch.Client, indexName string) {
+)
+
+func handleGroups(groupsChan chan *databus.DataGroup,
+	es *elasticsearch.Client, indexName string) {
 
 	type bulkResponse struct {
 		Errors bool `json:"errors"`
@@ -72,11 +71,11 @@ func handleGroups(groupsChan chan *databus.DataGroup,
 
 		numErrors  int
 		numIndexed int
-	)						
+	)
 
 	for {
 		group := <-groupsChan
-//		log.Print("group: ", group)
+		//		log.Print("group: ", group)
 		for _, value := range group.Values {
 			log.Print("value: ", value)
 
@@ -89,11 +88,11 @@ func handleGroups(groupsChan chan *databus.DataGroup,
 			}
 			intVal, intErr := strconv.ParseInt(value.Value, 10, 64)
 			floatVal, floatErr := strconv.ParseFloat(value.Value, 64)
-			esvalue := DataValueElasticSearch{value.ID, value.Context, value.Label, value.Value, value.System, value.Timestamp,0}
+			esvalue := DataValueElasticSearch{value.ID, value.Context, value.Label, value.Value, value.System, value.Timestamp, 0}
 			switch {
 			case intErr == nil:
 				esvalue.ValueAggregatable = float64(intVal)
-			case floatErr == nil && !math.IsNaN(floatVal): 
+			case floatErr == nil && !math.IsNaN(floatVal):
 				esvalue.ValueAggregatable = floatVal
 			}
 
@@ -158,73 +157,74 @@ func handleGroups(groupsChan chan *databus.DataGroup,
 	}
 }
 
+func getEnvSettings() {
+	mbHost := os.Getenv("MESSAGEBUS_HOST")
+	if len(mbHost) > 0 {
+		configStrings["mbhost"] = mbHost
+	}
+	mbPort := os.Getenv("MESSAGEBUS_PORT")
+	if len(mbPort) > 0 {
+		configStrings["mbport"] = mbPort
+	}
+}
+
 func main() {
 	var (
-//countSuccessful uint64
+		//countSuccessful uint64
 
 		res *esapi.Response
 		err error
 	)
-/*
-	mapping := `{
-	  "mappings": {
-		"properties" : {
-		  "Context"	: {"type" : "keyword"},
-		  "ID" 		: {"type" : "keyword"},
-		  "Label" 	: {
-				"type" : "text",
-				"fields" : {
-				  "keyword" : {
-					"type" : "keyword",
-					"ignore_above" : 256
-				  }
-				}
-			  },
-		  "System" : {"type" : "keyword"},
-		  "Timestamp" : {"type" : "date"},
-		  "Value" : {"type" : "text"}
-		}
-		}
-	  }`*/
+	/*
+		mapping := `{
+		  "mappings": {
+			"properties" : {
+			  "Context"	: {"type" : "keyword"},
+			  "ID" 		: {"type" : "keyword"},
+			  "Label" 	: {
+					"type" : "text",
+					"fields" : {
+					  "keyword" : {
+						"type" : "keyword",
+						"ignore_above" : 256
+					  }
+					}
+				  },
+			  "System" : {"type" : "keyword"},
+			  "Timestamp" : {"type" : "date"},
+			  "Value" : {"type" : "text"}
+			}
+			}
+		  }`*/
 
-	configName := flag.String("config", "config.ini", "The configuration ini file")
-
-
-	flag.Parse()
-
-	config, err := ini.Load(*configName)
-	if err != nil {
-		log.Fatalf("Fail to read file: %v", err)
-	}
-
-	stompHost := config.Section("General").Key("StompHost").MustString("0.0.0.0")
-	stompPort := config.Section("General").Key("StompPort").MustInt(61613)
+	//Gather configuration from environment variables
+	getEnvSettings()
 
 	dbClient := new(databus.DataBusClient)
-        for {
-                mb, err := stomp.NewStompMessageBus(stompHost, stompPort)
-                if err != nil {
-                        log.Printf("Could not connect to message bus: ", err)
-                        time.Sleep(5 * time.Second)
-                } else {
-                        dbClient.Bus = mb
-                        defer mb.Close()
-                        break
-                }
-        }
+	for {
+		stompPort, _ := strconv.Atoi(configStrings["mbport"])
+		mb, err := stomp.NewStompMessageBus(configStrings["mbhost"], stompPort)
+		if err != nil {
+			log.Printf("Could not connect to message bus: ", err)
+			time.Sleep(5 * time.Second)
+		} else {
+			dbClient.Bus = mb
+			defer mb.Close()
+			break
+		}
+	}
 
 	groupsIn := make(chan *databus.DataGroup, 10)
 	dbClient.Subscribe("/elkstack")
 	dbClient.Get("/elkstack")
 	go dbClient.GetGroup(groupsIn, "/elkstack")
 
-
 	//Initialize elasticsearch client
-        time.Sleep(15 * time.Second)
+	time.Sleep(15 * time.Second)
 	es, err := elasticsearch.NewDefaultClient()
 	if err != nil {
 		log.Fatalf("Error creating the client: %s", err)
-        }
+	}
 
 	indexName := "poweredge_telemetry_metrics"
 	// Re-create the index
@@ -232,8 +232,8 @@ func main() {
 		log.Fatalf("Cannot delete index: %s", err)
 	}
 	res.Body.Close()
-//	res, err = es.Indices.Create(indexName, 
-//			   es.Indices.Create.WithBody(strings.NewReader(mapping)))
+	//	res, err = es.Indices.Create(indexName,
+	//			   es.Indices.Create.WithBody(strings.NewReader(mapping)))
 	res, err = es.Indices.Create(indexName)
 	if err != nil {
 		log.Fatalf("Cannot create index: %s", err)
@@ -242,7 +242,6 @@ func main() {
 		log.Fatalf("Cannot create index: %s", res)
 	}
 	res.Body.Close()
-
 
 	go handleGroups(groupsIn, es, indexName)
 

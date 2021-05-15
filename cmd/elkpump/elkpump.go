@@ -6,17 +6,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"flag"
 	"log"
 	"net/http"
+	"os"
 	"runtime"
+	"strconv"
 	"sync/atomic"
 	"time"
 
-//	"strconv"
-//	"strings"
-
-	"gopkg.in/ini.v1"
 	"github.com/cenkalti/backoff/v4"
 
 	"github.com/elastic/go-elasticsearch/v8"
@@ -27,15 +24,20 @@ import (
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
 )
 
+var configStrings = map[string]string{
+	"mbhost": "activemq",
+	"mbport": "61613",
+}
+
 var (
 	countSuccessful uint64
-)	
-	
-func handleGroups(groupsChan chan *databus.DataGroup, 
-						bi esutil.BulkIndexer) {
+)
+
+func handleGroups(groupsChan chan *databus.DataGroup,
+	bi esutil.BulkIndexer) {
 	for {
 		group := <-groupsChan
-//		log.Print("group: ", group)
+		//		log.Print("group: ", group)
 		for _, value := range group.Values {
 			log.Print("value: ", value)
 
@@ -43,17 +45,17 @@ func handleGroups(groupsChan chan *databus.DataGroup,
 			if err != nil {
 				log.Fatalf("Cannot encode metric:  %s - %s", value.ID, value.Context)
 			}
-	
+
 			// Add an item to the BulkIndexer
 			err = bi.Add(
 				context.Background(),
 				esutil.BulkIndexerItem{
 					// Action field configures the operation to perform (index, create, delete, update)
 					Action: "index",
-	
+
 					// DocumentID is the (optional) document ID
 					DocumentID: value.ID,
-	
+
 					// Body is an `io.Reader` with the payload
 					Body: bytes.NewReader(data),
 
@@ -79,35 +81,40 @@ func handleGroups(groupsChan chan *databus.DataGroup,
 	}
 }
 
+func getEnvSettings() {
+	mbHost := os.Getenv("MESSAGEBUS_HOST")
+	if len(mbHost) > 0 {
+		configStrings["mbhost"] = mbHost
+	}
+	mbPort := os.Getenv("MESSAGEBUS_PORT")
+	if len(mbPort) > 0 {
+		configStrings["mbport"] = mbPort
+	}
+}
+
 func main() {
 	var (
-//countSuccessful uint64
-
 		res *esapi.Response
 		err error
 	)
 
-	configName := flag.String("config", "config.ini", "The configuration ini file")
-
-
-	flag.Parse()
-
-	config, err := ini.Load(*configName)
-	if err != nil {
-		log.Fatalf("Fail to read file: %v", err)
-	}
-
-	stompHost := config.Section("General").Key("StompHost").MustString("0.0.0.0")
-	stompPort := config.Section("General").Key("StompPort").MustInt(61613)
-
-	mb, err := stomp.NewStompMessageBus(stompHost, stompPort)
-	if err != nil {
-		log.Fatal("Could not connect to message bus: ", err)
-	}
-	defer mb.Close()
+	//Gather configuration from environment variables
+	getEnvSettings()
 
 	dbClient := new(databus.DataBusClient)
-	dbClient.Bus = mb
+	for {
+		stompPort, _ := strconv.Atoi(configStrings["mbport"])
+		mb, err := stomp.NewStompMessageBus(configStrings["mbhost"], stompPort)
+		if err != nil {
+			log.Printf("Could not connect to message bus: ", err)
+			time.Sleep(5 * time.Second)
+		} else {
+			dbClient.Bus = mb
+			defer mb.Close()
+			break
+		}
+	}
+
 	groupsIn := make(chan *databus.DataGroup, 10)
 	dbClient.Subscribe("/elkstack")
 	dbClient.Get("/elkstack")
@@ -139,7 +146,7 @@ func main() {
 		Index:         indexName,        // The default index name
 		Client:        es,               // The Elasticsearch client
 		NumWorkers:    runtime.NumCPU(), // The number of worker goroutines
-		FlushBytes:    10000,           // The flush threshold in bytes
+		FlushBytes:    10000,            // The flush threshold in bytes
 		FlushInterval: 1 * time.Second,  // The periodic flush interval
 	})
 	if err != nil {
@@ -160,7 +167,6 @@ func main() {
 		log.Fatalf("Cannot create index: %s", res)
 	}
 	res.Body.Close()
-
 
 	go handleGroups(groupsIn, bi)
 

@@ -6,10 +6,10 @@ Flexibility - Major functionalities like remote source (iDRAC) discovery, creden
 
 Scalability - Additional endpoints of iDRACs can be supported by adding more containers as it is needed to support the additional processing and data load in the environment.
 
-Following big databases/analytics platforms are intergrated and tested at this toolset.
+Following big databases/analytics platforms are intergrated and tested with this toolset.
 * ElasticSearch(ELK stack) 
 * Prometheus database
-* Timescale Database (PostgreSQL)
+* Timescale Database (PostgreSQL adaptation)
 * Influx DB
 
 
@@ -18,10 +18,14 @@ Following big databases/analytics platforms are intergrated and tested at this t
 
 ## Components 
 
+
 * idrac-telemetry-receiver
-    simpleauth and simpledisc applications - Abstracts the discovery and authentication functions
-    redfishread application - Make SSE (Server Sent Event) connection with each discovered data sources(iDRACs) and process the telemetry report streams. iDRAC Telemetry reports are DMTF redfish compliant.   
-* sink applications - Ingest the report streams into specific analytical solution.
+    dbdiscauth applications - Database (mysql) based discovery and authentication functions
+    configgui applications - Graphical User Interface application to configure telemetry source service 
+    redfishread application - Make SSE (Server Sent Event) connection with each discovered data sources(iDRACs) and forwards the telemetry report streams to sink applications through a shared message bus connection. iDRAC Telemetry reports are DMTF redfish compliant.   
+    [Optional]simpleauth and simpledisc applications (Abstracts a file based (following the sample - config.ini)  discovery and authentication functions
+
+* sink applications - Read the telemetry reports from message bus and ingest the report streams into specific analytical solution.
     timescalepump - Ingest timeseries metrics into Elasticsearch database.
     influxpump - Ingest timeseries metrics into InfluxDB database.
     prometheuspump - Ingest timeseries metrics into Prometheus database.

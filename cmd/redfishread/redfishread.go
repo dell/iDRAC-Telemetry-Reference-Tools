@@ -3,15 +3,12 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	"gopkg.in/ini.v1"
 
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/auth"
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/databus"
@@ -20,7 +17,10 @@ import (
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/redfish"
 )
 
-var msmSlot = -1
+var configStrings = map[string]string{
+	"mbhost": "activemq",
+	"mbport": "61613",
+}
 
 type RedfishDevice struct {
 	HasChildren  bool
@@ -130,7 +130,7 @@ func (r *RedfishDevice) StartEventListener(dataBusService *databus.DataBusServic
 		event := <-r.Events
 		timer.Reset(time.Minute * 5)
 		r.LastEvent = time.Now()
-		if event != nil && event.Payload != nil && 
+		if event != nil && event.Payload != nil &&
 			event.Payload.Object["@odata.id"] != nil {
 			log.Printf("%s: Got new report for %s\n", r.SystemID, event.Payload.Object["@odata.id"].(string))
 			parseReport(event.Payload, r.SystemID, dataBusService)
@@ -223,35 +223,38 @@ func handleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *data
 	}
 }
 
-func main() {
-	configName := flag.String("config", "config.ini", "The configuration ini file")
-
-	flag.Parse()
-
-	config, err := ini.Load(*configName)
-	if err != nil {
-		log.Fatalf("Fail to read file: %v", err)
+func getEnvSettings() {
+	mbHost := os.Getenv("MESSAGEBUS_HOST")
+	if len(mbHost) > 0 {
+		configStrings["mbhost"] = mbHost
 	}
+	mbPort := os.Getenv("MESSAGEBUS_PORT")
+	if len(mbPort) > 0 {
+		configStrings["mbport"] = mbPort
+	}
+}
 
-	stompHost := config.Section("General").Key("StompHost").MustString("0.0.0.0")
-	stompPort := config.Section("General").Key("StompPort").MustInt(61613)
+func main() {
+	//Gather configuration from environment variables
+	getEnvSettings()
 
 	dataGroups = make(map[string]map[string]*databus.DataGroup)
 	authClient := new(auth.AuthorizationClient)
 	dataBusService := new(databus.DataBusService)
-       
+
 	for {
-        mb, err := stomp.NewStompMessageBus(stompHost, stompPort)
-        if err != nil {
-            log.Printf("Could not connect to message bus: ", err)
-            time.Sleep(5 * time.Second)
-        } else{
+		stompPort, _ := strconv.Atoi(configStrings["mbport"])
+		mb, err := stomp.NewStompMessageBus(configStrings["mbhost"], stompPort)
+		if err != nil {
+			log.Printf("Could not connect to message bus: ", err)
+			time.Sleep(5 * time.Second)
+		} else {
 			authClient.Bus = mb
 			dataBusService.Bus = mb
 			defer mb.Close()
 			break
 		}
-    }
+	}
 
 	serviceIn := make(chan *auth.Service, 10)
 	commands := make(chan *databus.Command)

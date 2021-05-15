@@ -7,6 +7,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,6 +19,11 @@ import (
 
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
 )
+
+var configStrings = map[string]string{
+	"mbhost": "activemq",
+	"mbport": "61613",
+}
 
 var authServices map[string]auth.Service
 
@@ -106,6 +112,17 @@ func handleDiscServiceChannel(serviceIn chan *disc.Service, config *ini.File, au
 	}
 }
 
+func getEnvSettings() {
+	mbHost := os.Getenv("MESSAGEBUS_HOST")
+	if len(mbHost) > 0 {
+		configStrings["mbhost"] = mbHost
+	}
+	mbPort := os.Getenv("MESSAGEBUS_PORT")
+	if len(mbPort) > 0 {
+		configStrings["mbport"] = mbPort
+	}
+}
+
 func main() {
 	configName := flag.String("config", "config.ini", "The configuration ini file")
 
@@ -116,24 +133,25 @@ func main() {
 		log.Fatalf("Fail to read file: %v", err)
 	}
 
-	stompHost := config.Section("General").Key("StompHost").MustString("0.0.0.0")
-	stompPort := config.Section("General").Key("StompPort").MustInt(61613)
+	//Gather configuration from environment variables
+	getEnvSettings()
 
 	discoveryClient := new(disc.DiscoveryClient)
 	authorizationService := new(auth.AuthorizationService)
-        
+
 	for {
-        mb, err := stomp.NewStompMessageBus(stompHost, stompPort)
-        if err != nil {
-            log.Printf("Could not connect to message bus: ", err)
-            time.Sleep(5 * time.Second)
-        } else {
+		stompPort, _ := strconv.Atoi(configStrings["mbport"])
+		mb, err := stomp.NewStompMessageBus(configStrings["mbhost"], stompPort)
+		if err != nil {
+			log.Printf("Could not connect to message bus: ", err)
+			time.Sleep(5 * time.Second)
+		} else {
 			discoveryClient.Bus = mb
 			authorizationService.Bus = mb
 			defer mb.Close()
 			break
 		}
-	}   
+	}
 	serviceIn := make(chan *disc.Service, 10)
 	commands := make(chan *auth.Command)
 

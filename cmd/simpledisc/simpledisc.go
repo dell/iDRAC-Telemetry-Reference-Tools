@@ -4,17 +4,34 @@ package main
 
 import (
 	"flag"
+	"gopkg.in/ini.v1"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
-	"gopkg.in/ini.v1"
 
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/disc"
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
 )
 
+var configStrings = map[string]string{
+	"mbhost": "activemq",
+	"mbport": "61613",
+}
+
 var services []disc.Service
+
+func getEnvSettings() {
+	mbHost := os.Getenv("MESSAGEBUS_HOST")
+	if len(mbHost) > 0 {
+		configStrings["mbhost"] = mbHost
+	}
+	mbPort := os.Getenv("MESSAGEBUS_PORT")
+	if len(mbPort) > 0 {
+		configStrings["mbport"] = mbPort
+	}
+}
 
 func main() {
 
@@ -27,8 +44,8 @@ func main() {
 		log.Fatalf("Fail to read file: %v", err)
 	}
 
-	stompHost := config.Section("General").Key("StompHost").MustString("0.0.0.0")
-	stompPort := config.Section("General").Key("StompPort").MustInt(61613)
+	//Gather configuration from environment variables
+	getEnvSettings()
 
 	types := config.Section("Services").Key("Types").Strings(",")
 	ips := config.Section("Services").Key("IPs").Strings(",")
@@ -47,16 +64,15 @@ func main() {
 		s.Ip = ips[index]
 		services = append(services, *s)
 	}
-	log.Print("StompHost: ", stompHost)
-	log.Print("StompPort: ", stompPort)
 	log.Print("Services: ", services)
 
 	discoveryService := new(disc.DiscoveryService)
-	for { 	
-		mb, err := stomp.NewStompMessageBus(stompHost, stompPort)
+	for {
+		stompPort, _ := strconv.Atoi(configStrings["mbport"])
+		mb, err := stomp.NewStompMessageBus(configStrings["mbhost"], stompPort)
 		if err != nil {
 			log.Printf("Could not connect to message bus: ", err)
-		    time.Sleep(5 * time.Second)
+			time.Sleep(5 * time.Second)
 		} else {
 			discoveryService.Bus = mb
 			defer mb.Close()

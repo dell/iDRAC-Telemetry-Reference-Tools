@@ -1,8 +1,8 @@
+// Licensed to You under the Apache License, Version 2.0.
 
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -11,13 +11,14 @@ import (
 	"time"
 
 	influx "github.com/influxdata/influxdb1-client/v2"
-	"gopkg.in/ini.v1"
 
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/databus"
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
 )
 
 var configStrings = map[string]string{
+	"mbhost":       "activemq",
+	"mbport":       "61613",
 	"influxDBHost": "http://localhost:8086",
 	"influxDBName": "poweredge_telemetry_metrics",
 }
@@ -25,12 +26,12 @@ var configStrings = map[string]string{
 var db influx.Client
 
 func createDB() {
-    q := influx.Query{
-        Command:  fmt.Sprintf("create database %s", configStrings["influxDBName"]),
-        Database: configStrings["influxDBName"],
+	q := influx.Query{
+		Command:  fmt.Sprintf("create database %s", configStrings["influxDBName"]),
+		Database: configStrings["influxDBName"],
 	}
 
-    _, err := db.Query(q)
+	_, err := db.Query(q)
 	if err != nil {
 		log.Print("Error creating database: ", err)
 	}
@@ -73,34 +74,39 @@ func handleGroups(groupsChan chan *databus.DataGroup) {
 	}
 }
 
-func main() {
-	configName := flag.String("config", "config.ini", "The configuration ini file")
-
-	flag.Parse()
-
-	configIni, err := ini.Load(*configName)
-	if err != nil {
-		log.Fatalf("Fail to read file: %v", err)
+func getEnvSettings() {
+	mbHost := os.Getenv("MESSAGEBUS_HOST")
+	if len(mbHost) > 0 {
+		configStrings["mbhost"] = mbHost
 	}
+	mbPort := os.Getenv("MESSAGEBUS_PORT")
+	if len(mbPort) > 0 {
+		configStrings["mbport"] = mbPort
+	}
+	configStrings["influxDBHost"] = os.Getenv("INFLUXDB_SERVER")
+	configStrings["influxDBName"] = os.Getenv("INFLUXDB_DB")
 
-	stompHost := configIni.Section("General").Key("StompHost").MustString("0.0.0.0")
-	stompPort := configIni.Section("General").Key("StompPort").MustInt(61613)
+}
+
+func main() {
+	var err error
+
+	//Gather configuration from environment variables
+	getEnvSettings()
 
 	dbClient := new(databus.DataBusClient)
 	for {
-		mb, err := stomp.NewStompMessageBus(stompHost, stompPort)
+		stompPort, _ := strconv.Atoi(configStrings["mbport"])
+		mb, err := stomp.NewStompMessageBus(configStrings["mbhost"], stompPort)
 		if err != nil {
-				log.Printf("Could not connect to message bus: ", err)
-				time.Sleep(5 * time.Second)
+			log.Printf("Could not connect to message bus: ", err)
+			time.Sleep(5 * time.Second)
 		} else {
-				dbClient.Bus = mb
-				defer mb.Close()
-				break
+			dbClient.Bus = mb
+			defer mb.Close()
+			break
 		}
 	}
-
-	configStrings["influxDBHost"] = os.Getenv("INFLUXDB_SERVER")
-	configStrings["influxDBName"] = os.Getenv("INFLUXDB_DB")
 
 	groupsIn := make(chan *databus.DataGroup, 10)
 	dbClient.Subscribe("/influx")
@@ -113,7 +119,7 @@ func main() {
 	})
 	if err != nil {
 		log.Println("Cannot connect to influx: ", err)
-	
+
 	} else {
 		defer db.Close()
 		createDB()

@@ -4,15 +4,13 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"time"
-
-	"gopkg.in/ini.v1"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -22,16 +20,18 @@ import (
 )
 
 var configStrings = map[string]string{
-	"timescaleuser": "postgres",
-	"timescalepwd": "postgres",
-	"timescaleDBHost": "localhost",
+	"mbhost":              "activemq",
+	"mbport":              "61613",
+	"timescaleuser":       "postgres",
+	"timescalepwd":        "postgres",
+	"timescaleDBHost":     "localhost",
 	"timescaleDBHostPort": "5432",
-	"timescaleDBName": "poweredge_telemetry_metrics",
+	"timescaleDBName":     "poweredge_telemetry_metrics",
 }
 
 ///////////////////////////////////////////////
 /* PostgresSQL Table schema
-timeseries_metrics 
+timeseries_metrics
 	ID 					TEXT NOT NULL,
 	Context 			TEXT NOT NULL,
 	Label 				TEXT NOT NULL,
@@ -46,7 +46,7 @@ func handleGroups(groupsChan chan *databus.DataGroup, dbpool *pgxpool.Pool, ctx 
 	queryInsertTimeseriesData := `INSERT INTO timeseries_metrics 
 					(ID, Context, Label, Value, System, time) 
 					VALUES ($1, $2, $3, $4, $5, $6);`
- 
+
 	for {
 		group := <-groupsChan
 		batch := &pgx.Batch{}
@@ -55,10 +55,10 @@ func handleGroups(groupsChan chan *databus.DataGroup, dbpool *pgxpool.Pool, ctx 
 			log.Print("value: ", value)
 
 			//load insert statements into batch queue
-			batch.Queue(queryInsertTimeseriesData, 
+			batch.Queue(queryInsertTimeseriesData,
 				value.ID, value.Context, value.Label,
 				value.Value, value.System, value.Timestamp)
-			numInserts++	
+			numInserts++
 		}
 
 		//send batch to connection pool
@@ -83,12 +83,12 @@ func handleGroups(groupsChan chan *databus.DataGroup, dbpool *pgxpool.Pool, ctx 
 
 func initalizePQLWithTimescale(ctx context.Context) (*pgxpool.Pool, error) {
 	// Connect to the postgresql database
-	connStr := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", 
-					configStrings["timescaleuser"],
-					configStrings["timescalepwd"],
-					configStrings["timescaleDBHost"],
-					configStrings["timescaleDBHostPort"],
-					configStrings["timescaleDBName"])
+	connStr := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s",
+		configStrings["timescaleuser"],
+		configStrings["timescalepwd"],
+		configStrings["timescaleDBHost"],
+		configStrings["timescaleDBHostPort"],
+		configStrings["timescaleDBName"])
 	dbpool, err := pgxpool.Connect(ctx, connStr)
 	if err != nil {
 		return dbpool, err
@@ -119,20 +119,17 @@ func initalizePQLWithTimescale(ctx context.Context) (*pgxpool.Pool, error) {
 	return dbpool, err
 }
 
-func main() {
-	var dbpool *pgxpool.Pool
-	configName := flag.String("config", "config.ini", "The configuration ini file")
-
-	flag.Parse()
-
-	config, err := ini.Load(*configName)
-	if err != nil {
-		log.Fatalf("Fail to read file: %v", err)
+func getEnvSettings() {
+	mbHost := os.Getenv("MESSAGEBUS_HOST")
+	if len(mbHost) > 0 {
+		configStrings["mbhost"] = mbHost
+	}
+	mbPort := os.Getenv("MESSAGEBUS_PORT")
+	if len(mbPort) > 0 {
+		configStrings["mbport"] = mbPort
 	}
 
-	stompHost := config.Section("General").Key("StompHost").MustString("0.0.0.0")
-	stompPort := config.Section("General").Key("StompPort").MustInt(61613)
-
+	//Read postgres/timescale db settings
 	username := os.Getenv("POSTGRES_USER")
 	if len(username) > 0 {
 		configStrings["timescaleuser"] = username
@@ -149,19 +146,28 @@ func main() {
 	if len(db) > 0 {
 		configStrings["timescaleDBName"] = db
 	}
+}
+
+func main() {
+	var dbpool *pgxpool.Pool
+	var err error
+
+	//Gather configuration from environment variables
+	getEnvSettings()
 
 	dbClient := new(databus.DataBusClient)
-    for {
-        mb, err := stomp.NewStompMessageBus(stompHost, stompPort)
-        if err != nil {
-            log.Printf("Could not connect to message bus: ", err)
-            time.Sleep(5 * time.Second)
-        } else {
-            dbClient.Bus = mb
-            defer mb.Close()
-            break
-        }
-    }
+	for {
+		stompPort, _ := strconv.Atoi(configStrings["mbport"])
+		mb, err := stomp.NewStompMessageBus(configStrings["mbhost"], stompPort)
+		if err != nil {
+			log.Printf("Could not connect to message bus: ", err)
+			time.Sleep(5 * time.Second)
+		} else {
+			dbClient.Bus = mb
+			defer mb.Close()
+			break
+		}
+	}
 
 	groupsIn := make(chan *databus.DataGroup, 10)
 	dbClient.Subscribe("/tscalestack")
@@ -170,16 +176,16 @@ func main() {
 
 	//Initialize timescale client
 	ctx := context.Background()
-    for {
+	for {
 		dbpool, err = initalizePQLWithTimescale(ctx)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to connect to PQL database: %v\n", err)
-            time.Sleep(5 * time.Second)
+			time.Sleep(5 * time.Second)
 		} else {
 			defer dbpool.Close()
-            break
+			break
 		}
-    }
+	}
 
 	go handleGroups(groupsIn, dbpool, ctx)
 

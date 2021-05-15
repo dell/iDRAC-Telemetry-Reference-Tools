@@ -3,19 +3,24 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"gopkg.in/ini.v1"
 
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/databus"
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
 )
+
+var configStrings = map[string]string{
+	"mbhost": "activemq",
+	"mbport": "61613",
+}
 
 var collectors map[string]map[string]*prometheus.GaugeVec
 
@@ -95,27 +100,37 @@ func handleGroups(groupsChan chan *databus.DataGroup, registry *prometheus.Regis
 	}
 }
 
+func getEnvSettings() {
+	mbHost := os.Getenv("MESSAGEBUS_HOST")
+	if len(mbHost) > 0 {
+		configStrings["mbhost"] = mbHost
+	}
+	mbPort := os.Getenv("MESSAGEBUS_PORT")
+	if len(mbPort) > 0 {
+		configStrings["mbport"] = mbPort
+	}
+}
+
 func main() {
-	configName := flag.String("config", "config.ini", "The configuration ini file")
 
-	flag.Parse()
-
-	config, err := ini.Load(*configName)
-	if err != nil {
-		log.Fatalf("Fail to read file: %v", err)
-	}
-
-	stompHost := config.Section("General").Key("StompHost").MustString("0.0.0.0")
-	stompPort := config.Section("General").Key("StompPort").MustInt(61613)
-
-	mb, err := stomp.NewStompMessageBus(stompHost, stompPort)
-	if err != nil {
-		log.Fatal("Could not connect to message bus: ", err)
-	}
-	defer mb.Close()
+	//Gather configuration from environment variables
+	getEnvSettings()
 
 	dbClient := new(databus.DataBusClient)
-	dbClient.Bus = mb
+	//Initialize messagebus
+	for {
+		stompPort, _ := strconv.Atoi(configStrings["mbport"])
+		mb, err := stomp.NewStompMessageBus(configStrings["mbhost"], stompPort)
+		if err != nil {
+			log.Printf("Could not connect to message bus: ", err)
+			time.Sleep(5 * time.Second)
+		} else {
+			dbClient.Bus = mb
+			defer mb.Close()
+			break
+		}
+	}
+
 	groupsIn := make(chan *databus.DataGroup, 10)
 	dbClient.Subscribe("/prometheus")
 	dbClient.Get("/prometheus")
@@ -126,7 +141,7 @@ func main() {
 
 	gatherer := prometheus.Gatherer(registry)
 	http.Handle("/metrics", promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{}))
-	err = http.ListenAndServe(":2112", nil)
+	err := http.ListenAndServe(":2112", nil)
 	if err != nil {
 		log.Printf("Failed to start webserver %v", err)
 	}
