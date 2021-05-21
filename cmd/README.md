@@ -19,15 +19,15 @@ Following big databases/analytics platforms are intergrated and tested with this
 ## Components 
 
 
-* idrac-telemetry-receiver
-    dbdiscauth applications - Database (mysql) based discovery and authentication functions
-    configgui applications - Graphical User Interface application to configure telemetry source service 
-    redfishread application - Make SSE (Server Sent Event) connection with each discovered data sources(iDRACs) and forwards the telemetry report streams to sink applications through a shared message bus connection. iDRAC Telemetry reports are DMTF redfish compliant.   
-    [Optional]simpleauth and simpledisc applications (Abstracts a file based (following the sample - config.ini)  discovery and authentication functions
+# idrac-telemetry-receiver
+   * dbdiscauth applications - Database (mysql) based discovery and authentication functions
+   * configgui applications - Graphical User Interface application to configure telemetry source service 
+   * redfishread application - Make SSE (Server Sent Event) connection with each discovered data sources(iDRACs) and forwards the telemetry report streams to sink applications through a shared message bus connection. iDRAC Telemetry reports are DMTF redfish compliant.   
+   * [Optional]simpleauth and simpledisc applications (Abstracts a file based (following the sample - config.ini)  discovery and authentication functions
 
-* sink applications - Read the telemetry reports from message bus and ingest the report streams into specific analytical solution.
-    timescalepump - Ingest timeseries metrics into Elasticsearch database.
-    influxpump - Ingest timeseries metrics into InfluxDB database.
-    prometheuspump - Ingest timeseries metrics into Prometheus database.
-    timescalepump - Ingest timeseries metrics into TimeScale database.
+# sink applications - Read the telemetry reports from message bus and ingest the report streams into specific analytical solution.
+   * timescalepump - Ingest timeseries metrics into Elasticsearch database.
+   * influxpump - Ingest timeseries metrics into InfluxDB database.
+   * prometheuspump - Ingest timeseries metrics into Prometheus database.
+   * timescalepump - Ingest timeseries metrics into TimeScale database.
 
