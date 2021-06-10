@@ -1,4 +1,3 @@
-
 # Telemetry Reference Tools  
 
 
@@ -14,6 +13,13 @@ PowerEdge servers with iDRAC9 version 4.00 or higher and Datacenter license can 
 * Go - https://golang.org/
 * ActiveMQ (Message broker framework)
 
+## Hardware and System Requirements
+The toolset has been tested on PowerEdge R640 with Ubuntu 20.04.1 operating system. 
+
+CPU - Intel(R) Xeon(R) Gold 6130 CPU @ 2.10GHz
+
+RAM - 16GB
+
 ## Setup Instructions  
 Please reference the included Docker Compose files for setup instructions.
 
@@ -23,6 +29,14 @@ This project is licensed under Apache 2.0 License. See the [LICENSE](LICENSE.md)
 ## Contributing
 We welcome your contributions this reference toolset. See [Contributing Guidelines](CONTRIBUTING.md) for more details.
 You can refer our [Code of Conduct](CODE_OF_CONDUCT.md) here.
+
+## Disclaimer
+The software applications included in this package are  considered "BETA". They are intended for testing use in non-production  environments only. 
+
+No support is implied or offered. Dell Corporation assumes no  responsibility for results or performance of "BETA" files.  Dell does NOT warrant that the Software will meet your requirements, or that operation of the Software will be uninterrupted or error free. The Software is provided to you "AS IS" without warranty of any kind. DELL DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. The entire risk as to the results and performance of the Software is assumed by you. No technical support provided with this Software. 
+
+IN NO EVENT SHALL DELL OR ITS SUPPLIERS BE LIABLE FOR ANY DIRECT OR INDIRECT DAMAGES WHATSOEVER (INCLUDING, WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS, BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS) ARISING OUT OF USE OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. Some jurisdictions do not allow an exclusion or limitation of liability for consequential or incidental damages, so the above limitation may not apply to you.
+
 
 ## Support
   * To report any issue, create an issue [here](https://github.com/dell/iDRAC-Telemetry-Reference-Tools/issues).

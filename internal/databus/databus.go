@@ -4,6 +4,7 @@ package databus
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -183,17 +184,23 @@ func (d *DataBusClient) GetResponse(queue string) *Response {
 	if err != nil {
 		log.Print("Error reading queue: ", err)
 	}
+
 	return resp
 }
 
-func (d *DataBusClient) GetProducers(queue string) []*DataProducer {
+func (d *DataBusClient) GetProducers(queue string) []DataProducer {
 	var command Command
 	command.Command = GETPRODUCERS
 	command.RecieveQueue = queue
 	d.SendCommand(command)
 
 	resp := d.GetResponse(queue)
-	return resp.Data.([]*DataProducer)
+	fmt.Printf("%+v", resp)
+
+	producers := []DataProducer{}
+	mapstructure.Decode(resp.Data, &producers)
+//	return resp.Data.([]DataProducer)
+	return producers
 }
 
 func (d *DataBusClient) GetGroup(groups chan<- *DataGroup, queue string) {

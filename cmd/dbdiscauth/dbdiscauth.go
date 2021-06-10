@@ -19,13 +19,13 @@ import (
 
 var configStrings = map[string]string{
 	//default settings
-	"mbhost":        "activemq",
-	"mbport":        "61613",
-	"mysqluser":     "", //to be provided by user
-	"mysqlpwd":      "", //to be provieed by user
-	"mysqlHost":     "localhost",
-	"mysqlHostPort": "3306",
-	"mysqlDBName":   "telemetrysource-services-db",
+	"mbhost":        "activemq",		//to be provided by user
+	"mbport":        "61613",			//to be provided by user
+	"mysqluser":     "", 				//to be provided by user
+	"mysqlpwd":      "", 				//to be provieed by user
+	"mysqlHost":     "localhost",		//to be provided by user
+	"mysqlHostPort": "3306",			//to be provided by user
+	"mysqlDBName":   "telemetrysource_services_db", 	//to be provided by user
 }
 
 func getInstancesFromDB(db *sql.DB) ([]auth.Service, error) {
