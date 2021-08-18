@@ -5,9 +5,18 @@ services:
     image: prom/prometheus:v2.1.0
     restart: always
     container_name: prometheus
+    volumes:
+      - ./../.:/go/src/github.com/telemetry-reference-tools
+      - ./prometheus/:/etc/prometheus/
+      - prometheus_data:/prometheus
+    working_dir:
+      /go/src/github.com/telemetry-reference-tools
     environment:
       - node.name=prometheus
       - PROMETHEUS_DB=poweredge_telemetry_metrics
+    command:
+      - '--config.file=cmd/prometheuspump/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
     networks:
       - prometheuspipeline
 
@@ -79,6 +88,9 @@ services:
       - prometheuspipeline
     depends_on:
       - "activemq"
+
+volumes:
+    prometheus_data: {}
 
 networks:
   prometheuspipeline:
