@@ -5,5 +5,7 @@ go run cmd/redfishread/redfishread.go &
 ## can be used for file based 
 ## discovery and authentication
 ## (look at sample config.ini for details)
-go run cmd/simpleauth/simpleauth.go &
-go run cmd/simpledisc/simpledisc.go
+go run cmd/dbdiscauth/dbdiscauth.go
+#go run cmd/simpleauth/simpleauth.go &
+#go run cmd/simpledisc/simpledisc.go
+
