@@ -163,7 +163,7 @@ func main() {
 	go authorizationService.RecieveCommand(commands)
 	for {
 		command := <-commands
-		log.Printf("Recieved command: %s", command.Command)
+		log.Printf("in simpleauth, Recieved command: %s", command.Command)
 		switch command.Command {
 		case auth.RESEND:
 			for _, element := range authServices {
