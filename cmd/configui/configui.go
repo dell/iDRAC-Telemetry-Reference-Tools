@@ -18,8 +18,8 @@ import (
 )
 
 var configStrings = map[string]string{
-	"mbhost":   "activemq",
-	"mbport":   "61613",
+	"mbhost": "activemq",
+	"mbport": "61613",
 	"httpport": "8082",
 }
 
@@ -53,15 +53,13 @@ func addSystem(c *gin.Context, s *SystemHandler) {
 		service.Auth = make(map[string]string)
 		service.Auth["username"] = tmp.Username
 		service.Auth["password"] = tmp.Password
-		serviceerr := s.AuthClient.AddService(service)
-		if serviceerr != nil {
-			log.Println("Failed to add service parse json: ", serviceerr)
-			_ = c.AbortWithError(500, err)
-		} else {
-			c.JSON(200, gin.H{"success": "true"})
-		}
+		s.AuthClient.AddService(service)
+		c.JSON(200, gin.H{
+			"success": "true",
+		})
 	}
 }
+
 
 func getEnvSettings() {
 	mbHost := os.Getenv("MESSAGEBUS_HOST")
@@ -89,18 +87,18 @@ func main() {
 
 	//Initialize messagebus
 	for {
-		stompPort, _ := strconv.Atoi(configStrings["mbport"])
+		stompPort, _:= strconv.Atoi(configStrings["mbport"]) 
 		mb, err := stomp.NewStompMessageBus(configStrings["mbhost"], stompPort)
 		if err != nil {
-			log.Printf("Could not connect to message bus: ", err)
-			time.Sleep(5 * time.Second)
-		} else {
+            log.Printf("Could not connect to message bus: ", err)
+            time.Sleep(5 * time.Second)
+        } else{
 			systemHandler.AuthClient.Bus = mb
 			systemHandler.DataBus.Bus = mb
 			defer mb.Close()
 			break
 		}
-	}
+    }
 
 	//Setup http handlers and start webservice
 	r := gin.Default()

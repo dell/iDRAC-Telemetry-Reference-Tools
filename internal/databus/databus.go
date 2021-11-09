@@ -72,7 +72,7 @@ type DataBusClient struct {
 	Bus messagebus.Messagebus
 }
 
-func (d *DataBusService) SendResponse(queue string, command string, dataType string, data interface{})(error) {
+func (d *DataBusService) SendResponse(queue string, command string, dataType string, data interface{}) {
 	res := new(Response)
 	res.Command = command
 	res.DataType = dataType
@@ -82,7 +82,6 @@ func (d *DataBusService) SendResponse(queue string, command string, dataType str
 	if err != nil {
 		log.Printf("Failed to send response %v", err)
 	}
-	return err
 }
 
 func (d *DataBusService) SendMultipleResponses(command string, dataType string, data interface{}) {
@@ -107,12 +106,11 @@ func (d *DataBusService) SendGroupToQueue(group DataGroup, queue string) {
 	d.SendResponse(queue, GET, "DataGroup", group)
 }
 
-func (d *DataBusService) SendProducersToQueue(producer []*DataProducer, queue string) (error){
-	err := d.SendResponse(queue, GETPRODUCERS, "DataProducer", producer)
-	return err
+func (d *DataBusService) SendProducersToQueue(producer []*DataProducer, queue string) {
+	d.SendResponse(queue, GETPRODUCERS, "DataProducer", producer)
 }
 
-func (d *DataBusService) RecieveCommand(commands chan<- *Command)(error) {
+func (d *DataBusService) RecieveCommand(commands chan<- *Command) {
 	messages := make(chan string, 10)
 
 	go func() {
@@ -126,8 +124,7 @@ func (d *DataBusService) RecieveCommand(commands chan<- *Command)(error) {
 		command := new(Command)
 		err := json.Unmarshal([]byte(message), command)
 		if err != nil {
-			log.Printf("Error reading command queue: ", err)
-			//return err
+			log.Print("Error reading command queue: ", err)
 		}
 		if command.Command == SUBSCRIBE {
 			found := false
@@ -143,7 +140,6 @@ func (d *DataBusService) RecieveCommand(commands chan<- *Command)(error) {
 			commands <- command
 		}
 	}
-	return nil
 }
 
 func (d *DataBusClient) SendCommand(command Command) {

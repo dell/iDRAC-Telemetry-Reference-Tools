@@ -95,7 +95,7 @@ func main() {
 	go discoveryService.RecieveCommand(commands)
 	for {
 		command := <-commands
-		log.Printf("in simpledisc Recieved command: %s", command.Command)
+		log.Printf("Recieved command: %s", command.Command)
 		switch command.Command {
 		case disc.RESEND:
 			for _, element := range services {

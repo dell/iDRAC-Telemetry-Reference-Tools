@@ -53,16 +53,15 @@ type AuthorizationClient struct {
 	Bus messagebus.Messagebus
 }
 
-func (d *AuthorizationService) SendService(service Service) (error){
+func (d *AuthorizationService) SendService(service Service) {
 	jsonStr, _ := json.Marshal(service)
 	err := d.Bus.SendMessage(jsonStr, EventQueue)
 	if err != nil {
 		log.Printf("Failed to send service %v", err)
 	}
-	return err
 }
 
-func (d *AuthorizationService) RecieveCommand(commands chan<- *Command)(error) {
+func (d *AuthorizationService) RecieveCommand(commands chan<- *Command) {
 	messages := make(chan string, 10)
 
 	go func() {
@@ -78,20 +77,17 @@ func (d *AuthorizationService) RecieveCommand(commands chan<- *Command)(error) {
 		if err != nil {
 			log.Print("Error reading command queue: ", err)
 			log.Printf("Message %#v\n", message)
-			return err
 		}
 		commands <- command
 	}
-	return nil
 }
 
-func (d *AuthorizationClient) SendCommand(command Command)(error) {
+func (d *AuthorizationClient) SendCommand(command Command) {
 	jsonStr, _ := json.Marshal(command)
 	err := d.Bus.SendMessage(jsonStr, CommandQueue)
 	if err != nil {
 		log.Printf("Failed to send command %v", err)
 	}
-	return err
 }
 
 func (d *AuthorizationClient) SendCommandString(command string) {
@@ -104,11 +100,11 @@ func (d *AuthorizationClient) ResendAll() {
 	d.SendCommandString(RESEND)
 }
 
-func (d *AuthorizationClient) AddService(service Service) (error){
+func (d *AuthorizationClient) AddService(service Service) {
 	c := new(Command)
 	c.Command = ADDSERVICE
 	c.Service = service
-	return d.SendCommand(*c)
+	d.SendCommand(*c)
 }
 
 func (d *AuthorizationClient) GetService(services chan<- *Service) {
