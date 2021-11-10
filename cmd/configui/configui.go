@@ -53,10 +53,13 @@ func addSystem(c *gin.Context, s *SystemHandler) {
 		service.Auth = make(map[string]string)
 		service.Auth["username"] = tmp.Username
 		service.Auth["password"] = tmp.Password
-		s.AuthClient.AddService(service)
-		c.JSON(200, gin.H{
-			"success": "true",
-		})
+		serviceerr := s.AuthClient.AddService(service)
+        if serviceerr != nil {
+            log.Println("Failed to add service parse json: ", serviceerr)
+            _ = c.AbortWithError(500, err)
+        } else {
+            c.JSON(200, gin.H{"success": "true",})
+        }
 	}
 }
 

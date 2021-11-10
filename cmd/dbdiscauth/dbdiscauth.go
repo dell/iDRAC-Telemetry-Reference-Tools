@@ -160,7 +160,7 @@ func main() {
 	//Initialize mysql db instance which stores service authorizations
 	db, err := initMySQLDatabase()
 	if err != nil {
-		log.Print("Failed to initalize db: ", err)
+		log.Printf("Failed to initalize db: ", err)
 	} else {
 		defer db.Close()
 	}
@@ -168,7 +168,7 @@ func main() {
 	//Fetch and publish configured services in the database
 	authServices, err := getInstancesFromDB(db)
 	if err != nil {
-		log.Print("Failed to get db entries: ", err)
+		log.Printf("Failed to get db entries: ", err)
 	} else {
 		for _, element := range authServices {
 			go authorizationService.SendService(element)
@@ -180,12 +180,12 @@ func main() {
 	go authorizationService.RecieveCommand(commands)
 	for {
 		command := <-commands
-		log.Printf("Recieved command: %s", command.Command)
+		log.Printf("Recieved command in dbdiscauth: %s", command.Command)
 		switch command.Command {
 		case auth.RESEND:
 			authServices, err := getInstancesFromDB(db)
 			if err != nil {
-				log.Print("Failed to get db entries: ", err)
+				log.Printf("Failed to get db entries: ", err)
 				break
 			}
 			for _, element := range authServices {
@@ -194,7 +194,7 @@ func main() {
 		case auth.ADDSERVICE:
 			err = addServiceToDB(db, command.Service, authorizationService)
 			if err != nil {
-				log.Print("Failed to write db entries: ", err)
+				log.Printf("Addservice,Failed to write db entries: ", err)
 			}
 		case auth.TERMINATE:
 			os.Exit(0)

@@ -267,7 +267,7 @@ func main() {
 	go dataBusService.RecieveCommand(commands)
 	for {
 		command := <-commands
-		log.Printf("Recieved command: %s", command.Command)
+		log.Printf("Recieved command in redfishread: %s", command.Command)
 		switch command.Command {
 		case databus.GET:
 			for _, system := range dataGroups {
@@ -287,7 +287,10 @@ func main() {
 				producers[i] = producer
 				i = i + 1
 			}
-			dataBusService.SendProducersToQueue(producers, command.RecieveQueue)
+			err := dataBusService.SendProducersToQueue(producers, command.RecieveQueue)
+			if err != nil {
+				log.Printf("aft SendProducersToQueue got error,so continue")
+			}
 		case auth.TERMINATE:
 			os.Exit(0)
 		}
