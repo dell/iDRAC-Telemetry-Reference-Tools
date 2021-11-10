@@ -227,6 +227,7 @@ func main() {
 	}
 
 	indexName := "poweredge_telemetry_metrics"
+	time.Sleep(15 * time.Second)
 	// Re-create the index
 	if res, err = es.Indices.Delete([]string{indexName}); err != nil {
 		log.Fatalf("Cannot delete index: %s", err)
