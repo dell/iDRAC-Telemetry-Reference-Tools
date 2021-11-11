@@ -2,6 +2,7 @@
 
 
 PowerEdge Telemetry reference toolset collects the metric reports from various devices at the PowerEdge compute and outlines a reference design to integrate with external big databases for downstream analytics and visualization.
+* https://www.youtube.com/watch?v=T5ve03DB77I
 
 
 ![Screenshot](overview.png)
