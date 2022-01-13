@@ -1,0 +1,1253 @@
+{
+	"@odata.context" : "/redfish/v1/$metadata#DellNumericSensorCollection.DellNumericSensorCollection",
+	"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors",
+	"@odata.type" : "#DellNumericSensorCollection.DellNumericSensorCollection",
+	"Description" : "A collection of DellNumericSensor resource",
+	"Members" : 
+	[
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_SystemBoardIOUsage",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483648.0,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#SystemBoardIOUsage",
+			"ElementName" : "System Board IO Usage",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_SystemBoardIOUsage",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : "IO Usage Statistics",
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "Percentage",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Other",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : 0,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_SystemBoardMEMUsage",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483648.0,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#SystemBoardMEMUsage",
+			"ElementName" : "System Board MEM Usage",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_SystemBoardMEMUsage",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : "Memory Usage Statistics",
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "Percentage",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Other",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : 0,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_SystemBoardSYSUsage",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483648.0,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#SystemBoardSYSUsage",
+			"ElementName" : "System Board SYS Usage",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_SystemBoardSYSUsage",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : "System Usage Statistics",
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "Percentage",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Other",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : 0,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_SystemBoardCPUUsage",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483648.0,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#SystemBoardCPUUsage",
+			"ElementName" : "System Board CPU Usage",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_SystemBoardCPUUsage",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : "CPU Usage Statistics",
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "Percentage",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Other",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : 0,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_CPU1VCOREVR",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483.648,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#CPU1VCOREVR",
+			"ElementName" : "CPU1 VCORE VR",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_CPU1VCOREVR",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "Volts",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Voltage",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : 0,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_CPU2VCoreVR",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483.648,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#CPU2VCoreVR",
+			"ElementName" : "CPU2 VCore VR",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_CPU2VCoreVR",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "Volts",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Voltage",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : 0,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_CPU3VCoreVR",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483.648,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#CPU3VCoreVR",
+			"ElementName" : "CPU3 VCore VR",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_CPU3VCoreVR",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "Volts",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Voltage",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : 0,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_CPU4VCOREVR",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483.648,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#CPU4VCOREVR",
+			"ElementName" : "CPU4 VCORE VR",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_CPU4VCOREVR",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "Volts",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Voltage",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : 0,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_CPU1MEM012VR",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483.648,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#CPU1MEM012VR",
+			"ElementName" : "CPU1 MEM012 VR",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_CPU1MEM012VR",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "Volts",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Voltage",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : 0,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_CPU1MEM345VR",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483.648,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#CPU1MEM345VR",
+			"ElementName" : "CPU1 MEM345 VR",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_CPU1MEM345VR",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "Volts",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Voltage",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : 0,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_CPU2MEM012VR",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483.648,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#CPU2MEM012VR",
+			"ElementName" : "CPU2 MEM012 VR",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_CPU2MEM012VR",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "Volts",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Voltage",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : 0,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_CPU2MEM345VR",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483.648,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#CPU2MEM345VR",
+			"ElementName" : "CPU2 MEM345 VR",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_CPU2MEM345VR",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "Volts",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Voltage",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : 0,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_CPU3MEM012VR",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483.648,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#CPU3MEM012VR",
+			"ElementName" : "CPU3 MEM012 VR",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_CPU3MEM012VR",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "Volts",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Voltage",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : 0,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_CPU3MEM345VR",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483.648,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#CPU3MEM345VR",
+			"ElementName" : "CPU3 MEM345 VR",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_CPU3MEM345VR",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "Volts",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Voltage",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : 0,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_CPU4MEM012VR",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483.648,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#CPU4MEM012VR",
+			"ElementName" : "CPU4 MEM012 VR",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_CPU4MEM012VR",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "Volts",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Voltage",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : 0,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_CPU4MEM345VR",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483.648,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#CPU4MEM345VR",
+			"ElementName" : "CPU4 MEM345 VR",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_CPU4MEM345VR",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "Volts",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Voltage",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : 0,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_CPU1Temp",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483648.0,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#CPU1Temp",
+			"ElementName" : "CPU1 Temp",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_CPU1Temp",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "DegreesC",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Temperature",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : -1,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_CPU2Temp",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483648.0,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#CPU2Temp",
+			"ElementName" : "CPU2 Temp",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_CPU2Temp",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "DegreesC",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Temperature",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : -1,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_SystemBoardInletTemp",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : 180.0,
+			"CurrentState" : "Normal",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#SystemBoardInletTemp",
+			"ElementName" : "System Board Inlet Temp",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "OK",
+			"Id" : "iDRAC.Embedded.1_0x23_SystemBoardInletTemp",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -70,
+			"LowerThresholdNonCritical" : 30,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"OK"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "OK",
+			"RateUnits" : "None",
+			"ReadingUnits" : "DegreesC",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Temperature",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : -1,
+			"UpperThresholdCritical" : 470,
+			"UpperThresholdNonCritical" : 430,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_SystemBoardExhaustTemp",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483648.0,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#SystemBoardExhaustTemp",
+			"ElementName" : "System Board Exhaust Temp",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_SystemBoardExhaustTemp",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "DegreesC",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Temperature",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : -1,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_CPU3Temp",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483648.0,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#CPU3Temp",
+			"ElementName" : "CPU3 Temp",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_CPU3Temp",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "DegreesC",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Temperature",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : -1,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_CPU4Temp",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483648.0,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#CPU4Temp",
+			"ElementName" : "CPU4 Temp",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_CPU4Temp",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "DegreesC",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Temperature",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : -1,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		},
+		{
+			"@odata.context" : "/redfish/v1/$metadata#DellNumericSensor.DellNumericSensor",
+			"@odata.id" : "/redfish/v1/Systems/System.Embedded.1/Oem/Dell/DellNumericSensors/iDRAC.Embedded.1_0x23_PS2Voltage",
+			"@odata.type" : "#DellNumericSensor.v1_1_1.DellNumericSensor",
+			"CurrentReading" : -2147483.648,
+			"CurrentState" : "Unknown",
+			"Description" : "An instance of DellNumericSensor will have data specific to sensor devices that returns only numeric readings and optionally supports thresholds settings.",
+			"DeviceID" : "iDRAC.Embedded.1#PS2Voltage",
+			"ElementName" : "PS2 Voltage 2",
+			"EnabledDefault" : "Enabled",
+			"EnabledState" : "Enabled",
+			"HealthState" : "Unknown",
+			"Id" : "iDRAC.Embedded.1_0x23_PS2Voltage",
+			"Links" : 
+			{
+				"ComputerSystem" : 
+				{
+					"@odata.id" : "/redfish/v1/Systems/System.Embedded.1"
+				}
+			},
+			"LowerThresholdCritical" : -2147483648,
+			"LowerThresholdNonCritical" : -2147483648,
+			"Name" : "DellNumericSensor",
+			"OperationalStatus" : 
+			[
+				"Unknown"
+			],
+			"OperationalStatus@odata.count" : 1,
+			"OtherSensorTypeDescription" : null,
+			"PossibleStates" : 
+			[
+				"Unknown",
+				"Fatal",
+				"Normal",
+				"Upper Fatal",
+				"Upper Critical",
+				"Upper Non-Critical",
+				"Lower Non-Critical",
+				"Lower Critical",
+				"Lower Fatal"
+			],
+			"PossibleStates@odata.count" : 9,
+			"PrimaryStatus" : "Unknown",
+			"RateUnits" : "None",
+			"ReadingUnits" : "Volts",
+			"RequestedState" : "NotApplicable",
+			"SensorType" : "Voltage",
+			"SystemName" : "system",
+			"TransitioningToState" : "NotApplicable",
+			"UnitModifier" : 0,
+			"UpperThresholdCritical" : -2147483648,
+			"UpperThresholdNonCritical" : -2147483648,
+			"ValueFormulation" : 2
+		}
+	],
+	"Members@odata.count" : 23,
+	"Name" : "DellNumericSensorCollection"
+}
