@@ -1,2 +1,4 @@
 # golang build related files 
 vendor/
+
+.idea/
