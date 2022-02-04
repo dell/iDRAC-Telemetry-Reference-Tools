@@ -127,9 +127,10 @@ services:
       go run cmd/elkpump/elkpump-basic.go
     networks:
       - elastic
-    depends_on: {"es01": {"condition": "service_healthy"}}
     depends_on:
       - "activemq"
+      - "es01"
+
     environment:
       - MESSAGEBUS_HOST=activemq      #sample reference - specify messagebus hostname
       - MESSAGEBUS_PORT=61613         #sample reference - specify messagebus port
