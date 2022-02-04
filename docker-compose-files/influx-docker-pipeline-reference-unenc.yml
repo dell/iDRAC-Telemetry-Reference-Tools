@@ -90,9 +90,9 @@ services:
       - INFLUXDB_DB=poweredge_telemetry_metrics
     networks:
       - influxpipeline
-    depends_on: {"influx": {"condition": "service_healthy"}}
     depends_on:
       - "activemq"
+      - "influx"  
 
 networks:
   influxpipeline:
