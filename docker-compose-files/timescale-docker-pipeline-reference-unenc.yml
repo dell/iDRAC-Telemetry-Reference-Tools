@@ -72,6 +72,8 @@ services:
     depends_on:
       - "activemq"
       - "mysqldb"
+    ports:
+      - "8082:8082"
 
   timescale-ingester:
     image: golang:1.15
