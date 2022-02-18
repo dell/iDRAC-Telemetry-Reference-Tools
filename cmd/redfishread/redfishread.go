@@ -200,7 +200,7 @@ func handleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *data
 		log.Print("Got new service = ", service.Ip)
 		var r *redfish.RedfishClient
 		var err error
-		log.Println(service)
+		//log.Println(service)
 		if service.AuthType == auth.AuthTypeUsernamePassword {
 			r, err = redfish.Init(service.Ip, service.Auth["username"], service.Auth["password"])
 		} else if service.AuthType == auth.AuthTypeBearerToken {
@@ -210,7 +210,7 @@ func handleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *data
 			log.Printf("%s: Failed to instantiate redfish client %v", service.Ip, err)
 			continue
 		}
-		log.Print(r)
+		//log.Print(r)
 		device := new(RedfishDevice)
 		device.Redfish = r
 		device.State = databus.STARTING
