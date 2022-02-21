@@ -137,6 +137,8 @@ services:
     depends_on:
       - "activemq"
       - "mysqldb"
+    ports:
+      - "8082:8082"
 
 networks:
   combinedpipeline:

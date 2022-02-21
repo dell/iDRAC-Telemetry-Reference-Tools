@@ -70,6 +70,8 @@ services:
     depends_on:
       - "activemq"
       - "mysqldb"
+    ports:
+      - "8082:8082"
 
   prometheus-ingester:
     image: golang:1.15
