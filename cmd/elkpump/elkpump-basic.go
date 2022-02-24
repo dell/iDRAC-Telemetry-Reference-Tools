@@ -221,7 +221,21 @@ func main() {
 
 	//Initialize elasticsearch client
 	time.Sleep(15 * time.Second)
-	es, err := elasticsearch.NewDefaultClient()
+	es, err := elasticsearch.NewDefaultClient(elasticsearch.Config{
+		RetryOnStatus: []int{502, 503, 504, 429},
+
+		// Configure the backoff function
+		RetryBackoff: func(i int) time.Duration {
+			if i == 1 {
+				retryBackoff.Reset()
+			}
+			return retryBackoff.NextBackOff()
+		},
+
+		// Retry up to 5 attempts
+		MaxRetries: 5,
+	})
+
 	if err != nil {
 		log.Fatalf("Error creating the client: %s", err)
 	}
