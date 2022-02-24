@@ -51,7 +51,7 @@ const (
 
 type Command struct {
 	Command      string `json:"command"`
-	RecieveQueue string `json:"recieveQueue"`
+	ReceiveQueue string `json:"ReceiveQueue"`
 	ReportData   string `json:"reportdata,omitempty"`
 }
 
@@ -72,7 +72,7 @@ type DataBusClient struct {
 	Bus messagebus.Messagebus
 }
 
-func (d *DataBusService) SendResponse(queue string, command string, dataType string, data interface{}) {
+func (d *DataBusService) SendResponse(queue string, command string, dataType string, data interface{}) error {
 	res := new(Response)
 	res.Command = command
 	res.DataType = dataType
@@ -82,6 +82,7 @@ func (d *DataBusService) SendResponse(queue string, command string, dataType str
 	if err != nil {
 		log.Printf("Failed to send response %v", err)
 	}
+	return err
 }
 
 func (d *DataBusService) SendMultipleResponses(command string, dataType string, data interface{}) {
@@ -106,11 +107,12 @@ func (d *DataBusService) SendGroupToQueue(group DataGroup, queue string) {
 	d.SendResponse(queue, GET, "DataGroup", group)
 }
 
-func (d *DataBusService) SendProducersToQueue(producer []*DataProducer, queue string) {
-	d.SendResponse(queue, GETPRODUCERS, "DataProducer", producer)
+func (d *DataBusService) SendProducersToQueue(producer []*DataProducer, queue string) error {
+	err := d.SendResponse(queue, GETPRODUCERS, "DataProducer", producer)
+	return err
 }
 
-func (d *DataBusService) RecieveCommand(commands chan<- *Command) {
+func (d *DataBusService) ReceiveCommand(commands chan<- *Command) error {
 	messages := make(chan string, 10)
 
 	go func() {
@@ -124,22 +126,24 @@ func (d *DataBusService) RecieveCommand(commands chan<- *Command) {
 		command := new(Command)
 		err := json.Unmarshal([]byte(message), command)
 		if err != nil {
-			log.Print("Error reading command queue: ", err)
+			log.Printf("Error reading command queue: ", err)
+			//return err
 		}
 		if command.Command == SUBSCRIBE {
 			found := false
 			for _, rec := range d.Recievers {
-				if rec == command.RecieveQueue {
+				if rec == command.ReceiveQueue {
 					found = true
 				}
 			}
 			if !found {
-				d.Recievers = append(d.Recievers, command.RecieveQueue)
+				d.Recievers = append(d.Recievers, command.ReceiveQueue)
 			}
 		} else {
 			commands <- command
 		}
 	}
+	return nil
 }
 
 func (d *DataBusClient) SendCommand(command Command) {
@@ -153,14 +157,14 @@ func (d *DataBusClient) SendCommand(command Command) {
 func (d *DataBusClient) Get(queue string) {
 	var command Command
 	command.Command = GET
-	command.RecieveQueue = queue
+	command.ReceiveQueue = queue
 	d.SendCommand(command)
 }
 
 func (d *DataBusClient) Subscribe(queue string) {
 	var command Command
 	command.Command = SUBSCRIBE
-	command.RecieveQueue = queue
+	command.ReceiveQueue = queue
 	d.SendCommand(command)
 }
 
@@ -191,7 +195,7 @@ func (d *DataBusClient) GetResponse(queue string) *Response {
 func (d *DataBusClient) GetProducers(queue string) []DataProducer {
 	var command Command
 	command.Command = GETPRODUCERS
-	command.RecieveQueue = queue
+	command.ReceiveQueue = queue
 	d.SendCommand(command)
 
 	resp := d.GetResponse(queue)
@@ -199,7 +203,7 @@ func (d *DataBusClient) GetProducers(queue string) []DataProducer {
 
 	producers := []DataProducer{}
 	mapstructure.Decode(resp.Data, &producers)
-//	return resp.Data.([]DataProducer)
+	//	return resp.Data.([]DataProducer)
 	return producers
 }
 
@@ -222,7 +226,7 @@ func (d *DataBusClient) GetGroup(groups chan<- *DataGroup, queue string) {
 
 		group := DataGroup{}
 		mapstructure.Decode(resp.Data, &group)
-//		group := resp.Data.(DataGroup)
+		//		group := resp.Data.(DataGroup)
 		groups <- &group
 	}
 }

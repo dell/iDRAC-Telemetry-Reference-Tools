@@ -2,11 +2,11 @@
 
 // DMTF Redfish Telemetry simulator in Golang.
 //     $ go run source-simulator.go
-//	   $ client side command 
+//	   $ client side command
 //        - curl -s -k -u testuser:testpassword -X GET http://127.0.0.1:8080/redfish/v1/SSE?$filter=EventFormatType%20eq%20MetricReport
 //        - curl -s -k -u testuser:testpassword -X GET http://127.0.0.1:8080/redfish/v1/SSE
 
-// TODO - suport TLS/https
+// TODO - support TLS/https
 
 package main
 
@@ -18,12 +18,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	br "gitlab.pgre.dell.com/enterprise/telemetryservice/utilities/source-simulator/ssebroker"
 	mr "gitlab.pgre.dell.com/enterprise/telemetryservice/utilities/source-simulator/metricreport"
+	br "gitlab.pgre.dell.com/enterprise/telemetryservice/utilities/source-simulator/ssebroker"
 )
 
 var configStrings = map[string]string{
-	"user": "testuser",
+	"user":     "testuser",
 	"password": "testpassword",
 }
 
@@ -37,7 +37,6 @@ func getEnvSettings() {
 		configStrings["password"] = userpassword
 	}
 }
-
 
 func main() {
 	//Gather configuration from environment variables
@@ -81,4 +80,3 @@ func main() {
 	log.Print("Starting to listen on port 8080...")
 	router.Run(":8080")
 }
-
