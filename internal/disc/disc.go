@@ -51,7 +51,7 @@ func (d *DiscoveryService) SendService(service Service) error {
 	return err
 }
 
-func (d *DiscoveryService) RecieveCommand(commands chan<- *Command) {
+func (d *DiscoveryService) ReceiveCommand(commands chan<- *Command) {
 	messages := make(chan string, 10)
 
 	go func() {

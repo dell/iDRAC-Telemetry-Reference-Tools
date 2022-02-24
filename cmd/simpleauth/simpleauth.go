@@ -160,10 +160,10 @@ func main() {
 	discoveryClient.ResendAll()
 	go discoveryClient.GetService(serviceIn)
 	go handleDiscServiceChannel(serviceIn, config, authorizationService)
-	go authorizationService.RecieveCommand(commands)
+	go authorizationService.ReceiveCommand(commands)
 	for {
 		command := <-commands
-		log.Printf("Recieved command: %s", command.Command)
+		log.Printf("in simpleauth, Received command: %s", command.Command)
 		switch command.Command {
 		case auth.RESEND:
 			for _, element := range authServices {

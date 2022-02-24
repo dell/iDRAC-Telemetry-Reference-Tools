@@ -1,38 +1,15 @@
-version: '3.1'
+version: '3.5'
 
 services:
-  timescale:
-    image: timescale/timescaledb:latest-pg12
-    container_name: timescale
-    volumes:
-      - ./../.:/go/src/github.com/telemetry-reference-tools
-    working_dir: 
-      /go/src/github.com/telemetry-reference-tools
-    restart: always
-    environment:
-      - node.name=timescale
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - TIMESCALE_DB=poweredge_telemetry_metrics
-    entrypoint: ["/bin/sh","-c"]
-    command:
-      - |
-        cmd/initialize_timescaledb.sh
-    networks:
-      - timescalepipeline
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    networks:
-      - timescalepipeline
 
   activemq:
-    image: rmohr/activemq:5.10.0 
+    image: rmohr/activemq:5.10.0
     container_name: activemq
     networks:
-      - timescalepipeline
-
+      - splunk
+    ports:
+      - "8161:8161"
+      - "61613:61613"
 
   mysqldb:
     image: mysql:latest
@@ -44,15 +21,18 @@ services:
       - MYSQL_PASSWORD=*Ref!**lsq8#v* #sample reference - specify configured credentials
       - MYSQL_ROOT_PASSWORD=""        #sample reference - specify configured credentials
     networks:
-      - timescalepipeline
-    #mount deployed mysql filesystem location for persistance
+      - splunk
+    volumes:
+      - "mysqldb_volume:/var/lib/mysql:rw"
 
   telemetry-receiver:
     image: golang:1.15
     container_name: telemetry-receiver
+    stdin_open: true
+    tty: true
     volumes:
       - ./../.:/go/src/github.com/telemetry-reference-tools
-    working_dir: 
+    working_dir:
       /go/src/github.com/telemetry-reference-tools
     environment:
       - MESSAGEBUS_HOST=activemq      #sample reference - specify messagebus hostname
@@ -68,34 +48,35 @@ services:
       - |
         cmd/idrac-telemetry-receiver.sh
     networks:
-      - timescalepipeline
+      - splunk
     depends_on:
       - "activemq"
       - "mysqldb"
     ports:
       - "8082:8082"
 
-  timescale-ingester:
+  splunkpump:
     image: golang:1.15
-    container_name: timescale-ingester
+    container_name: splunkpump
     volumes:
       - ./../.:/go/src/github.com/telemetry-reference-tools
-    working_dir: 
+    working_dir:
       /go/src/github.com/telemetry-reference-tools
     command:
-      go run cmd/timescalepump/timescalepump.go
+      go run cmd/splunkpump/splunkpump.go
+    networks:
+      - splunk
+    depends_on:
+      - "activemq"
     environment:
       - MESSAGEBUS_HOST=activemq      #sample reference - specify messagebus hostname
       - MESSAGEBUS_PORT=61613         #sample reference - specify messagebus port
-      - POSTGRES_USER=postgres
-      - POSTGRES_DEFAULT_PWD=postgres
-      - TIMESCALE_SERVER=timescale
-      - TIMESCALE_DB=poweredge_telemetry_metrics
-    networks:
-      - timescalepipeline
-    depends_on:
-      - "activemq"
+      - SPLUNK_URL=http://192.168.1.5:8088
+      - SPLUNK_KEY=87b52214-1950-4b22-8fd7-f57543431b81
 
 networks:
-  timescalepipeline:
+  splunk:
     driver: bridge
+
+volumes:
+  mysqldb_volume:

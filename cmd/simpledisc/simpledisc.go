@@ -92,10 +92,10 @@ func main() {
 		}(element)
 	}
 
-	go discoveryService.RecieveCommand(commands)
+	go discoveryService.ReceiveCommand(commands)
 	for {
 		command := <-commands
-		log.Printf("Recieved command: %s", command.Command)
+		log.Printf("in simpledisc Received command: %s", command.Command)
 		switch command.Command {
 		case disc.RESEND:
 			for _, element := range services {

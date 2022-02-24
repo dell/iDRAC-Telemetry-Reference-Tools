@@ -28,7 +28,7 @@ const (
 
 type Command struct {
 	Command       string      `json:"command"`
-	ResponseQueue string      `json:"recieveQueue"`
+	ResponseQueue string      `json:"ReceiveQueue"`
 	Property      string      `json:"property,omitempty"`
 	Value         interface{} `json:"value,omitempty"`
 }
@@ -87,7 +87,7 @@ func (d *ConfigService) Run() {
 		}
 		switch command.Command {
 		default:
-			log.Print("Recieved unknown config command: ", command.Command)
+			log.Print("Received unknown config command: ", command.Command)
 		case GETPROPS:
 			d.GetProperties(command)
 		case GET:

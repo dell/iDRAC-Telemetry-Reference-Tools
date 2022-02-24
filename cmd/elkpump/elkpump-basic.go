@@ -233,6 +233,7 @@ func main() {
 		log.Fatalf("Cannot delete index: %s", err)
 	}
 	res.Body.Close()
+
 	//	res, err = es.Indices.Create(indexName,
 	//			   es.Indices.Create.WithBody(strings.NewReader(mapping)))
 	res, err = es.Indices.Create(indexName)

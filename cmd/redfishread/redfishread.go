@@ -1,4 +1,5 @@
 // Licensed to You under the Apache License, Version 2.0.
+// This script is responsible for reading data from Redfish into the ingest pipeline.
 
 package main
 
@@ -35,6 +36,8 @@ type RedfishDevice struct {
 var devices map[string]*RedfishDevice
 var dataGroups map[string]map[string]*databus.DataGroup
 
+// populateChildChassis If the device is a chassis, we also have to obtain IDs / info for all children in that chassis
+// and pull telemetry on them. This function will expand the chassis information and obtain the necessary information.
 func populateChildChassis(r *RedfishDevice, serviceRoot *redfish.RedfishPayload) {
 	chassisCollection, err := serviceRoot.GetPropertyByName("Chassis")
 	if err != nil {
@@ -77,6 +80,8 @@ func getValueIdContextAndLabel(value *redfish.RedfishPayload, i int) (string, st
 	return id, "", id
 }
 
+// Responsible for taking the report received from SSE, getting its component parts, and then sending it along the
+// data bus
 func parseReport(metricReport *redfish.RedfishPayload, systemid string, dataBusService *databus.DataBusService) {
 	metricValues, err := metricReport.GetPropertyByName("MetricValues")
 	if err != nil {
@@ -91,7 +96,7 @@ func parseReport(metricReport *redfish.RedfishPayload, systemid string, dataBusS
 	for j := 0; j < valuesSize; j++ {
 		metricValue, err := metricValues.GetPropertyByIndex(j)
 		if err != nil {
-			log.Printf("Unable to get mertric report MetricValue %d: %v", j, err)
+			log.Printf("Unable to get metric report MetricValue %d: %v", j, err)
 			continue
 		}
 		if metricValue.Object["MetricValue"] != nil {
@@ -119,6 +124,8 @@ func (r *RedfishDevice) RestartEventListener() {
 	go r.Redfish.ListenForEvents(r.Events)
 }
 
+// StartEventListener Directly responsible for receiving SSE events from iDRAC. Will parse received reports or issue a
+// message in the log indicating it received an unknown SSE event.
 func (r *RedfishDevice) StartEventListener(dataBusService *databus.DataBusService) {
 	if r.Events == nil {
 		r.Events = make(chan *redfish.RedfishEvent, 10)
@@ -140,6 +147,7 @@ func (r *RedfishDevice) StartEventListener(dataBusService *databus.DataBusServic
 	}
 }
 
+// getTelemetry Starts the service which will listen for SSE reports from the iDRAC
 func getTelemetry(r *RedfishDevice, telemetryService *redfish.RedfishPayload, dataBusService *databus.DataBusService) {
 	metricReports, err := telemetryService.GetPropertyByName("MetricReports")
 	if err != nil {
@@ -154,7 +162,7 @@ func getTelemetry(r *RedfishDevice, telemetryService *redfish.RedfishPayload, da
 	for i := 0; i < size; i++ {
 		metricReport, err := metricReports.GetPropertyByIndex(i)
 		if err != nil {
-			log.Printf("Unable to get mertric report %d: %v", i, err)
+			log.Printf("Unable to get metric report %d: %v", i, err)
 			continue
 		}
 		parseReport(metricReport, r.SystemID, dataBusService)
@@ -163,6 +171,9 @@ func getTelemetry(r *RedfishDevice, telemetryService *redfish.RedfishPayload, da
 	r.StartEventListener(dataBusService)
 }
 
+// Take an instance of a Redfish device, get its system ID, get any child devices if it is a chassis, and then start
+// listening for SSE events. NOTE: This expects that someone has enabled Telemetry reports and started the telemetry
+// service externally.
 func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusService) {
 	systemID, err := r.Redfish.GetSystemId()
 	if err != nil {
@@ -183,7 +194,7 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 	//Does this system support Telemetry?
 	telemetryService, err := serviceRoot.GetPropertyByName("TelemetryService")
 	if err != nil {
-		log.Println("TODO: Fake some basic telemetry...")
+		log.Println("TODO: Fake some basic telemetry...") // TODO
 		r.State = databus.STOPPED
 	} else {
 		log.Printf("%s: Using Telemetry Service...\n", r.Redfish.Hostname)
@@ -191,6 +202,8 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 	}
 }
 
+// handleAuthServiceChannel Authenticates to the iDRAC and then launches the telemetry monitoring process via
+// redfishMonitorStart
 func handleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *databus.DataBusService) {
 	for {
 		service := <-serviceIn
@@ -223,6 +236,8 @@ func handleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *data
 	}
 }
 
+// getEnvSettings Retrieve settings from the environment. Notice that configStrings has a set of defaults but those
+// can be overridden by environment variables via this function.
 func getEnvSettings() {
 	mbHost := os.Getenv("MESSAGEBUS_HOST")
 	if len(mbHost) > 0 {
@@ -246,7 +261,7 @@ func main() {
 		stompPort, _ := strconv.Atoi(configStrings["mbport"])
 		mb, err := stomp.NewStompMessageBus(configStrings["mbhost"], stompPort)
 		if err != nil {
-			log.Printf("Could not connect to message bus: ", err)
+			log.Printf("Could not connect to message bus: %s", err)
 			time.Sleep(5 * time.Second)
 		} else {
 			authClient.Bus = mb
@@ -259,20 +274,20 @@ func main() {
 	serviceIn := make(chan *auth.Service, 10)
 	commands := make(chan *databus.Command)
 
-	log.Print("Refish Telemetry Read Service is initialized")
+	log.Print("Redfish Telemetry Read Service is initialized")
 
 	authClient.ResendAll()
 	go authClient.GetService(serviceIn)
 	go handleAuthServiceChannel(serviceIn, dataBusService)
-	go dataBusService.RecieveCommand(commands)
+	go dataBusService.ReceiveCommand(commands)
 	for {
 		command := <-commands
-		log.Printf("Recieved command: %s", command.Command)
+		log.Printf("Received command in redfishread: %s", command.Command)
 		switch command.Command {
 		case databus.GET:
 			for _, system := range dataGroups {
 				for _, group := range system {
-					dataBusService.SendGroupToQueue(*group, command.RecieveQueue)
+					dataBusService.SendGroupToQueue(*group, command.ReceiveQueue)
 				}
 			}
 		case databus.GETPRODUCERS:
@@ -287,7 +302,10 @@ func main() {
 				producers[i] = producer
 				i = i + 1
 			}
-			dataBusService.SendProducersToQueue(producers, command.RecieveQueue)
+			err := dataBusService.SendProducersToQueue(producers, command.ReceiveQueue)
+			if err != nil {
+				log.Printf("aft SendProducersToQueue got error,so continue")
+			}
 		case auth.TERMINATE:
 			os.Exit(0)
 		}
