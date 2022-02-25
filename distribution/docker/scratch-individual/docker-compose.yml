@@ -64,7 +64,7 @@ networks:
 volumes:
   influxdb-storage:
   grafana-storage:
-  prometheus_data: {}
+  prometheus_data:
 
 services:
   activemq:
@@ -157,7 +157,7 @@ services:
       retries: 5
 
 
-  influxpump:
+  influx-pump-standalone: &influx-pump
     ############################################################################
     # INFLUX PUMP - starts the data pump for influx
     #    This is automatically started with the influx-test-db
@@ -181,12 +181,17 @@ services:
       <<: *influx-env
     profiles:
       - influx-pump
-      - influx-test-db
     build:
       <<: *base-build
       args:
         <<: *base-args
         CMD: influxpump
+
+  influx-pump-standalone:
+    <<: *influx-pump
+    depends_on: ["influx"]
+    profiles:
+      - influx-test-db
 
   grafana:
     ############################################################################
@@ -241,22 +246,22 @@ services:
     profiles:
       - prometheus-test-db
     volumes:
-      #- ./../.:/go/src/github.com/telemetry-reference-tools
-      #- ./prometheus/:/etc/prometheus/
+      - type: bind
+        source: ${PWD}/cmd/prometheuspump/prometheus.yml
+        target: /config/prometheus.yml
+        read_only: true
       - prometheus_data:/prometheus
-    working_dir:
-      /go/src/github.com/telemetry-reference-tools
     environment:
       - node.name=prometheus
       - PROMETHEUS_DB=poweredge_telemetry_metrics
     command:
-      - '--config.file=cmd/prometheuspump/prometheus.yml'
+      - '--config.file=/config/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
     networks:
       - private
 
 
-  prometheuspump:
+  prometheus-pump-standalone: &prometheus-pump
     ############################################################################
     # PROMETHEUS PUMP - data pump to pump telemetry into prometheus
     #    This is automatically started with the prometheus-test-db
@@ -275,7 +280,6 @@ services:
     image: idrac-telemetry-reference-tools/prometheuspump:latest
     profiles:
       - prometheus-pump
-      - prometheus-test-db
     environment:
       <<: *messagebus-env
       PROMETHEUSDB_SERVER: prometheus
@@ -285,8 +289,13 @@ services:
         <<: *base-args
         CMD: prometheuspump
 
+  prometheus-pump-withtestserver:
+    <<: *prometheus-pump
+    depends_on: ["prometheus"]
+    profiles:
+      - prometheus-test-db
 
-  splunkpump:
+  splunk-pump-standalone:
     ############################################################################
     # SPLUNK PUMP - data pump to pump telemetry into splunk
     #    Manually start this profile if you want to point to an external server
@@ -300,7 +309,6 @@ services:
     # TODO: add
     #
     ############################################################################
-
     <<: *refdaemon
     image: idrac-telemetry-reference-tools/splunkpump:latest
     profiles:
@@ -312,20 +320,129 @@ services:
         <<: *base-args
         CMD: splunkpump
 
-# elkpump seems to currently have a compile error and breaks
-# as of current latest git commit: 0016fcbbcc01404a1e3b6884299b1dcf2a214e9c
-#
-#  elkpump:
-#    <<: *refdaemon
-#    image: idrac-telemetry-reference-tools/elkpump:latest
-#    build:
-#      <<: *base-build
-#      args:
-#        <<: *base-args
-#        CMD: elkpump
-#    environment: []
-#    depends_on: []
-#    volumes: []
+  elk-pump-standalone: &elk-pump
+    ############################################################################
+    # ELK PUMP - telemetry data pump for elk
+    #    Manually start this profile if you want to point to an external server
+    #
+    # Add this to your docker-compose cli args:
+    #   --profile elk-pump
+    #
+    # If you want to connect to an external ELK instance,
+    # set the following environment variables:
+    #
+    # TODO: add
+    #
+    ############################################################################
+    <<: *refdaemon
+    image: idrac-telemetry-reference-tools/elkpump:latest
+    profiles:
+      - elk-pump
+    depends_on:
+      - "activemq"
+    build:
+      <<: *base-build
+      args:
+        <<: *base-args
+        CMD: elkpump-basic
+
+  elk-pump-withtestserver:
+    <<: *elk-pump
+    profiles:
+      - elk-test-db
+    environment:
+      <<: *messagebus-env
+      ELASTICSEARCH_URL: http://es01:9200
+
+  es01:
+    ############################################################################
+    # ELASTIC SEARCH - test elk instance
+    #
+    # Add this to your docker-compose cli args:
+    #   --profile elk-test-db
+    #
+    # NOTE: CURRENTLY BROKEN ON INTERNAL DEV SERVERS, CANT TEST:
+    #
+    #   es02              | ERROR: [1] bootstrap checks failed
+    #   es02              | [1]: max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144]
+    #   es02              | ERROR: Elasticsearch did not exit normally - check the logs at /usr/share/elasticsearch/logs/es-docker-cluster.log
+    #
+    ############################################################################
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.1
+    container_name: es01
+    profiles:
+      - elk-test-db
+    environment:
+      - node.name=es01
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es02,es03
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - private
+
+    healthcheck:
+      test: curl http://localhost:9200 >/dev/null; if [[ $$? == 52 ]]; then echo 0; else echo 1; fi
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    #mount deployed mysql filesystem location for persistance
+
+  es02:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.1
+    container_name: es02
+    profiles:
+      - elk-test-db
+    environment:
+      - node.name=es02
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es01,es03
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - private
+    #mount deployed mysql filesystem location for persistance
+
+  es03:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.1
+    container_name: es03
+    profiles:
+      - elk-test-db
+    environment:
+      - node.name=es03
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es01,es02
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - private
+    #mount deployed mysql filesystem location for persistance
+
+  kib01:
+    image: docker.elastic.co/kibana/kibana:7.10.1
+    container_name: kib01
+    profiles:
+      - elk-test-db
+    depends_on: ["es01", "es02", "es03"]
+    environment:
+      ELASTICSEARCH_URL: http://es01:9200
+      ELASTICSEARCH_HOSTS: http://es01:9200
+    networks:
+      - private
+    ports:
+      - "5601:5601"
 
 
 # using dbdiscauth for now. dont need simple*
@@ -338,9 +455,6 @@ services:
 #      args:
 #        <<: *base-args
 #        CMD: simpleauth
-#    environment: []
-#    depends_on: []
-#    volumes: []
 #
 #
 #  simpledisc:
@@ -351,6 +465,3 @@ services:
 #      args:
 #        <<: *base-args
 #        CMD: simpledisc
-#    environment: []
-#    depends_on: []
-#    volumes: []
