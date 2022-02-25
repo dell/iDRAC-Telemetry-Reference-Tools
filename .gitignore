@@ -2,3 +2,6 @@
 vendor/
 
 .idea/
+
+# docker-build related files
+.env

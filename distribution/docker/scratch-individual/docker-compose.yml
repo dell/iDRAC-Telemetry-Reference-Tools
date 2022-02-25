@@ -1,0 +1,356 @@
+version: "3.9"
+
+######
+# core services: activemq, mysqldb, configui, dbdiscauth, redfishread
+#
+# The core services are started for every profile. Additionally specify the
+# profile for any backend databases, or start up a test database with the
+# following profiles:
+#    - influx-test-db  -->  also starts:
+#       - influx-pump
+#       - grafana
+#    - prometheus-test-db  --> also starts:
+#       - prometheus-pump
+#       - grafana
+#    - influx-pump
+#    - prometheus-pump
+#    - splunk-pump
+#    - elk-pump (currently broken?)
+#    - grafana
+######
+
+x-env-mysql: &mysql-env
+  MYSQL_DATABASE: "telemetrysource_services_db"  #specify configured database name
+  MYSQL_USER: "reftools"           #sample reference - specify configured user name
+  MYSQL_PASSWORD: "*Ref!**lsq8#v*" #sample reference - specify configured credentials
+  MYSQL_HOST: "mysqldb"            #sample reference - specify mysql hostname
+  MYSQL_HOST_PORT: "3306"          #sample reference - specify mysql port number
+
+x-env-messagebus: &messagebus-env
+  MESSAGEBUS_HOST: activemq      #sample reference - specify messagebus hostname
+  MESSAGEBUS_PORT: 61613         #sample reference - specify messagebus port
+
+x-env-influx: &influx-env
+  INFLUXDB_SERVER: influx
+  INFLUXDB_DB: poweredge_telemetry_metrics
+  INFLUXDB_URL: http://influxdb:8086
+
+x-arg-base: &base-args
+  USER_ID: ${USER_ID:-0}
+  GROUP_ID: ${GROUP_ID:-0}
+  USERNAME: telemetry
+  GROUPNAME: telemetry
+
+x-build-base: &base-build
+    context: .
+    dockerfile: distribution/docker/scratch-individual/Dockerfile
+    args:
+      <<: *base-args
+
+x-refdaemon: &refdaemon
+  user: telemetry:telemetry
+  build:
+    <<: *base-build
+  environment:
+    <<: *messagebus-env
+  depends_on: ["mysqldb", "activemq"]
+  networks:
+    - private
+
+networks:
+  private:
+    driver: bridge
+
+volumes:
+  influxdb-storage:
+  grafana-storage:
+  prometheus_data: {}
+
+services:
+  activemq:
+    container_name: activemq
+    image: rmohr/activemq:5.10.0
+    networks:
+      - private
+
+  mysqldb:
+    container_name: mysqldb
+    image: mysql:latest
+    restart: always
+    environment:
+      <<: *mysql-env
+      # this should only be passed to mysqldb, not needed by other daemons and would be security issue if leaked
+      MYSQL_ROOT_PASSWORD: "bananas"   #sample reference - specify configured credentials
+    networks:
+      - private
+    #mount deployed mysql filesystem location for persistance
+
+
+  configui:
+    <<: *refdaemon
+    image: idrac-telemetry-reference-tools/configui:latest
+    build:
+      <<: *base-build
+      dockerfile: distribution/docker/scratch-individual/Dockerfile.configui
+      args:
+        <<: *base-args
+        CMD: configui
+    environment:
+      <<: *mysql-env
+      <<: *messagebus-env
+      CONFIGUI_HTTP_PORT: 8082       #sample reference - specify web application port
+    ports:
+      - "8080:8082"
+
+
+  dbdiscauth:
+    <<: *refdaemon
+    image: idrac-telemetry-reference-tools/dbdiscauth:latest
+    environment:
+      <<: *messagebus-env
+      <<: *mysql-env
+    build:
+      <<: *base-build
+      args:
+        <<: *base-args
+        CMD: dbdiscauth
+
+
+  redfishread:
+    <<: *refdaemon
+    image: idrac-telemetry-reference-tools/redfishread:latest
+    build:
+      <<: *base-build
+      args:
+        <<: *base-args
+        CMD: redfishread
+
+
+  influx:
+    ############################################################################
+    # INFLUX - start an influx db backend. for testing mostly
+    #
+    # Add this to your docker-compose cli args:
+    #   --profile influx-test-db
+    #
+    # Starting the 'influx-test-db' profile will automatically start:
+    #   - influx pump
+    #   - influx test database
+    #   - grafana dashboard
+    #
+    ############################################################################
+    container_name: influx
+    image: influxdb:1.8
+    profiles:
+      - influx-test-db
+    volumes:
+      - influxdb-storage:/var/lib/influxdb
+    environment:
+      <<: *influx-env
+      node.name: influx
+    networks:
+      - private
+    healthcheck:
+      test: curl http://localhost:8086 >/dev/null; if [[ $$? == 52 ]]; then echo 0; else echo 1; fi
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+
+  influxpump:
+    ############################################################################
+    # INFLUX PUMP - starts the data pump for influx
+    #    This is automatically started with the influx-test-db
+    #    Manually start this profile if you want to point to an external server
+    #
+    # Add this to your docker-compose cli args:
+    #   --profile influx-pump
+    #
+    # If you want to connect to an external influx database, set the following
+    # environment variables:
+    #
+    #  INFLUXDB_SERVER: <hostname-or-ip-of-your-influx-server>
+    #  INFLUXDB_DB: <name-of-influx-database>
+    #  INFLUXDB_URL: http://influxdb:8086
+    #
+    ############################################################################
+    <<: *refdaemon
+    image: idrac-telemetry-reference-tools/influxpump:latest
+    environment:
+      <<: *messagebus-env
+      <<: *influx-env
+    profiles:
+      - influx-pump
+      - influx-test-db
+    build:
+      <<: *base-build
+      args:
+        <<: *base-args
+        CMD: influxpump
+
+  grafana:
+    ############################################################################
+    # GRAFANA - graphical dashboard for timeseries
+    #    This is automatically started with the influx-test-db
+    #    Manually start this if you want to point a grafana dashboard at an
+    #      external server
+    #
+    # Add this to your docker-compose cli args:
+    #   --profile grafana
+    #
+    # If you want to connect to an external influx database, set the following
+    # environment variables:
+    #
+    #  INFLUXDB_SERVER: <hostname-or-ip-of-your-influx-server>
+    #  INFLUXDB_DB: <name-of-influx-database>
+    #  INFLUXDB_URL: http://influxdb:8086
+    #
+    ############################################################################
+
+    # grafana runs as root in latest version. *sigh*
+    container_name: grafana
+    image: grafana/grafana:latest
+    profiles:
+      - grafana
+      - influx-test-db
+    depends_on:
+      - "influx"
+    environment:
+      <<: *influx-env
+    networks:
+      - private
+
+
+  prometheus:
+    ############################################################################
+    # PROMETHEUS - test prometheus database
+    #    This is automatically started with the prometheus-test-db
+    #
+    # Add this to your docker-compose cli args:
+    #   --profile prometheus-test-db
+    #
+    # If you want to connect to an external prometheus database,
+    # set the following environment variables:
+    #
+    # TODO: add
+    #
+    ############################################################################
+    image: prom/prometheus:v2.1.0
+    restart: always
+    container_name: prometheus
+    profiles:
+      - prometheus-test-db
+    volumes:
+      #- ./../.:/go/src/github.com/telemetry-reference-tools
+      #- ./prometheus/:/etc/prometheus/
+      - prometheus_data:/prometheus
+    working_dir:
+      /go/src/github.com/telemetry-reference-tools
+    environment:
+      - node.name=prometheus
+      - PROMETHEUS_DB=poweredge_telemetry_metrics
+    command:
+      - '--config.file=cmd/prometheuspump/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - private
+
+
+  prometheuspump:
+    ############################################################################
+    # PROMETHEUS PUMP - data pump to pump telemetry into prometheus
+    #    This is automatically started with the prometheus-test-db
+    #    Manually start this profile if you want to point to an external server
+    #
+    # Add this to your docker-compose cli args:
+    #   --profile prometheus-pump
+    #
+    # If you want to connect to an external prometheus database,
+    # set the following environment variables:
+    #
+    #  PROMETHEUSDB_SERVER: prometheus-hostname
+    #
+    ############################################################################
+    <<: *refdaemon
+    image: idrac-telemetry-reference-tools/prometheuspump:latest
+    profiles:
+      - prometheus-pump
+      - prometheus-test-db
+    environment:
+      <<: *messagebus-env
+      PROMETHEUSDB_SERVER: prometheus
+    build:
+      <<: *base-build
+      args:
+        <<: *base-args
+        CMD: prometheuspump
+
+
+  splunkpump:
+    ############################################################################
+    # SPLUNK PUMP - data pump to pump telemetry into splunk
+    #    Manually start this profile if you want to point to an external server
+    #
+    # Add this to your docker-compose cli args:
+    #   --profile splunk-pump
+    #
+    # If you want to connect to an external splunk database,
+    # set the following environment variables:
+    #
+    # TODO: add
+    #
+    ############################################################################
+
+    <<: *refdaemon
+    image: idrac-telemetry-reference-tools/splunkpump:latest
+    profiles:
+      - splunk-pump
+    build:
+      <<: *base-build
+      dockerfile: distribution/docker/scratch-individual/Dockerfile.splunkpump
+      args:
+        <<: *base-args
+        CMD: splunkpump
+
+# elkpump seems to currently have a compile error and breaks
+# as of current latest git commit: 0016fcbbcc01404a1e3b6884299b1dcf2a214e9c
+#
+#  elkpump:
+#    <<: *refdaemon
+#    image: idrac-telemetry-reference-tools/elkpump:latest
+#    build:
+#      <<: *base-build
+#      args:
+#        <<: *base-args
+#        CMD: elkpump
+#    environment: []
+#    depends_on: []
+#    volumes: []
+
+
+# using dbdiscauth for now. dont need simple*
+#
+#  simpleauth:
+#    <<: *refdaemon
+#    image: idrac-telemetry-reference-tools/simpleauth:latest
+#    build:
+#      <<: *base-build
+#      args:
+#        <<: *base-args
+#        CMD: simpleauth
+#    environment: []
+#    depends_on: []
+#    volumes: []
+#
+#
+#  simpledisc:
+#    <<: *refdaemon
+#    image: idrac-telemetry-reference-tools/simpledisc:latest
+#    build:
+#      <<: *base-build
+#      args:
+#        <<: *base-args
+#        CMD: simpledisc
+#    environment: []
+#    depends_on: []
+#    volumes: []
