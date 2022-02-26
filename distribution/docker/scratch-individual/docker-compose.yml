@@ -47,10 +47,17 @@ x-build-base: &base-build
     args:
       <<: *base-args
 
+# To disable 'core' services (for testing upper layer stuff one daemon at a
+# time), switch the comments so the following statement is commented out and
+# the subsequent one is uncommented
+x-disable-core: &optional-disable []
+#x-disable-core: &optional-disable ["disabled"]
+
 x-refdaemon: &refdaemon
   user: telemetry:telemetry
   build:
     <<: *base-build
+  profiles: *optional-disable
   environment:
     <<: *messagebus-env
   depends_on: ["mysqldb", "activemq"]
@@ -70,12 +77,14 @@ services:
   activemq:
     container_name: activemq
     image: rmohr/activemq:5.10.0
+    profiles: *optional-disable
     networks:
       - private
 
   mysqldb:
     container_name: mysqldb
     image: mysql:latest
+    profiles: *optional-disable
     restart: always
     environment:
       <<: *mysql-env
@@ -443,6 +452,94 @@ services:
       - private
     ports:
       - "5601:5601"
+
+
+  timescale:
+    ############################################################################
+    # TIMESCALE - test timescale database
+    #    This is automatically started with the timescale-test-db
+    #
+    # Add this to your docker-compose cli args:
+    #   --profile timescale-test-db
+    #
+    # If you want to connect to an external prometheus database,
+    # set the following environment variables:
+    #
+    # TODO: add
+    #
+    ############################################################################
+    image: timescale/timescaledb:latest-pg12
+    container_name: timescale
+    profiles:
+      - timescale-test-db
+    restart: always
+    environment:
+      - node.name=timescale
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASS=postgres
+      - TIMESCALE_DB=poweredge_telemetry_metrics
+    networks:
+      - private
+
+  timescale-setup:
+    image: timescale/timescaledb:latest-pg12
+    restart: "no"
+    profiles:
+      - timescale-test-db
+    depends_on: ["timescale"]
+    environment:
+      - node.name=timescale
+      - POSTGRES_HOST=timescale
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASS=postgres
+      - TIMESCALE_DB=poweredge_telemetry_metrics
+    volumes:
+      - type: bind
+        source: ${PWD}/cmd/initialize_timescaledb.sh
+        target: /extrabin/initialize_timescaledb.sh
+        read_only: true
+    entrypoint: ["/extrabin/initialize_timescaledb.sh"]
+    networks:
+      - private
+
+
+  timescale-pump-standalone: &timescale-pump
+    ############################################################################
+    # TIMESCALE PUMP - telemetry data pump for Timescale
+    #    Manually start this profile if you want to point to an external server
+    #
+    # Add this to your docker-compose cli args:
+    #   --profile timescale-pump
+    #
+    # If you want to connect to an external Timescale instance,
+    # set the following environment variables:
+    #
+    # TODO: add
+    #
+    ############################################################################
+    <<: *refdaemon
+    image: idrac-telemetry-reference-tools/timescale-pump:latest
+    profiles:
+      - timescale-pump
+    depends_on:
+      - "activemq"
+    build:
+      <<: *base-build
+      args:
+        <<: *base-args
+        CMD: timescalepump
+
+  timescale-pump-withtestserver:
+    <<: *timescale-pump
+    profiles:
+      - timescale-test-db
+    environment:
+      <<: *messagebus-env
+      POSTGRES_USER: postgres
+      POSTGRES_DEFAULT_PWD: postgres
+      TIMESCALE_SERVER: timescale
+      TIMESCALE_DB: poweredge_telemetry_metrics
 
 
 # using dbdiscauth for now. dont need simple*
