@@ -14,9 +14,11 @@ opts=$(getopt \
   --longoptions "prometheus-pump" \
   --longoptions "splunk-pump" \
   --longoptions "elk-pump" \
+  --longoptions "timescale-pump" \
   --longoptions "influx-test-db" \
   --longoptions "prometheus-test-db" \
   --longoptions "elk-test-db" \
+  --longoptions "timescale-test-db" \
   --longoptions "grafana" \
   -- "$@")
 if [[ $? -ne 0 ]]; then
@@ -45,11 +47,13 @@ while [[ $# -gt 0 ]]; do
       echo "    --prometheus-pump"
       echo "    --splunk-pump"
       echo "    --elk-pump"
+      echo "    --timescale-pump"
       echo
       echo "  demonstration test databases:"
       echo "    --influx-test-db"
       echo "    --prometheus-test-db"
       echo "    --elk-test-db"
+      echo "    --timescale-test-db"
       echo
       exit 0
       ;;
@@ -68,6 +72,9 @@ while [[ $# -gt 0 ]]; do
     --elk-pump)
       PROFILE_ARG="$PROFILE_ARG --profile elk-pump"
       ;;
+    --timescale-pump)
+      PROFILE_ARG="$PROFILE_ARG --profile timescale-pump"
+      ;;
     --influx-test-db)
       PROFILE_ARG="$PROFILE_ARG --profile influx-test-db"
       ;;
@@ -76,6 +83,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     --elk-test-db)
       PROFILE_ARG="$PROFILE_ARG --profile elk-test-db"
+      ;;
+    --timescale-test-db)
+      PROFILE_ARG="$PROFILE_ARG --profile timescale-test-db"
       ;;
     --grafana)
       PROFILE_ARG="$PROFILE_ARG --profile grafana"
