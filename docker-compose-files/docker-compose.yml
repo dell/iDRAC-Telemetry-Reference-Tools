@@ -43,7 +43,7 @@ x-arg-base: &base-args
 
 x-build-base: &base-build
     context: .
-    dockerfile: distribution/docker/scratch-individual/Dockerfile
+    dockerfile: docker-compose-files/Dockerfile
     args:
       <<: *base-args
 
@@ -100,7 +100,7 @@ services:
     image: idrac-telemetry-reference-tools/configui:latest
     build:
       <<: *base-build
-      dockerfile: distribution/docker/scratch-individual/Dockerfile.configui
+      dockerfile: docker-compose-files/Dockerfile.configui
       args:
         <<: *base-args
         CMD: configui
@@ -324,7 +324,7 @@ services:
       - splunk-pump
     build:
       <<: *base-build
-      dockerfile: distribution/docker/scratch-individual/Dockerfile.splunkpump
+      dockerfile: docker-compose-files/Dockerfile.splunkpump
       args:
         <<: *base-args
         CMD: splunkpump
@@ -496,7 +496,7 @@ services:
       - TIMESCALE_DB=poweredge_telemetry_metrics
     volumes:
       - type: bind
-        source: ${PWD}/cmd/initialize_timescaledb.sh
+        source: ${PWD}/cmd/timescalepump/initialize_timescaledb.sh
         target: /extrabin/initialize_timescaledb.sh
         read_only: true
     entrypoint: ["/extrabin/initialize_timescaledb.sh"]

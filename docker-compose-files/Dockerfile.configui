@@ -37,7 +37,7 @@ ARG CMD
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /etc/passwd /etc/group /etc/
 COPY --from=builder /build/app /app
-COPY index.html /
+COPY cmd/configui/index.html /
 
 USER ${USERNAME}
 ENTRYPOINT ["/app"]
