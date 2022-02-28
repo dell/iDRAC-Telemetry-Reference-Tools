@@ -20,7 +20,6 @@ WORKDIR /build
 COPY internal /build/internal
 COPY cmd /build/cmd
 COPY go.* /build/
-RUN mkdir /out
 
 RUN (getent group ${GROUP_ID}  && (echo groupdel by-id ${GROUP_ID}; groupdel $(getent group ${GROUP_ID} | cut -d: -f1))) ||:
 RUN (getent group ${GROUPNAME} && (echo groupdel ${GROUPNAME}; groupdel ${GROUPNAME})) ||:

@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	bolt "go.etcd.io/bbolt"
@@ -33,13 +34,19 @@ type SplunkEvent struct {
 	Fields SplunkEventFields `json:"fields"`
 }
 
+//
+// MEB: comment -> this appears to be racy?
+//
+var configStringsMu sync.RWMutex
 var configStrings = map[string]string{
-	"splunkHost": "http://splunkhost:8088",
-	"splunkKey":  "87b52214-1950-4b22-8fd7-f57543431b81",
+	"mbhost":    "activemq",
+	"mbport":    "61613",
+	"splunkURL": "http://splunkhost:8088",
+	"splunkKey": "87b52214-1950-4b22-8fd7-f57543431b81",
 }
 
 var configItems = map[string]*config.ConfigEntry{
-	"splunkHost": {
+	"splunkURL": {
 		Set:     configSet,
 		Get:     configGet,
 		Default: "http://splunkhost:8088",
@@ -71,10 +78,14 @@ func configSet(name string, value interface{}) error {
 		log.Printf("Failed to update config db %v", err)
 	}
 	switch name {
-	case "splunkHost":
-		configStrings["splunkHost"] = value.(string)
+	case "splunkURL":
+		configStringsMu.Lock()
+		configStrings["splunkURL"] = value.(string)
+		configStringsMu.Unlock()
 	case "splunkKey":
+		configStringsMu.Lock()
 		configStrings["splunkKey"] = value.(string)
+		configStringsMu.Unlock()
 	default:
 		return fmt.Errorf("Unknown property %s", name)
 	}
@@ -83,16 +94,21 @@ func configSet(name string, value interface{}) error {
 
 func configGet(name string) (interface{}, error) {
 	switch name {
-	case "splunkHost":
+	case "splunkURL":
 		fallthrough
 	case "splunkKey":
-		return configStrings[name], nil
+		configStringsMu.RLock()
+		ret := configStrings[name]
+		configStringsMu.RUnlock()
+		return ret, nil
 	default:
 		return nil, fmt.Errorf("Unknown property %s", name)
 	}
 }
 
 func getEnvSettings() {
+	configStringsMu.Lock()
+	defer configStringsMu.Unlock()
 	mbHost := os.Getenv("MESSAGEBUS_HOST")
 	if len(mbHost) > 0 {
 		configStrings["mbhost"] = mbHost
@@ -101,9 +117,9 @@ func getEnvSettings() {
 	if len(mbPort) > 0 {
 		configStrings["mbport"] = mbPort
 	}
-	splunkHost := os.Getenv("SPLUNK_URL")
+	splunkURL := os.Getenv("SPLUNK_URL")
 	if len(mbPort) > 0 {
-		configStrings["splunkHost"] = splunkHost
+		configStrings["splunkURL"] = splunkURL
 	}
 	splunkKey := os.Getenv("SPLUNK_KEY")
 	if len(mbPort) > 0 {
@@ -119,12 +135,17 @@ func logToSplunk(events []*SplunkEvent) {
 		log.Printf("Timestamp = %d ID = %s System = %s", event.Time, event.Fields.MetricName, event.Host)
 	}
 
-	req, err := http.NewRequest("POST", configStrings["splunkHost"]+"/services/collector", strings.NewReader(builder.String()))
+	configStringsMu.RLock()
+	url := configStrings["splunkURL"] + "/services/collector"
+	key := configStrings["splunkKey"]
+	configStringsMu.RUnlock()
+
+	req, err := http.NewRequest("POST", url, strings.NewReader(builder.String()))
 	if err != nil {
 		log.Print("Error creating request: ", err)
 	}
 
-	req.Header.Add("Authorization", "Splunk "+configStrings["splunkKey"])
+	req.Header.Add("Authorization", "Splunk "+key)
 	req.Header.Add("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
@@ -133,7 +154,7 @@ func logToSplunk(events []*SplunkEvent) {
 	if resp.Body != nil {
 		resp.Body.Close()
 	}
-	log.Printf("%s: Sent to Splunk. Got back %d", configStrings["splunkKey"], resp.StatusCode)
+	log.Printf("Sent to Splunk. Got back %d", resp.StatusCode)
 }
 
 func handleGroups(groupsChan chan *databus.DataGroup) {
@@ -166,18 +187,62 @@ func handleGroups(groupsChan chan *databus.DataGroup) {
 }
 
 func main() {
+	// Desired config precedence:  CLI > ENV > configfile > defaults
+	//   (but: configfile can be specified by CLI)
 
+	configStringsMu.Lock()
 	configName := flag.String("config", "config.ini", "The configuration ini file")
-
-	//Gather configuration from environment variables
-	getEnvSettings()
+	mbhost := flag.String("mbhost", "", fmt.Sprintf("Message Bus hostname. Overrides default (%s). Overrides environment: MESSAGEBUS_HOST", configStrings["mbhost"]))
+	mbport := flag.Int("mbport", 0, fmt.Sprintf("Message Bus port. Overrides default (%s). Overrides environment: MESSAGEBUS_PORT", configStrings["mbport"]))
+	splunkurl := flag.String("splunkurl", "", "URL of the splunk host")
+	splunkkey := flag.String("splunkkey", "", "Splunk key")
 
 	flag.Parse()
 
 	configIni, err := ini.Load(*configName)
 	if err != nil {
-		log.Fatalf("Fail to read file: %v", err)
+		log.Printf("error reading config file: %s: %v", *configName, err)
 	}
+
+	var port int
+	if err == nil {
+		// set from config, fallback to default
+		// ie. CONFIG > DEFAULT
+		// somewhat silly to go back and forth to strings for all the int configs, but whatevs for now.
+		configStrings["mbhost"] = configIni.Section("General").Key("StompHost").MustString(configStrings["mbhost"])
+		port, _ = strconv.Atoi(configStrings["mbport"])
+		configStrings["mbport"] = strconv.Itoa(configIni.Section("General").Key("StompPort").MustInt(port))
+		configStrings["splunkURL"] = configIni.Section("Splunk").Key("URL").MustString(configStrings["splunkURL"])
+		configStrings["splunkKey"] = configIni.Section("Splunk").Key("Key").MustString(configStrings["splunkKey"])
+	}
+
+	//Gather configuration from environment variables
+	// ie. ENV > CONFIG
+	getEnvSettings()
+
+	// Override everything with CLI options
+	if *mbhost != "" {
+		configStrings["mbhost"] = *mbhost
+	}
+	if *mbport != 0 {
+		configStrings["mbport"] = strconv.Itoa(*mbport)
+	}
+	if *splunkurl != "" {
+		configStrings["splunkURL"] = *splunkurl
+	}
+	if *splunkkey != "" {
+		configStrings["splunkKey"] = *splunkkey
+	}
+
+	host := configStrings["mbhost"]
+	port, _ = strconv.Atoi(configStrings["mbport"])
+	configStringsMu.Unlock()
+
+	mb, err := stomp.NewStompMessageBus(host, port)
+	if err != nil {
+		log.Fatal("Could not connect to message bus: ", err)
+	}
+	defer mb.Close()
 
 	bdb, err = bolt.Open("splunkpump.db", 0666, nil)
 	if err != nil {
@@ -189,21 +254,14 @@ func main() {
 		if b == nil {
 			return nil
 		}
+		configStringsMu.Lock()
+		defer configStringsMu.Unlock()
 		for key := range configStrings {
 			v := b.Get([]byte(key))
 			configStrings[key] = string(v)
 		}
 		return nil
 	})
-
-	stompHost := configIni.Section("General").Key("StompHost").MustString("0.0.0.0")
-	stompPort := configIni.Section("General").Key("StompPort").MustInt(61613)
-
-	mb, err := stomp.NewStompMessageBus(stompHost, stompPort)
-	if err != nil {
-		log.Fatal("Could not connect to message bus: ", err)
-	}
-	defer mb.Close()
 
 	dbClient := new(databus.DataBusClient)
 	dbClient.Bus = mb

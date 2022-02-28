@@ -322,9 +322,12 @@ services:
     image: idrac-telemetry-reference-tools/splunkpump:latest
     profiles:
       - splunk-pump
+    environment:
+      <<: *messagebus-env
+      SPLUNK_URL: "http://splunkhost:8088"
+      SPLUNK_KEY: "87b52214-1950-4b22-8fd7-f57543431b81"
     build:
       <<: *base-build
-      dockerfile: docker-compose-files/Dockerfile.splunkpump
       args:
         <<: *base-args
         CMD: splunkpump
