@@ -23,7 +23,7 @@ COPY go.* /build/
 
 RUN (getent group ${GROUP_ID}  && (echo groupdel by-id ${GROUP_ID}; groupdel $(getent group ${GROUP_ID} | cut -d: -f1))) ||:
 RUN (getent group ${GROUPNAME} && (echo groupdel ${GROUPNAME}; groupdel ${GROUPNAME})) ||:
-RUN userdel -f ${USERNAME} ||:
+RUN (getent passwd ${USERNAME} && (echo userdel ${USERNAME}; userdel -f ${USERNAME})) ||:
 RUN groupadd -g ${GROUP_ID} ${GROUPNAME}
 RUN useradd -l -u ${USER_ID} -g ${GROUPNAME} ${USERNAME}
 
