@@ -33,7 +33,7 @@ x-env-messagebus: &messagebus-env
 x-env-influx: &influx-env
   INFLUXDB_SERVER: influx
   INFLUXDB_DB: poweredge_telemetry_metrics
-  INFLUXDB_URL: http://influxdb:8086
+  INFLUXDB_URL: http://influx:8086
 
 x-arg-base: &base-args
   USER_ID: ${USER_ID:-0}
@@ -227,10 +227,13 @@ services:
     profiles:
       - grafana
       - influx-test-db
+      - prometheus-test-db
     depends_on:
       - "influx"
     environment:
       <<: *influx-env
+    ports:
+      - "8443:3000"
     networks:
       - private
 
