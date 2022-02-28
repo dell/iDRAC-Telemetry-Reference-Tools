@@ -12,11 +12,11 @@ import (
 	"sync"
 	"time"
 
-	bolt "go.etcd.io/bbolt"
 	"gopkg.in/ini.v1"
 
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/config"
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/databus"
+	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus"
 
 	//"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/amqp"
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
@@ -59,24 +59,8 @@ var configItems = map[string]*config.ConfigEntry{
 }
 
 var client = &http.Client{}
-var bdb *bolt.DB
 
 func configSet(name string, value interface{}) error {
-	err := bdb.Update(func(tx *bolt.Tx) error {
-		var err error
-		b := tx.Bucket([]byte("Config"))
-		if b == nil {
-			b, err = tx.CreateBucket([]byte("Config"))
-			if err != nil {
-				return fmt.Errorf("create bucket: %s", err)
-			}
-		}
-		err = b.Put([]byte(name), []byte(value.(string)))
-		return err
-	})
-	if err != nil {
-		log.Printf("Failed to update config db %v", err)
-	}
 	switch name {
 	case "splunkURL":
 		configStringsMu.Lock()
@@ -237,30 +221,16 @@ func main() {
 	port, _ = strconv.Atoi(configStrings["mbport"])
 	configStringsMu.Unlock()
 
-	mb, err := stomp.NewStompMessageBus(host, port)
-	if err != nil {
-		log.Fatal("Could not connect to message bus: ", err)
-	}
-	defer mb.Close()
-
-	bdb, err = bolt.Open("splunkpump.db", 0666, nil)
-	if err != nil {
-		log.Fatalf("Fail to open config db: %v", err)
-	}
-
-	_ = bdb.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("Config"))
-		if b == nil {
-			return nil
+	var mb messagebus.Messagebus
+	for {
+		mb, err = stomp.NewStompMessageBus(host, port)
+		if err == nil {
+			defer mb.Close()
+			break
 		}
-		configStringsMu.Lock()
-		defer configStringsMu.Unlock()
-		for key := range configStrings {
-			v := b.Get([]byte(key))
-			configStrings[key] = string(v)
-		}
-		return nil
-	})
+		log.Printf("Could not connect to message bus (%s:%v): ", host, port, err)
+		time.Sleep(time.Minute)
+	}
 
 	dbClient := new(databus.DataBusClient)
 	dbClient.Bus = mb
