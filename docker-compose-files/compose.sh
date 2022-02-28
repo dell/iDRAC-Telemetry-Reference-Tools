@@ -3,6 +3,11 @@ scriptdir=$(cd $(dirname $0); pwd)
 topdir=$(cd $scriptdir/../; pwd)
 cd $topdir
 
+if [[ $(id -u) = 0 ]]; then
+  echo "Please do not run $(basename $0) as root, it is designed to be run as a normal user account that has docker permissions."
+  exit 1
+fi
+
 PROFILE_ARG=
 BUILD_ARG=
 
