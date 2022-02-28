@@ -107,8 +107,7 @@ func configGet(name string) (interface{}, error) {
 }
 
 func getEnvSettings() {
-	configStringsMu.Lock()
-	defer configStringsMu.Unlock()
+	// already locked on entrance
 	mbHost := os.Getenv("MESSAGEBUS_HOST")
 	if len(mbHost) > 0 {
 		configStrings["mbhost"] = mbHost
@@ -201,7 +200,7 @@ func main() {
 
 	configIni, err := ini.Load(*configName)
 	if err != nil {
-		log.Printf("error reading config file: %s: %v", *configName, err)
+		log.Printf("(continuing/non-fatal) %s: %v", *configName, err)
 	}
 
 	var port int
