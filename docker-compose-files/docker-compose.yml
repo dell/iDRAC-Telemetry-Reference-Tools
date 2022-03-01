@@ -62,10 +62,10 @@ x-refdaemon: &refdaemon
     <<: *messagebus-env
   depends_on: ["mysqldb", "activemq"]
   networks:
-    - private
+    - host-bridge-net
 
 networks:
-  private:
+  host-bridge-net:
     driver: bridge
 
 volumes:
@@ -79,7 +79,7 @@ services:
     image: rmohr/activemq:5.10.0
     profiles: *optional-disable
     networks:
-      - private
+      - host-bridge-net
 
   mysqldb:
     container_name: mysqldb
@@ -91,7 +91,7 @@ services:
       # this should only be passed to mysqldb, not needed by other daemons and would be security issue if leaked
       MYSQL_ROOT_PASSWORD: "bananas"   #sample reference - specify configured credentials
     networks:
-      - private
+      - host-bridge-net
     #mount deployed mysql filesystem location for persistance
 
 
@@ -158,7 +158,9 @@ services:
       <<: *influx-env
       node.name: influx
     networks:
-      - private
+      - host-bridge-net
+    ports:
+      - "8086:8086"
     healthcheck:
       test: curl http://localhost:8086 >/dev/null; if [[ $$? == 52 ]]; then echo 0; else echo 1; fi
       interval: 30s
@@ -196,7 +198,7 @@ services:
         <<: *base-args
         CMD: influxpump
 
-  influx-pump-standalone:
+  influx-pump-withtestserver:
     <<: *influx-pump
     depends_on: ["influx"]
     profiles:
@@ -235,7 +237,7 @@ services:
     ports:
       - "8443:3000"
     networks:
-      - private
+      - host-bridge-net
 
 
   prometheus:
@@ -270,7 +272,7 @@ services:
       - '--config.file=/config/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
     networks:
-      - private
+      - host-bridge-net
 
 
   prometheus-pump-standalone: &prometheus-pump
@@ -398,7 +400,7 @@ services:
         soft: -1
         hard: -1
     networks:
-      - private
+      - host-bridge-net
 
     healthcheck:
       test: curl http://localhost:9200 >/dev/null; if [[ $$? == 52 ]]; then echo 0; else echo 1; fi
@@ -423,7 +425,7 @@ services:
         soft: -1
         hard: -1
     networks:
-      - private
+      - host-bridge-net
     #mount deployed mysql filesystem location for persistance
 
   es03:
@@ -442,7 +444,7 @@ services:
         soft: -1
         hard: -1
     networks:
-      - private
+      - host-bridge-net
     #mount deployed mysql filesystem location for persistance
 
   kib01:
@@ -455,7 +457,7 @@ services:
       ELASTICSEARCH_URL: http://es01:9200
       ELASTICSEARCH_HOSTS: http://es01:9200
     networks:
-      - private
+      - host-bridge-net
     ports:
       - "5601:5601"
 
@@ -485,7 +487,7 @@ services:
       - POSTGRES_PASS=postgres
       - TIMESCALE_DB=poweredge_telemetry_metrics
     networks:
-      - private
+      - host-bridge-net
 
   timescale-setup:
     image: timescale/timescaledb:latest-pg12
@@ -507,7 +509,7 @@ services:
         read_only: true
     entrypoint: ["/extrabin/initialize_timescaledb.sh"]
     networks:
-      - private
+      - host-bridge-net
 
 
   timescale-pump-standalone: &timescale-pump
