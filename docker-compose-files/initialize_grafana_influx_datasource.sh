@@ -35,7 +35,7 @@ function get_user_id() {
 function get_org_id() {
   local org=$1
 
-  curl -s --request GET \
+  curl --fail -s --request GET \
     "${INFLUXDB_URL}/api/v2/orgs?name=$org" \
     --header "Authorization: Token ${ADMIN_INFLUX_TOKEN}" \
     --header 'Content-type: application/json' |
@@ -48,7 +48,7 @@ function create_token() {
   local user_id=$2
   local org_id=$3
 
-  curl -s --request POST \
+  curl --fail -s --request POST \
     "${INFLUXDB_URL}/api/v2/authorizations" \
     --header "Authorization: Token ${ADMIN_INFLUX_TOKEN}" \
     --header 'Content-type: application/json' \
@@ -120,7 +120,7 @@ echo "GRAFANA_APIKEY=$GRAFANA_APIKEY" >> ${CONFIGDIR}/container-info-grafana.txt
 
 echo "add grafana source"
 if [[ -z $GRAFANA_DATA_SOURCE_CONNECTED ]]; then
-  curl -s --request POST \
+  curl --fail -s --request POST \
     "${GRAFANA_URL}/api/datasources" \
     --user api_key:$GRAFANA_APIKEY  \
     --header 'Content-type: application/json' \
@@ -151,7 +151,7 @@ if [[ -z $GRAFANA_DATA_SOURCE_CONNECTED ]]; then
         \"version\":\"Flux\"
       }
      }" | tee -a /tmp/grafana-source.json
-  GRAFANA_DATA_SOURCE_CONNECTED=$GRAFANA_DATA_SOURCE_CONNECTED
+  GRAFANA_DATA_SOURCE_CONNECTED=1
 fi
 
 echo "GRAFANA_DATA_SOURCE_CONNECTED=$GRAFANA_DATA_SOURCE_CONNECTED" >> ${CONFIGDIR}/container-info-grafana.txt

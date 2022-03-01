@@ -117,6 +117,9 @@ echo "GROUP_ID=$(id -g)" >> $topdir/.env
 echo "DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${DOCKER_INFLUXDB_INIT_ADMIN_TOKEN}" >> $topdir/.env
 echo "DOCKER_INFLUXDB_INIT_PASSWORD=${DOCKER_INFLUXDB_INIT_PASSWORD}" >> $topdir/.env
 
+touch $topdir/docker-compose-files/container-info-influx-pump.txt
+touch $topdir/docker-compose-files/container-info-grafana.txt
+
 case $1 in
   stop)
     docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml rm -f
