@@ -103,9 +103,19 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
+# re-read env settings so we dont regenerate them unnecessarily
+[ -e $topdir/.env ] && . $topdir/.env
+export DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${DOCKER_INFLUXDB_INIT_ADMIN_TOKEN:-$(uuidgen -r)}
+export DOCKER_INFLUXDB_INIT_PASSWORD=${DOCKER_INFLUXDB_INIT_PASSWORD:-$(uuidgen -r)}
+
 # make container user UID match calling user so that containers dont leave droppings we cant remove
-echo "USER_ID=$(id -u)" > $topdir/.env
+> $topdir/.env
+echo "USER_ID=$(id -u)" >> $topdir/.env
 echo "GROUP_ID=$(id -g)" >> $topdir/.env
+
+# generate some secrets that should be different across all deployments
+echo "DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${DOCKER_INFLUXDB_INIT_ADMIN_TOKEN}" >> $topdir/.env
+echo "DOCKER_INFLUXDB_INIT_PASSWORD=${DOCKER_INFLUXDB_INIT_PASSWORD}" >> $topdir/.env
 
 case $1 in
   stop)
@@ -113,6 +123,9 @@ case $1 in
     ;;
 
   start)
+    echo "To run manually, run the following command line:"
+    echo "docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG}"
+    echo
     docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG}
     ;;
 
