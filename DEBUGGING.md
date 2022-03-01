@@ -27,6 +27,12 @@ Go into the docker-compose file you are using to run the container and change th
 tail -f /dev/null
 ```
 
+### Run a Stopped Container with a Command
+
+First create a new container with `docker commit $CONTAINER_ID somename`
+
+Next start with a new entrypoint `docker run -ti --entrypoint=something somename`
+
 ### View Anonymous Containers
 
 If you want to view what volumes are in use when not directly specifying a volume mount you can use `docker inspect -f {{.Volumes}} <CONTAINER_ID>`

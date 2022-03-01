@@ -143,8 +143,14 @@ func handleGroups(groupsChan chan *databus.DataGroup) {
 		for index, value := range group.Values {
 			timestamp, err := time.Parse(time.RFC3339, value.Timestamp)
 			if err != nil {
-				log.Printf("Error parsing timestamp for point %s: (%s) %v", value.Context+"_"+value.ID, value.Timestamp, err)
-				continue
+				// For why we do this see https://datatracker.ietf.org/doc/html/rfc3339#section-4.3
+				// Go does not handle time properly. See https://github.com/golang/go/issues/20555
+				value.Timestamp = strings.ReplaceAll(value.Timestamp, "+0000", "Z")
+				timestamp, err = time.Parse(time.RFC3339, value.Timestamp)
+				if err != nil {
+					log.Printf("Error parsing timestamp for point %s: (%s) %v", value.Context+"_"+value.ID, value.Timestamp, err)
+					continue
+				}
 			}
 			event := new(SplunkEvent)
 			event.Time = timestamp.Unix()
