@@ -125,7 +125,8 @@ func logToSplunk(events []*SplunkEvent) {
 
 	req, err := http.NewRequest("POST", url, strings.NewReader(builder.String()))
 	if err != nil {
-		log.Print("Error creating request: ", err)
+		log.Print("Error creating request for %s: ", url, err)
+		return
 	}
 
 	req.Header.Add("Authorization", "Splunk "+key)
@@ -238,6 +239,9 @@ func main() {
 	groupsIn := make(chan *databus.DataGroup, 10)
 	dbClient.Subscribe("/spunk")
 	dbClient.Get("/spunk")
+
+	log.Printf("Entering processing loop")
+
 	go dbClient.GetGroup(groupsIn, "/spunk")
 	go configService.Run()
 	handleGroups(groupsIn)
