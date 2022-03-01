@@ -112,7 +112,7 @@ func initMySQLDatabase() (*sql.DB, error) {
 		configStrings["mysqlHost"],
 		configStrings["mysqlHostPort"],
 		configStrings["mysqlDBName"])
-	log.Printf("conn: ", connStr)
+	log.Printf("conn: %v", connStr)
 
 	for {
 		db, err = sql.Open("mysql", connStr)
