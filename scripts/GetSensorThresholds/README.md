@@ -101,8 +101,8 @@ The current default log level is warning. Other options include info and debug. 
 See the [LICENSE](../../LICENSE.md) for more information.
 
 ## Contributing
-We welcome your contributions to this reference toolset. See [Contributing Guidelines](../../CONTRIBUTING.md) for more details.
-You can refer our [Code of Conduct](../../CODE_OF_CONDUCT.md) here.
+We welcome your contributions to this reference toolset. See [Contributing Guidelines](../../docs/CONTRIBUTING.md) for more details.
+You can refer our [Code of Conduct](../../docs/CODE_OF_CONDUCT.md) here.
 
 ## Disclaimer
 The software applications included in this package are  considered "BETA". They are intended for testing use in non-production  environments only. 

@@ -1,15 +1,24 @@
 # Debugging
 
 - [Debugging](#debugging)
+  - [Navigation](#navigation)
   - [Docker](#docker)
     - [Rebuild a Single Container with Docker Compose](#rebuild-a-single-container-with-docker-compose)
     - [Keep Container Open for Debugging](#keep-container-open-for-debugging)
+    - [Run a Stopped Container with a Command](#run-a-stopped-container-with-a-command)
     - [View Anonymous Containers](#view-anonymous-containers)
   - [ActiveMQ](#activemq)
     - [Check Connections in ActiveMQ](#check-connections-in-activemq)
     - [Check Message Queue](#check-message-queue)
   - [Troubleshooting Networking](#troubleshooting-networking)
   - [Splunk](#splunk)
+
+## Navigation
+
+[Main README](../README.md)
+[Architecture](ARCHITECTURE.md)
+[Debugging](DEBUGGING.md)
+[Install](INSTALL.md)
 
 ## Docker
 
@@ -42,13 +51,13 @@ If you want to view what volumes are in use when not directly specifying a volum
 
 Browse to <activemq_container_ip>:8161, go to Connections and look under "Connector stomp". This will list all of the STOMP connections to the specified instance of ActiveMQ.
 
-![](images/2022-02-09-13-27-41.png)
+![](../images/2022-02-09-13-27-41.png)
 
 Here you will see connections for anything interacting with ActiveMQ.
 
 ### Check Message Queue
 
-![](images/2022-02-24-09-18-47.png)
+![](../images/2022-02-24-09-18-47.png)
 
 Depending on what pipeline you are running, you will see different results. In my case I am running Splunk so the queue of interest for me is `/splunk`. The table has the following:
 

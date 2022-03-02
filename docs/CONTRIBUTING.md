@@ -9,7 +9,7 @@
 * Once all the feedback is addressed and review committee is convinced, contribution will be accepted. The review is purely subjective.
 
 ________________________________________
-All contributions must include acceptance of the [Contributor Agreement](./CONTRIBUTOR_AGREEMENT.md)
+All contributions must include acceptance of the [Contributor Agreement](CONTRIBUTOR_AGREEMENT.md)
 
 ## Your Pull Request
 
