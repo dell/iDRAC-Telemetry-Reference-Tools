@@ -8,6 +8,11 @@ if [[ $(id -u) = 0 ]]; then
   exit 1
 fi
 
+if [[ $# -eq 0 ]] ; then
+    echo 'No arguments provided. Run with -h for help.'
+    exit 0
+fi
+
 PROFILE_ARG=
 BUILD_ARG=
 
@@ -122,14 +127,15 @@ touch $topdir/docker-compose-files/container-info-grafana.txt
 
 case $1 in
   stop)
-    docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml rm -f
+    docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml rm -f -d
     ;;
 
   start)
+    echo "Set up environment file in $topdir/.env"
     echo "To run manually, run the following command line:"
-    echo "docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG}"
+    echo "docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG} -d"
     echo
-    docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG}
+    docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG} -d
     ;;
 
   *)
