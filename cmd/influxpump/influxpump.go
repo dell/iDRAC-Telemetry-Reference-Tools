@@ -80,7 +80,7 @@ func main() {
 	for {
 		mb, err := stomp.NewStompMessageBus(configStrings["mbhost"], stompPort)
 		if err != nil {
-			log.Printf("Could not connect to message bus: ", err)
+			log.Printf("Could not connect to message bus: %s", err)
 			time.Sleep(5 * time.Second)
 		} else {
 			dbClient.Bus = mb

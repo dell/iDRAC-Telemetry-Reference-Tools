@@ -143,7 +143,7 @@ func main() {
 		stompPort, _ := strconv.Atoi(configStrings["mbport"])
 		mb, err := stomp.NewStompMessageBus(configStrings["mbhost"], stompPort)
 		if err != nil {
-			log.Printf("Could not connect to message bus: ", err)
+			log.Printf("Could not connect to message bus: %s", err)
 			time.Sleep(5 * time.Second)
 		} else {
 			discoveryClient.Bus = mb
