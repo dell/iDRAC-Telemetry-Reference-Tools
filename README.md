@@ -1,41 +1,62 @@
 # Telemetry Reference Tools
 
 - [Telemetry Reference Tools](#telemetry-reference-tools)
-  - [Enabling Telemetry](#enabling-telemetry)
-  - [Telemetry Report Types](#telemetry-report-types)
-  - [Prerequisites](#prerequisites)
-  - [Hardware and System Requirements](#hardware-and-system-requirements)
-  - [Setup Instructions](#setup-instructions)
-    - [Splunk](#splunk)
-      - [Installing Splunk](#installing-splunk)
-      - [Configure Metrics Index](#configure-metrics-index)
-      - [Configure HTTP Event Collector](#configure-http-event-collector)
-    - [Elasticsearch](#elasticsearch)
-    - [Do for All Pipelines](#do-for-all-pipelines)
-      - [Deploy Telemetry Pipeline with Docker Compose](#deploy-telemetry-pipeline-with-docker-compose)
+  - [Navigation](#navigation)
+  - [So, what is the point of this repo?](#so-what-is-the-point-of-this-repo)
+  - [What is Telemetry?](#what-is-telemetry)
+  - [What do I do with telemetry data?](#what-do-i-do-with-telemetry-data)
+  - [What is in this data pipeline?](#what-is-in-this-data-pipeline)
+  - [Architecture Details](#architecture-details)
+  - [Getting Started](#getting-started)
+    - [Make Sure iDRAC is up-to-date](#make-sure-idrac-is-up-to-date)
+    - [Licensing](#licensing)
+    - [Enabling Telemetry](#enabling-telemetry)
+    - [Hardware and System Requirements](#hardware-and-system-requirements)
+  - [What to do next?/Installation](#what-to-do-nextinstallation)
+  - [Post Installation](#post-installation)
   - [Debugging](#debugging)
-  - [Default Ports Used](#default-ports-used)
-  - [Understanding Internal Workflow](#understanding-internal-workflow)
-  - [Understanding the API](#understanding-the-api)
+  - [Default Ports Used by the Framework](#default-ports-used-by-the-framework)
+  - [FAQ](#faq)
+    - [What is the advantage of using HTTP SSE over other approaches?](#what-is-the-advantage-of-using-http-sse-over-other-approaches)
+      - [Why not syslog?](#why-not-syslog)
+    - [How much horsepower do I need to collect telemetry?](#how-much-horsepower-do-i-need-to-collect-telemetry)
+    - [What is the output format from telemetry?](#what-is-the-output-format-from-telemetry)
+    - [Do I need to worry about telemetry overwhelming the iDRAC link?](#do-i-need-to-worry-about-telemetry-overwhelming-the-idrac-link)
+    - [What does a telemetry report look like?](#what-does-a-telemetry-report-look-like)
+    - [Is telemetry vendor neutral?](#is-telemetry-vendor-neutral)
+    - [Are there demo licenses for iDRAC Datacenter](#are-there-demo-licenses-for-idrac-datacenter)
+    - [What license is required for telemetry?](#what-license-is-required-for-telemetry)
   - [LICENSE](#license)
   - [Contributing](#contributing)
   - [Disclaimer](#disclaimer)
   - [Support](#support)
 
+## Navigation
 
-PowerEdge Telemetry reference toolset collects the metric reports from various devices at the PowerEdge compute and outlines a reference design to integrate with external big databases for downstream analytics and visualization.
+- [Main README](README.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Debugging](docs/DEBUGGING.md)
+- [Install](docs/INSTALL.md)
 
-![Screenshot](images/overview.png)
+## So, what is the point of this repo?
 
-PowerEdge servers with iDRAC9 version 4.00 or higher and Datacenter license can stream server telemetry data out for downstream analytics and consumption. iDRAC telemetry data simply put is a timestamped metrics that represent various datapoints about the server components and is streamed out in a format defined by the DMTF Telemetry Redfish standard. This datapoints includes information from various sensors, storage and networking subsystem and helps IT administrators better understand health and necessary details about their server infrastructure.
+While it's easy to collect telemetry metrics it is not easy to build a well-structured, best-practice following, 
+pipeline. We will not profess to be perfect and the totality of this code base is maintained by Dell employees in 
+their spare time, but this repo is here to give people a head start in building that pipeline with a near one button
+deploy mechanism to create a telemetry collection pipeline.
 
-## Enabling Telemetry
+We tried hard to write these instructions such that things would be easy to follow. If you have feedback, especially 
+if something was confusing, feel free to open an [issue](https://github.com/dell/iDRAC-Telemetry-Reference-Tools/issues)
 
-For details on enabling telemetry and configuring reports see the [iDRAC-Telemetry-Scripting](https://github.com/dell/iDRAC-Telemetry-Scripting) API.
+## What is Telemetry?
 
-## Telemetry Report Types
+Telemetry is a vendor-neutral part of the Redfish standard for providing telemetry data from a device. For more on the
+Redfish standard see DMTF's [white paper](https://www.dmtf.org/sites/default/files/standards/documents/DSP2051_1.0.0.pdf). 
+You can also see their [developer resources](https://redfish.dmtf.org/redfish/mockups/v1/1155). Many people first
+ask, "What is in telemetry?"
 
-There are currently 24 report types available. You can obtain a list by browsing to your iDRAC at `https://<iDRAC>/redfish/v1/TelemetryService/MetricReports`:
+Telemetry is presented by what are called reports. There are currently 24 report types available. You can obtain a 
+list by browsing to your iDRAC at `https://<iDRAC>/redfish/v1/TelemetryService/MetricReports`:
 
 - StorageDiskSMARTData
 - SerialLog
@@ -62,118 +83,129 @@ There are currently 24 report types available. You can obtain a list by browsing
 - FCSensor
 - SystemUsage
 
-## Prerequisites
-* Go - https://golang.org/
-* ActiveMQ (Message broker framework)
+If you want to see what a report looks like check out this [sample report](scripts/GetSensorThresholds/reports.json) 
+of the StorageDiskSMARTData report.
 
-## Hardware and System Requirements
-The toolset has been tested on PowerEdge R640 with Ubuntu 20.04.1 operating system. 
+## What do I do with telemetry data?
 
-CPU - Intel(R) Xeon(R) Gold 6130 CPU @ 2.10GHz
-RAM - 16GB
+The question most people then have is, "Well, what do I do with it?" Generally, what most people want to do is grab 
+these JSON reports and push them into a time series database. This way they can monitor their systems over time for 
+things like tracking load, failure prediction, anomaly detection etc. For example, maybe you want to know what times 
+of day your network is most active, telemetry can tell you that. Maybe you have a group of systems failing with a 
+higher frequency and you want to know why. Telemetry could tell you that everything is overheating because no one 
+told you the datacenter in question was 92 degrees. Not that we have seen anyone do that *cough*.
 
-## Setup Instructions  
+Here is what the data might look like for you. This is what an R840 looked like during startup in Splunk analytics.
 
-Please reference the included Docker Compose files for setup instructions.
+![](images/2022-03-01-12-57-32.png)
 
-### Splunk
+## What is in this data pipeline?
 
-#### Installing Splunk
+Currently, we support the following time series databases for the pipeline:
 
-**NOTE**: Splunk server tested on RHEL 8.3
-**NOTE** The Splunk configuration is under active development. Currently, we are not using a Splunk container and 
-are running Splunk from a manual installation detailed below
+- Elasticsearch
+- InfluxDB
+- Prometheus
+- Timescale
+- Splunk (you must bring your own Splunk instance)
 
-1. Download [trial of Splunk](https://www.splunk.com/en_us/download/splunk-enterprise.html?skip_request_page=1)
-2. Follow [Splunk installation instructions](https://docs.splunk.com/Documentation/Splunk/8.2.4/Installation/InstallonLinux)
-3. By default it will install to /opt/splunk. Run `/opt/splunk/bin/splunk start` (I suggest you do this in tmux or another terminal emulator)
-4. Run the following command: `vim /opt/splunk/etc/apps/splunk_httpinput/default/inputs.conf` and make sure your config looks like this:
+With the exception of Splunk, the databases for the pipeline are self deploying. With Splunk you will have to deploy 
+your own instance of Splunk, but we detail how to do this in the instructions.
 
-    ```
-    [http]
-    disabled=0
-    port=8088
-    enableSSL=0
-    dedicatedIoThreads=2
-    maxThreads = 0
-    maxSockets = 0
-    useDeploymentServer=0
-    # ssl settings are similar to mgmt server
-    sslVersions=*,-ssl2
-    allowSslCompression=true
-    allowSslRenegotiation=true
-    ackIdleCleanup=true
-    ```
+At its highest level the pipeline looks like this:
 
-5. Run `firewall-cmd --permanent --zone public --add-port={8000/tcp,8088/tcp} && firewall-cmd --reload`
-6. Make splunk start on boot with `/opt/splunk/bin/splunk enable boot-start`
+iDRAC telemetry -> ActiveMQ -> Time series database
 
-#### Configure Metrics Index
+![Overview](images/overview.png)
 
-1. Browse to your Splunk management dashboard at `<IP>:8000`.
-2. Go to Settings -> Indexes
+There are several GoLang programs in between that provide the glue which connect all of these data pipelines. See 
+the [architecture](docs/ARCHITECTURE.md) for more details.
 
-![](images/2022-02-24-10-59-57.png)
+## Architecture Details
 
-3. In the top right of the screen click "New Index"
-4. Create a name, set Index Data Type to Metrics, and Timestamp Resolution to Seconds
+See [ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
-![](images/2022-02-24-11-01-12.png)
+## Getting Started
 
-#### Configure HTTP Event Collector
+### Make Sure iDRAC is up-to-date
 
-1. Browse to your Splunk management dashboard at `<IP>:8000`.
-2. Go to Settings -> Data Inputs
+You must be running iDRAC 4.0 or higher for telemetry support.
 
-![](images/2022-02-24-10-08-22.png)
+### Licensing
 
-3. On the following screen click "Add new" next to HTTP Event Collector
+The first thing you will need is the 
+[Datacenter License](https://www.dell.com/support/kbdoc/en-us/000176472/idrac-cmc-openmanage-enterprise-openmanage-integration-with-microsoft-windows-admin-center-openmanage-integration-with-servicenow-and-dpat-trial-licenses) 
+for iDRAC. If you do not know what license your iDRAC currently has you can check it by logging into the iDRAC and 
+looking here:
 
-![](images/2022-02-24-10-09-42.png)
+![](images/2022-03-01-13-12-03.png)
 
-4. Select any name you like for the collector and click "Next" at the top of the screen
-5. Select "Automatic" for Source type and for Index select the metrics index you created previously
+If you just want to try things out you can get a trial license for your iDRACs 
+[here](https://www.dell.com/support/kbdoc/en-us/000176472/idrac-cmc-openmanage-enterprise-openmanage-integration-with-microsoft-windows-admin-center-openmanage-integration-with-servicenow-and-dpat-trial-licenses). If you would like to deploy licenses to 
+many servers programmatically there is an example script of how to do that in 
+[Python](https://github.com/dell/iDRAC-Redfish-Scripting/blob/master/Redfish%20Python/IdracLicenseManagementREDFISH.py) and
+ [Powershell](https://github.com/dell/iDRAC-Redfish-Scripting/tree/master/Redfish%20PowerShell/Invoke-IdracLicenseManagementREDFISH). 
 
-![](images/2022-02-24-11-02-38.png)
+### Enabling Telemetry
 
-6. Click Review at the top, make sure everything is correct and then click "Submit" (again at the top)
+The next thing you will need to do is enable telemetry on your servers. You can either do this through the GUI or 
+there is a [script available](https://github.com/dell/iDRAC-Telemetry-Scripting/blob/master/ConfigurationScripts/EnableOrDisableAllTelemetryReports.py)
+that will do it programmatically. The syntax is 
+`python3 ./ConfigurationScripts/EnableOrDisableAllTelemetryReports.py -ip YOUR_IDRAC_IP -u IDRAC_ADMIN -p IDRAC_PASSWORD -s Enabled` 
+To do it through the GUI log into the iDRAC and go to Configuration->System Settings->Telemetry Streaming and set 
+Telemetry Data Stream enabled.
 
-At this juncture, you have done everything you need to on the Splunk side to get everything up and running. Next you need
-to finish configuring the docker pipeline. Proceed to [Do for All Pipelines](#do-for-all-pipelines)
+![](images/2022-03-01-13-32-33.png)
 
-### Elasticsearch
+### Hardware and System Requirements
 
-For Elasticsearch, there are some external settings you must configure first. The below instructions are written for
-Linux and were tested on Ubuntu 20.04.3 LTS. 
+Whatever server on which you decide to run telemetry reference tools will have to run the following applications:
 
-1. Set vm.max_map_count to at least 262144
-   1. `grep vm.max_map_count /etc/sysctl.conf`. If you do not see `vm.max_map_count=262144` edit the file and add 
-      that line.
-   2. You can apply the setting to a live system with `sysctl -w vm.max_map_count=262144`
-2. Depending on whether this is a lab or production there are several other settings which should be configured to 
-   tune ES' performance according to your system. See: https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html
+- A few lightweight GoLang programs
+- Docker
+- Apache ActiveMQ
+- Your time series database
 
-Next you need to finish configuring the docker pipeline. Proceed to [Do for All Pipelines](#do-for-all-pipelines)
+The amount of resources you will need strongly depends on the number of servers from which you will create data. We 
+are still in the initial phases of testing but here are some stats from a 5-minute capture of a live R840:
 
-### Do for All Pipelines
+| Total Packets               | 2933              |
+|-----------------------------|-------------------|
+| Average PPS                 | 9.8               |
+| Average Packet Size (Bytes) | 720               |
+| Total Bytes sent/recv       | 2112629 (~2.06MB) |
+| Average bytes/s             | 7056              |
 
-These instructions apply to all pipelines
+As you can see from the above, the data load is very light. You could easily pull data from hundreds of servers with 
+one receiver depending on its resources. As we perform more load testing we will push results here.
 
-#### Deploy Telemetry Pipeline with Docker Compose
+If you would like to perform some simple testing on your own you can pull all reports via 
+[HTTP SSE](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events) with the 
+command:
 
-This is done on whatever host you would like to use to connect to all of your iDRACs
+```bash
+curl -kX GET -u root:PASSWORD "https://YOUR_IDRAC_IP/redfish/v1/SSE? \$filter=EventFormatType%20eq%20MetricReport"
+```
 
-1. git clone https://github.com/dell/iDRAC-Telemetry-Reference-Tools
-2. (For Splunk) Edit `iDRAC-Telemetry-Reference-Tools/docker-compose-files/splunk-docker-pipeline-reference-unenc.yml` 
-   with your favorite text editor. Change the environment variables SPLUNK_URL and SPLUNK_KEY for splunkpump to 
-   match the token generated for your http event listener and update the URL to match your external Splunk instance
-3. `sudo docker-compose -f ./iDRAC-Telemetry-Reference-Tools/docker-compose-files/splunk-docker-pipeline-reference-unenc.yml up -d`
+## What to do next?/Installation
+
+After you have gone through getting started. You can head over to our [installation instructions](docs/INSTALL.md).
+
+**NOTE:** You will need access to the internet for the initial build of the pipeline but can move it offline after 
+it is built.
+
+## Post Installation
+
+After you have your setup running you will likely want to start customizing it to your liking. This is meant to be a 
+reference architecture but it is unlikely it will do exactly what you want. You will likely want to develop your own 
+dashboards, analytics setups, or tune parts of the pipeline.
 
 ## Debugging
 
-See [DEBUGGING.md](./DEBUGGING.md)
+If you need to debug things, we have included a few tips and tricks we learned along the way in 
+[DEBUGGING.md](docs/DEBUGGING.md).
 
-## Default Ports Used
+## Default Ports Used by the Framework
 
 - 3000 - Grafana
 - 8082 - configgui port
@@ -182,47 +214,71 @@ See [DEBUGGING.md](./DEBUGGING.md)
 - 8161 - ActiveMQ Administrative Interface (default credentials are admin/admin)
 - 61613 - ActiveMQ messaging port. Redfish read will send to this port
 
-## Understanding Internal Workflow
+## FAQ
 
-1. Users begins by running the appropriate docker compose file. This will start a number of containers detailed below
-2. Runs the container telemetry-receiver. This is going to set up all the services required to get the data from
-   iDRAC and into the messaging queue. This begins with idrac-telemetry-receiver.sh which runs the following go files:
-   1. dbdiscauth.go - Runs a mysql DB where users can control the pipeline's configuration variables
-   2. configui.go - Runs a lightweight GUI on port 8082 (by default) which allows you to change the configuration
-     parameters of the system. It will store these settings in mysql
-   3. redfishread.go - Sets up an SSE event listener which receives events from the iDRAC and also creates the
-     queue in ActiveMQ. The topic name is databus. This is defined in databus.go by the constant `CommandQueue`
-   4. (optional) simpleauth.go/simpledisc.go - Allows the user to input config variables through the config.ini file
-3. Runs mysqldb container. mysql provides a mechanism for persisting user settings via a named volume mount
-4. Runs activemq container - redfishread will pass events from itself to activemq
-5. Runs desired database container (elastic/influxdb/prometheus)
-6. Runs the required pump (elkpump/splunkpump/etc)
-7. All networking between the various containers is accomplished with a docker backend network
+### What is the advantage of using HTTP SSE over other approaches?
 
-Note: There are two ways which a user can provide configuration data. These are controlled in redfishread.go
-1. ConfigUI which provides a simple user interface for controlling config variables. ConfigUI will push configuration data into mysql
-   1. Note: You could directly push data to mysql instead
-2. simpledisc/simpleauth have file based source identification through the file config.ini
+[HTTP SSE](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events) consumes 
+far less bandwidth than the alternate methods of obtaining telemetry data. Long pulling/Hanging GET requires a GET to 
+"hang" on all iDRACs, using POST subscriptions runs the risk of no one being available to listen to the events and 
+consumes more bandwidth, and syslog has a number of protocol-specific problems detailed below. 
 
-## Understanding the API
+#### Why not syslog?
 
-To understand a bit more about interacting with the various API endpoints it may be helpful to look at the [GetSensorThresholds README](scripts/GetSensorThresholds/README.md)
+The issue with the syslog protocol is that the protocol does not specify a max message size. This means that each 
+syslog server implementation chooses a max message size. Furthermore, the behavior when a message exceeds the 
+maximum message size is not defined. Many syslog servers simply truncate the message which is obviously not a 
+desirable behavior. If you decide you really want to try to use syslog (we don't recommend this approach) a member 
+of our team has written 
+[a script](https://github.com/dell/iDRAC-Telemetry-Scripting/blob/master/TelemetryReportProcessingScripts/TelemetryRsysLogProcessor.py)
+for reassembling the messages.
 
-A tutorial on YouTube is available [here](https://www.youtube.com/watch?v=T5ve03DB77I)
+### How much horsepower do I need to collect telemetry?
+See [Hardware and System Requirements](#hardware-and-system-requirements)
+
+### What is the output format from telemetry?
+JSON
+
+### Do I need to worry about telemetry overwhelming the iDRAC link?
+There is no risk that even with all reports turned on telemetry can overwhelm iDRAC's 1Gb/s link. Each report takes 
+only KB/s. Even if you tune the reports to send very frequently you will not overwhelm the 1Gb/s link.
+
+### What does a telemetry report look like?
+See [this example](scripts/GetSensorThresholds/reports.json) of what a telemetry report looks like.
+
+### Is telemetry vendor neutral?
+Yes. Telemetry is part of DMTFs Redfish specification. While there are parts of the Redfish standard which are 
+left to vendor implementation Dell's telemetry implementation is compliant with the specification.
+
+### Are there demo licenses for iDRAC Datacenter
+Yes. See [this website](https://www.dell.com/support/kbdoc/en-us/000176472/idrac-cmc-openmanage-enterprise-openmanage-integration-with-microsoft-windows-admin-center-openmanage-integration-with-servicenow-and-dpat-trial-licenses)
+
+### What license is required for telemetry?
+iDRAC Datacenter
 
 ## LICENSE
 This project is licensed under Apache 2.0 License. See the [LICENSE](LICENSE.md) for more information.
 
 ## Contributing
-We welcome your contributions to this reference toolset. See [Contributing Guidelines](CONTRIBUTING.md) for more details.
-Please reference our [Code of Conduct](CODE_OF_CONDUCT.md).
+We welcome your contributions to this reference toolset. See [Contributing Guidelines](docs/CONTRIBUTING.md) for 
+more details. Please reference our [Code of Conduct](docs/CODE_OF_CONDUCT.md).
 
 ## Disclaimer
-The software applications included in this package are  considered "BETA". They are intended for testing use in non-production  environments only. 
+The software applications included in this package are  considered "BETA". They are intended for testing use in 
+non-production  environments only. 
 
-No support is implied or offered. Dell Corporation assumes no  responsibility for results or performance of "BETA" files.  Dell does NOT warrant that the Software will meet your requirements, or that operation of the Software will be uninterrupted or error free. The Software is provided to you "AS IS" without warranty of any kind. DELL DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. The entire risk as to the results and performance of the Software is assumed by you. No technical support provided with this Software. 
+No support is implied or offered. Dell Corporation assumes no  responsibility for results or performance of "BETA" 
+files.  Dell does NOT warrant that the Software will meet your requirements, or that operation of the Software will 
+be uninterrupted or error free. The Software is provided to you "AS IS" without warranty of any kind. DELL DISCLAIMS 
+ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS 
+FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. The entire risk as to the results and performance of the Software
+is assumed by you. No technical support provided with this Software. 
 
-IN NO EVENT SHALL DELL OR ITS SUPPLIERS BE LIABLE FOR ANY DIRECT OR INDIRECT DAMAGES WHATSOEVER (INCLUDING, WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS, BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS) ARISING OUT OF USE OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. Some jurisdictions do not allow an exclusion or limitation of liability for consequential or incidental damages, so the above limitation may not apply to you.
+IN NO EVENT SHALL DELL OR ITS SUPPLIERS BE LIABLE FOR ANY DIRECT OR INDIRECT DAMAGES WHATSOEVER (INCLUDING, WITHOUT 
+LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS, BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER 
+PECUNIARY LOSS) ARISING OUT OF USE OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH 
+DAMAGES. Some jurisdictions do not allow an exclusion or limitation of liability for consequential or incidental 
+damages, so the above limitation may not apply to you.
 
 
 ## Support
