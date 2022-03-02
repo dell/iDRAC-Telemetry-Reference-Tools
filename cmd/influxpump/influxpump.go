@@ -11,6 +11,7 @@ import (
 	"time"
 
 	influx "github.com/influxdata/influxdb1-client/v2"
+	// influx "github.com/influxdata/influxdb-client-go/v2"
 
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/databus"
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
@@ -19,7 +20,7 @@ import (
 var configStrings = map[string]string{
 	"mbhost":       "activemq",
 	"mbport":       "61613",
-	"influxDBHost": "http://localhost:8086",
+	"influxDBURL":  "http://localhost:8086",
 	"influxDBName": "poweredge_telemetry_metrics",
 }
 
@@ -70,6 +71,7 @@ func handleGroups(groupsChan chan *databus.DataGroup) {
 		err = db.Write(bps)
 		if err != nil {
 			log.Print("Error logging to influx: ", err)
+
 		}
 	}
 }
@@ -83,9 +85,10 @@ func getEnvSettings() {
 	if len(mbPort) > 0 {
 		configStrings["mbport"] = mbPort
 	}
-	configStrings["influxDBHost"] = os.Getenv("INFLUXDB_SERVER")
+	configStrings["influxDBURL"] = os.Getenv("INFLUXDB_URL")
 	configStrings["influxDBName"] = os.Getenv("INFLUXDB_DB")
-
+	configStrings["influxDBUser"] = os.Getenv("INFLUXDB_USER")
+	configStrings["influxDBPass"] = os.Getenv("INFLUXDB_PASS")
 }
 
 func main() {
@@ -95,8 +98,8 @@ func main() {
 	getEnvSettings()
 
 	dbClient := new(databus.DataBusClient)
+	stompPort, _ := strconv.Atoi(configStrings["mbport"])
 	for {
-		stompPort, _ := strconv.Atoi(configStrings["mbport"])
 		mb, err := stomp.NewStompMessageBus(configStrings["mbhost"], stompPort)
 		if err != nil {
 			log.Printf("Could not connect to message bus: ", err)
@@ -113,17 +116,34 @@ func main() {
 	dbClient.Get("/influx")
 	go dbClient.GetGroup(groupsIn, "/influx")
 
-	time.Sleep(5 * time.Second)
-	db, err = influx.NewHTTPClient(influx.HTTPConfig{
-		Addr: fmt.Sprintf("http://%s:8086", configStrings["influxDBHost"]),
-	})
-	if err != nil {
-		log.Println("Cannot connect to influx: ", err)
+	if configStrings["influxDBPass"] == "" {
+		log.Fatalf("must specify influx user/pass")
+	}
 
-	} else {
+	for {
+		time.Sleep(5 * time.Second)
+		db, err = influx.NewHTTPClient(influx.HTTPConfig{
+			Addr:     configStrings["influxDBURL"],
+			Username: configStrings["influxDBUser"],
+			Password: configStrings["influxDBPass"],
+		})
+		if err != nil {
+			log.Println("Cannot connect to influx: ", err)
+			continue
+		}
+
+		// TODO: Sensitive, for debugging only, remove once it works
+		log.Printf("Connected to influx db(%s) at URL (%s) using (%s:%s)\n", configStrings["influxDBName"], configStrings["influxDBURL"], configStrings["influxDBUser"], configStrings["influxDBPass"])
+
+		t, s, err := db.Ping(time.Second)
+		log.Printf("influx ping(%s) with string(%s): %s\n", t, s, err)
+		if err != nil {
+			db.Close()
+			continue
+		}
+
 		defer db.Close()
 		createDB()
-
 		handleGroups(groupsIn)
 	}
 }
