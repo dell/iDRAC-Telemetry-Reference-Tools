@@ -33,19 +33,19 @@ x-env-messagebus: &messagebus-env
 x-env-influx: &influx-env
   INFLUXDB_DB: poweredge_telemetry_metrics
   INFLUXDB_URL: http://influx:8086
-  INFLUXDB_ORG: my-org
+  INFLUX_ORG: my-org
+  INFLUX_HOST: influx
+  INFLUX_BUCKET: my-org-bucket
 
 x-env-influx-setup: &influx-setup-env
   node.name: influx
   DOCKER_INFLUXDB_INIT_MODE: setup
   DOCKER_INFLUXDB_INIT_USERNAME: admin
   DOCKER_INFLUXDB_INIT_ORG: my-org
-  DOCKER_INFLUXDB_INIT_BUCKET: my-bucket
+  DOCKER_INFLUXDB_INIT_BUCKET: my-org-bucket
   INFLUXDB_HTTP_AUTH_ENABLED: 1
   DOCKER_INFLUXDB_INIT_ADMIN_TOKEN:
   DOCKER_INFLUXDB_INIT_PASSWORD:
-  INFLUXDB_USER:
-  INFLUXDB_PASS:
 
 x-env-grafana: &grafana-env
   GRAFANA_URL: http://grafana:3000
@@ -212,6 +212,7 @@ services:
     ############################################################################
     <<: *refdaemon
     image: idrac-telemetry-reference-tools/influxpump:latest
+    restart: always
     environment:
       <<: *messagebus-env
       <<: *influx-env
