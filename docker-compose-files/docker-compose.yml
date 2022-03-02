@@ -71,7 +71,8 @@ networks:
 volumes:
   influxdb-storage:
   grafana-storage:
-  prometheus_data:
+  prometheus-data:
+  mysqldb-volume:
 
 services:
   activemq:
@@ -80,6 +81,8 @@ services:
     profiles: *optional-disable
     networks:
       - private
+    ports:
+      - "8161:8161"
 
   mysqldb:
     container_name: mysqldb
@@ -92,8 +95,8 @@ services:
       MYSQL_ROOT_PASSWORD: "bananas"   #sample reference - specify configured credentials
     networks:
       - private
-    #mount deployed mysql filesystem location for persistance
-
+    volumes:
+      - mysqldb-volume:/var/lib/mysql:rw
 
   configui:
     <<: *refdaemon
@@ -262,7 +265,7 @@ services:
         source: ${PWD}/cmd/prometheuspump/prometheus.yml
         target: /config/prometheus.yml
         read_only: true
-      - prometheus_data:/prometheus
+      - prometheus-data:/prometheus
     environment:
       - node.name=prometheus
       - PROMETHEUS_DB=poweredge_telemetry_metrics
