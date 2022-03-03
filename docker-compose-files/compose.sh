@@ -15,11 +15,14 @@ fi
 
 PROFILE_ARG=
 BUILD_ARG=
+DETACH_ARG="-d"
 
 opts=$(getopt \
   -n $(basename $0) \
   -o h \
   --longoptions "build" \
+  --longoptions "detach" \
+  --longoptions "nodetach" \
   --longoptions "influx-pump" \
   --longoptions "prometheus-pump" \
   --longoptions "splunk-pump" \
@@ -65,6 +68,8 @@ while [[ $# -gt 0 ]]; do
       echo "    --elk-test-db"
       echo "    --timescale-test-db"
       echo
+      echo "Start options:"
+      echo "  --detach|--nodetach   Either detach from docker compose or stay attached and view debug"
       exit 0
       ;;
     --build)
@@ -100,6 +105,12 @@ while [[ $# -gt 0 ]]; do
     --grafana)
       PROFILE_ARG="$PROFILE_ARG --profile grafana"
       ;;
+    --detach)
+      DETACH_ARG="-d"
+      ;;
+    --nodetach)
+      DETACH_ARG=""
+      ;;
     --)
       shift
       break
@@ -126,16 +137,20 @@ touch $topdir/docker-compose-files/container-info-influx-pump.txt
 touch $topdir/docker-compose-files/container-info-grafana.txt
 
 case $1 in
+  rm)
+    docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} rm -f
+    ;;
+
   stop)
-    docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml rm -f -d
+    docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} stop
     ;;
 
   start)
     echo "Set up environment file in $topdir/.env"
     echo "To run manually, run the following command line:"
-    echo "docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG} -d"
+    echo "docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG} ${DETACH_ARG}"
     echo
-    docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG} -d
+    docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG} ${DETACH_ARG}
     ;;
 
   *)

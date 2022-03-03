@@ -6,7 +6,7 @@ set -e
 env
 
 # must be passed in via Environment
-# INFLUXDB_ORG
+# INFLUX_ORG
 # INFLUXDB_URL
 ADMIN_INFLUX_TOKEN=${ADMIN_INFLUX_TOKEN:-$DOCKER_INFLUXDB_INIT_ADMIN_TOKEN}
 
@@ -89,7 +89,7 @@ CONFIGDIR=${CONFIGDIR:-/config}
 .  ${CONFIGDIR}/container-info-grafana.txt
 
 if [[ -z $INFLUX_TOKEN ]]; then
-  INFLUX_TOKEN=$(get_influx_token  $user $INFLUXDB_ORG)
+  INFLUX_TOKEN=$(get_influx_token  $user $INFLUX_ORG)
 fi
 
 echo "INFLUX_TOKEN=$INFLUX_TOKEN" > ${CONFIGDIR}/container-info-grafana.txt
@@ -131,6 +131,12 @@ if [[ -z $GRAFANA_DATA_SOURCE_CONNECTED ]]; then
       \"secureJsonData\":{
         \"token\": \"${INFLUX_TOKEN}\"
       },
+      \"jsonData\":{
+        \"defaultBucket\":\"${INFLUX_BUCKET}\",
+        \"httpMode\":\"POST\",
+        \"organization\":\"${INFLUX_ORG}\",
+        \"version\":\"Flux\"
+      },
       \"user\":\"${user}\",
       \"version\":2,
       \"readOnly\":false,
@@ -143,13 +149,7 @@ if [[ -z $GRAFANA_DATA_SOURCE_CONNECTED ]]; then
       \"basicAuthUser\":\"\",
       \"basicAuthPassword\":\"\",
       \"withCredentials\":false,
-      \"isDefault\":false,
-      \"jsonData\":{
-        \"defaultBucket\":\"test_bucket\",
-        \"httpMode\":\"POST\",
-        \"organization\":\"${INFLUXDB_ORG}\",
-        \"version\":\"Flux\"
-      }
+      \"isDefault\":false
      }" | tee -a /tmp/grafana-source.json
   GRAFANA_DATA_SOURCE_CONNECTED=1
 fi
@@ -168,7 +168,7 @@ exit 0
 ### random grafana queries here for reference. remove after this is all debugged.
 
 # add new org
-curl -X POST -H "Content-Type: application/json" -d '{"name":"'"$INFLUXDB_ORG"'"}' --user admin:admin ${GRAFANA_URL}/api/orgs
+curl -X POST -H "Content-Type: application/json" -d '{"name":"'"$INFLUX_ORG"'"}' --user admin:admin ${GRAFANA_URL}/api/orgs
 # {"message":"Organization created","orgId":6}
 
 # add current user to that org as admin

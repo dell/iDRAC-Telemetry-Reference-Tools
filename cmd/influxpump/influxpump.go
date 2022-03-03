@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -10,73 +11,50 @@ import (
 	"strings"
 	"time"
 
-	influx "github.com/influxdata/influxdb1-client/v2"
-	// influx "github.com/influxdata/influxdb-client-go/v2"
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/influxdata/influxdb-client-go/v2/api"
+	"github.com/influxdata/influxdb-client-go/v2/api/write"
 
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/databus"
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
 )
 
 var configStrings = map[string]string{
-	"mbhost":       "activemq",
-	"mbport":       "61613",
-	"influxDBURL":  "http://localhost:8086",
-	"influxDBName": "poweredge_telemetry_metrics",
+	"mbhost": "activemq",
+	"mbport": "61613",
+	"URL":    "http://localhost:8086",
 }
 
-var db influx.Client
-
-func createDB() {
-	q := influx.Query{
-		Command:  fmt.Sprintf("create database %s", configStrings["influxDBName"]),
-		Database: configStrings["influxDBName"],
-	}
-
-	_, err := db.Query(q)
-	if err != nil {
-		log.Print("Error creating database: ", err)
-	}
-}
-
-func handleGroups(groupsChan chan *databus.DataGroup) {
-	for {
-		group := <-groupsChan
-		var points = make([]*influx.Point, len(group.Values))
-		for index, value := range group.Values {
+func handleGroups(writeAPI api.WriteAPI, groupsChan chan *databus.DataGroup) {
+	for group := range groupsChan {
+		for _, value := range group.Values {
 			floatVal, _ := strconv.ParseFloat(value.Value, 64)
 
-			fields := make(map[string]interface{})
-			fields["value"] = floatVal
-
 			timestamp, err := time.Parse(time.RFC3339, value.Timestamp)
+			//fmt.Printf("Value: %#v\n", value)
 			if err != nil {
-				log.Printf("Error parsing timestamp for  point %s: (%s) %v", value.Context+"_"+value.ID, value.Timestamp, err)
+				log.Printf("Error parsing timestamp for point %s: (%s) %v", value.Context+"_"+value.ID, value.Timestamp, err)
+				continue
 			}
-			//log.Printf("%s: %s\n", value.Context+"_"+value.ID, value.Timestamp)
-			if strings.Contains(value.Context, ".") {
-				points[index], err = influx.NewPoint(value.ID, map[string]string{"ServiceTag": value.System, "FQDD": value.Context}, fields, timestamp)
-			} else {
-				points[index], err = influx.NewPoint(value.Context+"_"+value.ID, map[string]string{"ServiceTag": value.System}, fields, timestamp)
-			}
-			if err != nil {
-				log.Printf("Error creating point %s: %v", value.Context+"_"+value.ID, err)
-			}
-		}
-		bps, err := influx.NewBatchPoints(influx.BatchPointsConfig{Database: configStrings["influxDBName"]})
-		if err != nil {
-			log.Print("Error creating batch points: ", err)
-			continue
-		}
-		bps.AddPoints(points)
-		err = db.Write(bps)
-		if err != nil {
-			log.Print("Error logging to influx: ", err)
 
+			p := write.NewPointWithMeasurement("telemetry").
+				AddTag("ServiceTag", value.System).
+				AddTag("FQDD", value.Context).
+				AddTag("Label", value.Label).
+				AddField("MetricID", value.ID).
+				AddField("value", floatVal).
+				SetTime(timestamp)
+
+			// automatically batches things behind the scenes
+			writeAPI.WritePoint(p)
 		}
 	}
 }
 
 func getEnvSettings() {
+	// debugging only. leaks potentially sensitive info, so leave this commented
+	// unless debugging.
+	// fmt.Printf("Environment dump: %#v\n", os.Environ())
 	mbHost := os.Getenv("MESSAGEBUS_HOST")
 	if len(mbHost) > 0 {
 		configStrings["mbhost"] = mbHost
@@ -85,14 +63,14 @@ func getEnvSettings() {
 	if len(mbPort) > 0 {
 		configStrings["mbport"] = mbPort
 	}
-	configStrings["influxDBURL"] = os.Getenv("INFLUXDB_URL")
-	configStrings["influxDBName"] = os.Getenv("INFLUXDB_DB")
-	configStrings["influxDBUser"] = os.Getenv("INFLUXDB_USER")
-	configStrings["influxDBPass"] = os.Getenv("INFLUXDB_PASS")
+	configStrings["URL"] = os.Getenv("INFLUXDB_URL")
+	configStrings["Token"] = os.Getenv("INFLUX_TOKEN")
+	configStrings["Org"] = os.Getenv("INFLUX_ORG")
+	configStrings["Bucket"] = os.Getenv("INFLUX_BUCKET")
 }
 
 func main() {
-	var err error
+	ctx := context.Background()
 
 	//Gather configuration from environment variables
 	getEnvSettings()
@@ -102,7 +80,7 @@ func main() {
 	for {
 		mb, err := stomp.NewStompMessageBus(configStrings["mbhost"], stompPort)
 		if err != nil {
-			log.Printf("Could not connect to message bus: ", err)
+			log.Printf("Could not connect to message bus: %s", err)
 			time.Sleep(5 * time.Second)
 		} else {
 			dbClient.Bus = mb
@@ -116,34 +94,41 @@ func main() {
 	dbClient.Get("/influx")
 	go dbClient.GetGroup(groupsIn, "/influx")
 
-	if configStrings["influxDBPass"] == "" {
-		log.Fatalf("must specify influx user/pass")
+	if configStrings["Token"] == "" {
+		log.Fatalf("must specify influx token using INFLUX_TOKEN environment variable")
 	}
 
 	for {
 		time.Sleep(5 * time.Second)
-		db, err = influx.NewHTTPClient(influx.HTTPConfig{
-			Addr:     configStrings["influxDBURL"],
-			Username: configStrings["influxDBUser"],
-			Password: configStrings["influxDBPass"],
-		})
-		if err != nil {
-			log.Println("Cannot connect to influx: ", err)
+
+		client := influxdb2.NewClientWithOptions(
+			configStrings["URL"],
+			configStrings["Token"],
+			influxdb2.DefaultOptions().SetBatchSize(5000),
+		)
+		writeAPI := client.WriteAPI(configStrings["Org"], configStrings["Bucket"]) // async, non-blocking
+
+		go func(writeAPI api.WriteAPI) {
+			for err := range writeAPI.Errors() {
+				fmt.Printf("async write error: %s\n", err)
+			}
+		}(writeAPI)
+
+		// Never print out the token in debug output. print out the length of the string, most common problem is not set at all
+		log.Printf("Connected to influx org(%s) bucket(%s) at URL (%s) Token Len(%v)\n", configStrings["Org"], configStrings["Bucket"], configStrings["URL"], strings.Repeat("X", len(configStrings["Token"])))
+
+		timedCtx, cancel := context.WithTimeout(ctx, time.Second)
+		defer cancel()
+		ok, err := client.Ping(timedCtx)
+		cancel()
+		if !ok || err != nil {
+			log.Printf("influx ping return = (%t): %s\n", ok, err)
+			client.Close()
 			continue
 		}
 
-		// TODO: Sensitive, for debugging only, remove once it works
-		log.Printf("Connected to influx db(%s) at URL (%s) using (%s:%s)\n", configStrings["influxDBName"], configStrings["influxDBURL"], configStrings["influxDBUser"], configStrings["influxDBPass"])
-
-		t, s, err := db.Ping(time.Second)
-		log.Printf("influx ping(%s) with string(%s): %s\n", t, s, err)
-		if err != nil {
-			db.Close()
-			continue
-		}
-
-		defer db.Close()
-		createDB()
-		handleGroups(groupsIn)
+		log.Printf("influx ping return = (%t)\n", ok)
+		defer client.Close()
+		handleGroups(writeAPI, groupsIn)
 	}
 }
