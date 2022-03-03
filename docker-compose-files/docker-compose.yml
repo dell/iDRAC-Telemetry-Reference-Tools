@@ -290,7 +290,7 @@ services:
       <<: *influx-env
       <<: *grafana-env
     ports:
-      - "8443:3000"
+      - "3000:3000"
     networks:
       - host-bridge-net
 
