@@ -30,7 +30,7 @@ var authServices map[string]auth.Service
 func handleDiscServiceChannel(serviceIn chan *disc.Service, config *ini.File, authorizationService *auth.AuthorizationService) {
 	for {
 		service := <-serviceIn
-		log.Print("Service = ", service)
+		//log.Print("Service = ", service)
 		devconfig, err := config.GetSection(service.Ip)
 		if err != nil {
 			log.Print(err)
@@ -103,7 +103,7 @@ func handleDiscServiceChannel(serviceIn chan *disc.Service, config *ini.File, au
 				authService.Auth["password"] = devconfig.Key("password").MustString("")
 			}
 		}
-		log.Print("Got Service = ", *authService)
+		//log.Print("Got Service = ", *authService)
 		authorizationService.SendService(*authService)
 		if authServices == nil {
 			authServices = make(map[string]auth.Service)
