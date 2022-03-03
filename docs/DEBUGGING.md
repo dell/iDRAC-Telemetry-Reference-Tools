@@ -12,6 +12,7 @@
     - [Check Message Queue](#check-message-queue)
   - [Troubleshooting Networking](#troubleshooting-networking)
   - [Splunk](#splunk)
+  - [Debugging ConfigUI](#debugging-configui)
 
 ## Navigation
 
@@ -88,3 +89,48 @@ docker bridges with `docker network ls` and you can inspect that bridge with `do
 ## Splunk
 
 You can view the http event collector log at `$SPLUNK_HOME/var/log/introspection/splunk/http_event_collector_metrics.log`. By default `$SPLUNK_HOME` in our setup was `/opt/splunk`. This will tell you if the http event collector is actively receiving events.
+
+## Debugging ConfigUI
+
+1. In configui.go uncomment the following:
+
+    ```golang
+     // DEBUGGING
+     // Uncomment this when you would like to debug configui in a standalone debugger. The issue is that the working
+     // directory when in a container will have all the appropriate files. However, when running this in a debugger
+     // you have to change the working directory to the appropriate directory for everything to run correctly.
+     /*
+     os.Chdir("cmd/configui")
+     newDir, direrr := os.Getwd()
+     if direrr != nil {
+     }
+     fmt.Printf("Current Working Directory: %s\n", newDir)
+     */
+    ```
+
+2. Next you will need to comment the first two lines here and uncomment the third:
+
+    ```golang
+      stompPort, _ := strconv.Atoi(configStrings["mbport"])
+      mb, err := stomp.NewStompMessageBus(configStrings["mbhost"], stompPort)
+      // mb, err := stomp.NewStompMessageBus("192.168.1.165", 61613) // If debugging, uncomment and set to your system
+    ```
+
+3. Next, you will need to go into `docker-compose.yml` and on the activemq container expose port 61613 via port 
+   forwarding so that your debugging machine can reach it.
+
+    ```
+    activemq:
+      container_name: activemq
+      image: rmohr/activemq:latest
+      profiles: *optional-disable
+      networks:
+        - host-bridge-net
+      ports:
+        - "8161:8161"
+        - "61613:61613"
+    ```
+
+4. Finally, you will need to redeploy activemq with the updated ports.
+5. At this juncture your host will be able to reach back into your remote activemq instance while you are debugging 
+   configui externally.

@@ -208,7 +208,7 @@ If you need to debug things, we have included a few tips and tricks we learned a
 ## Default Ports Used by the Framework
 
 - 3000 - Grafana
-- 8082 - configgui port
+- 8080 - configgui port (external). Internally it uses 8082
 - 8088 - Splunk HTTP Event Listener (if using Splunk)
 - 8000 - Splunk Management UI (if using Splunk)
 - 8161 - ActiveMQ Administrative Interface (default credentials are admin/admin)
