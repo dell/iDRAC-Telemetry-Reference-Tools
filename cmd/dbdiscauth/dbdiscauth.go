@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -112,7 +113,15 @@ func initMySQLDatabase() (*sql.DB, error) {
 		configStrings["mysqlHost"],
 		configStrings["mysqlHostPort"],
 		configStrings["mysqlDBName"])
-	log.Printf("conn: %v", connStr)
+
+	// Debug log: dont print out sensitive info.
+	// DONT LOG PASSWORDS! - instead we log "X"s the same length as the password.
+	log.Printf("%s:%s@tcp(%s:%s)/%s",
+		configStrings["mysqluser"],
+		strings.Repeat("X", len(configStrings["mysqlpwd"])),
+		configStrings["mysqlHost"],
+		configStrings["mysqlHostPort"],
+		configStrings["mysqlDBName"])
 
 	for {
 		db, err = sql.Open("mysql", connStr)
