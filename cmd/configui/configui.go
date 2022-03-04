@@ -3,9 +3,12 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -78,6 +81,47 @@ func getEnvSettings() {
 	}
 }
 
+func handleCsv(c *gin.Context, s *SystemHandler) {
+	// Extract the file from context
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.String(http.StatusBadRequest, "get form err: %s", err.Error())
+		return
+	}
+	log.Println("Processing uploaded file: ", filepath.Base(file.Filename))
+
+	// Open the file for reading by our CSV reader
+	csvFile, err := file.Open()
+	if err != nil {
+		c.String(http.StatusBadRequest, "upload file err: %s", err.Error())
+		return
+	}
+	defer csvFile.Close()
+
+	reader := csv.NewReader(csvFile)
+	idracRecords, _ := reader.ReadAll()
+
+	for _, line := range idracRecords {
+		var service auth.Service
+		service.ServiceType = auth.IDRAC
+		service.Ip = line[0]
+		service.AuthType = auth.AuthTypeUsernamePassword
+		service.Auth = make(map[string]string)
+		service.Auth["username"] = line[1]
+		service.Auth["password"] = line[2]
+		serviceerr := s.AuthClient.AddService(service)
+		if serviceerr != nil {
+			log.Println("Failed to add service parse json: ", serviceerr)
+			_ = c.AbortWithError(500, err)
+		} else {
+			c.JSON(200, gin.H{"success": "true"})
+		}
+	}
+
+	log.Println("Successfully processed: ", filepath.Base(file.Filename))
+	c.String(http.StatusOK, "File %s uploaded successfully", file.Filename)
+}
+
 func main() {
 
 	//Gather configuration from environment variables
@@ -102,18 +146,33 @@ func main() {
 		}
 	}
 
+	// DEBUGGING
+	// Uncomment this when you would like to debug configui in a standalone debugger. The issue is that the working
+	// directory when in a container will have all the appropriate files. However, when running this in a debugger
+	// you have to change the working directory to the appropriate directory for everything to run correctly.
+	/*
+		os.Chdir("cmd/configui")
+		newDir, direrr := os.Getwd()
+		if direrr != nil {
+		}
+		fmt.Printf("Current Working Directory: %s\n", newDir)
+	*/
+
 	//Setup http handlers and start webservice
-	r := gin.Default()
-	r.StaticFile("/", "index.html")
-	r.StaticFile("/index.html", "index.html")
-	r.GET("/api/v1/Systems", func(c *gin.Context) {
+	router := gin.Default()
+	router.StaticFile("/", "index.html")
+	router.StaticFile("/index.html", "index.html")
+	router.GET("/api/v1/Systems", func(c *gin.Context) {
 		getSystemList(c, systemHandler)
 	})
-	r.POST("/api/v1/Systems", func(c *gin.Context) {
+	router.POST("/api/v1/Systems", func(c *gin.Context) {
 		addSystem(c, systemHandler)
 	})
+	router.POST("/api/v1/CsvUpload", func(c *gin.Context) {
+		handleCsv(c, systemHandler)
+	})
 
-	err := r.Run(fmt.Sprintf(":%s", configStrings["httpport"]))
+	err := router.Run(fmt.Sprintf(":%s", configStrings["httpport"]))
 	if err != nil {
 		log.Printf("Failed to run webserver %v", err)
 	}

@@ -142,20 +142,31 @@ iDRACs
    out a splunk option. So the command to connect to build a data pipeline for an external splunk instance would be 
    `bash compose.sh --splunk-pump start` Running this command will trigger a build of all the necessary containers 
    in the pipeline as specified in [the Docker compose file](../docker-compose-files/docker-compose.yml).
+   1. **WARNING** There is a known bug where docker compose throws erroneous errors. These can be safely ignored. 
+      See https://github.com/dell/iDRAC-Telemetry-Reference-Tools/issues/46. It will look like this:
+
+![](images/2022-03-03-16-56-01.png)
+
 4. On your system, you will need to allow ports 8161 and 8080 through your firewall
    1. If you are running Elasticsearch, you will also need to open port 5601 for Kibana if you chose to run compose 
       with the `--elk-test-db` option.
    2. If you ran compose with the `--influx-test-db`, `--prometheus-test-db`, or `--timescale-test-db` options you will need to open port 3000 for Grafana.
 5. After you run this, the next step is to specify the iDRACs of the machines you are using. There is a webgui 
-   called `configui` which by default runs on port 8080. Browse to it and click "Add New Service"
+   called `configui` which by default runs on port 8080. Browse to it and click "Add New Service". Alternatively you 
+   can upload a CSV file with three columns and no headers with each line in the format: `host, username, password` 
+   for each iDRAC.
 
-![](../images/2022-03-02-05-35-06.png)
+![](images/2022-03-03-17-26-26.png)
 
-6. Refresh the page and you should see your host appear in the list.
-7. At this point the pipeline should be up and running. You can run `docker ps -a` to make sure all the containers 
+6. Below is an example CSV file.
+
+![](images/2022-03-03-17-30-51.png)
+
+7. Refresh the page and you should see your host appear in the list.
+8. At this point the pipeline should be up and running. You can run `docker ps -a` to make sure all the containers 
    in the pipeline are running. To confirm the final stage of the pump is working run `docker logs <pump_name>` and 
    you should see that the pump is forwarding events.
-8. For additional troubleshooting steps see [DEBUGGING.md](DEBUGGING.md)
+9.  For additional troubleshooting steps see [DEBUGGING.md](DEBUGGING.md)
 
 ### Post Install for Elasticsearch
 
