@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"gopkg.in/ini.v1"
 	"log"
 	"net/http"
 	"os"
@@ -11,8 +12,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"gopkg.in/ini.v1"
 
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/config"
 	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/databus"
@@ -90,6 +89,8 @@ func configGet(name string) (interface{}, error) {
 	}
 }
 
+// getEnvSettings grabs environment variables used to configure splunkpump from the running environment. During normal
+// operations these should be defined in a docker file and passed into the container which is running splunkpump
 func getEnvSettings() {
 	// already locked on entrance
 	mbHost := os.Getenv("MESSAGEBUS_HOST")
@@ -141,9 +142,10 @@ func logToSplunk(events []*SplunkEvent) {
 	log.Printf("Sent to Splunk. Got back %d", resp.StatusCode)
 }
 
+// handleGroups brings in the events from ActiveMQ
 func handleGroups(groupsChan chan *databus.DataGroup) {
 	for {
-		group := <-groupsChan
+		group := <-groupsChan // If you are new to GoLang see https://golangdocs.com/channels-in-golang
 		events := make([]*SplunkEvent, len(group.Values))
 		for index, value := range group.Values {
 			timestamp, err := time.Parse(time.RFC3339, value.Timestamp)
