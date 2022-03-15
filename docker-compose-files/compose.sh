@@ -13,7 +13,7 @@ if [[ $# -eq 0 ]] ; then
     exit 0
 fi
 
-PROFILE_ARG=
+PROFILE_ARG="--profile core"
 BUILD_ARG=
 DETACH_ARG="-d"
 

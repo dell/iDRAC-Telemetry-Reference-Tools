@@ -62,20 +62,17 @@ x-build-base: &base-build
     args:
       <<: *base-args
 
-# To disable 'core' services (for testing upper layer stuff one daemon at a
-# time), switch the comments so the following statement is commented out and
-# the subsequent one is uncommented
-x-disable-core: &optional-disable []
-#x-disable-core: &optional-disable ["disabled"]
-
 x-refdaemon: &refdaemon
   user: telemetry:telemetry
   build:
     <<: *base-build
-  profiles: *optional-disable
+  profiles:
+    - core
   environment:
     <<: *messagebus-env
-  depends_on: ["mysqldb", "activemq"]
+  depends_on:
+    - mysqldb
+    - activemq
   networks:
     - host-bridge-net
 
@@ -93,7 +90,8 @@ services:
   activemq:
     container_name: activemq
     image: rmohr/activemq:latest
-    profiles: *optional-disable
+    profiles:
+      - core
     networks:
       - host-bridge-net
     ports:
@@ -102,7 +100,8 @@ services:
   mysqldb:
     container_name: mysqldb
     image: mysql:latest
-    profiles: *optional-disable
+    profiles:
+      - core
     restart: always
     environment:
       <<: *mysql-env
@@ -213,6 +212,8 @@ services:
     <<: *refdaemon
     image: idrac-telemetry-reference-tools/influxpump:latest
     restart: always
+    depends_on:
+      - activemq
     environment:
       <<: *messagebus-env
       <<: *influx-env
@@ -228,7 +229,9 @@ services:
 
   influx-pump-withtestserver:
     <<: *influx-pump
-    depends_on: ["influx"]
+    depends_on:
+      - influx
+      - activemq
     profiles:
       - influx-test-db
       - setup-influx-pump
@@ -241,7 +244,8 @@ services:
     profiles:
       - influx-test-db
     depends_on:
-      - "influx"
+      - influx
+      - activemq
     restart: "no"
     environment:
       <<: *influx-env
@@ -285,7 +289,7 @@ services:
       - influx-test-db
       - prometheus-test-db
     depends_on:
-      - "influx"
+      - influx
     environment:
       <<: *influx-env
       <<: *grafana-env
@@ -302,8 +306,8 @@ services:
     profiles:
       - influx-test-db
     depends_on:
-      - "influx"
-      - "grafana"
+      - influx
+      - grafana
     restart: "no"
     environment:
       <<: *influx-env
@@ -376,6 +380,8 @@ services:
     image: idrac-telemetry-reference-tools/prometheuspump:latest
     profiles:
       - prometheus-pump
+    depends_on:
+      - activemq
     environment:
       <<: *messagebus-env
       PROMETHEUSDB_SERVER: prometheus
@@ -387,7 +393,9 @@ services:
 
   prometheus-pump-withtestserver:
     <<: *prometheus-pump
-    depends_on: ["prometheus"]
+    depends_on:
+      - prometheus
+      - activemq
     profiles:
       - prometheus-test-db
 
@@ -409,6 +417,8 @@ services:
     image: idrac-telemetry-reference-tools/splunkpump:latest
     profiles:
       - splunk-pump
+    depends_on:
+      - activemq
     environment:
       <<: *messagebus-env
       SPLUNK_URL: "http://splunkhost:8088"
@@ -438,7 +448,7 @@ services:
     profiles:
       - elk-pump
     depends_on:
-      - "activemq"
+      - activemq
     build:
       <<: *base-build
       args:
@@ -449,6 +459,9 @@ services:
     <<: *elk-pump
     profiles:
       - elk-test-db
+    depends_on:
+      - es01
+      - activemq
     environment:
       <<: *messagebus-env
       ELASTICSEARCH_URL: http://es01:9200
@@ -534,7 +547,10 @@ services:
     container_name: kib01
     profiles:
       - elk-test-db
-    depends_on: ["es01", "es02", "es03"]
+    depends_on:
+      - es01
+      - es02
+      - es03
     environment:
       ELASTICSEARCH_URL: http://es01:9200
       ELASTICSEARCH_HOSTS: http://es01:9200
@@ -576,7 +592,8 @@ services:
     restart: "no"
     profiles:
       - timescale-test-db
-    depends_on: ["timescale"]
+    depends_on:
+      - timescale
     environment:
       - node.name=timescale
       - POSTGRES_HOST=timescale
@@ -613,7 +630,7 @@ services:
     profiles:
       - timescale-pump
     depends_on:
-      - "activemq"
+      - activemq
     build:
       <<: *base-build
       args:
@@ -624,6 +641,9 @@ services:
     <<: *timescale-pump
     profiles:
       - timescale-test-db
+    depends_on:
+      - activemq
+      - timescale
     environment:
       <<: *messagebus-env
       POSTGRES_USER: postgres
