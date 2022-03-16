@@ -9,6 +9,7 @@
   - [Elasticsearch](#elasticsearch)
   - [Do for All Pipelines](#do-for-all-pipelines)
     - [Install Docker](#install-docker)
+    - [Install docker-compose](#install-docker-compose)
     - [Deploying the Framework](#deploying-the-framework)
     - [Post Install for Elasticsearch](#post-install-for-elasticsearch)
     - [Post Install for InfluxDB, Prometheus, or TimescaleDB](#post-install-for-influxdb-prometheus-or-timescaledb)
@@ -122,6 +123,11 @@ sudo usermod -aG docker $USER
 ```
 
 and then log out and back in. Run `docker run hello-world` as the user in question to test your privileges.
+
+### Install docker-compose
+
+You will also need to install docker-compose version 2. The code **will not work** with version 1. Instructions for 
+installing docker compose version 2 are [here](https://docs.docker.com/compose/cli-command/#installing-compose-v2).
 
 ### Deploying the Framework
 

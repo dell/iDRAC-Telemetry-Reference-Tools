@@ -13,6 +13,57 @@ if [[ $# -eq 0 ]] ; then
     exit 0
 fi
 
+# Version check taken from this fine answer: https://stackoverflow.com/a/4025065/4427375
+# This is used to check if the docker compose version is sufficient.
+vercomp () {
+    if [[ $1 == $2 ]]
+    then
+        return 0
+    fi
+    local IFS=.
+    local i ver1=($1) ver2=($2)
+    # fill empty fields in ver1 with zeros
+    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++))
+    do
+        ver1[i]=0
+    done
+    for ((i=0; i<${#ver1[@]}; i++))
+    do
+        if [[ -z ${ver2[i]} ]]
+        then
+            # fill empty fields in ver2 with zeros
+            ver2[i]=0
+        fi
+        if ((10#${ver1[i]} > 10#${ver2[i]}))
+        then
+            return 1
+        fi
+        if ((10#${ver1[i]} < 10#${ver2[i]}))
+        then
+            return 2
+        fi
+    done
+    return 0
+}
+
+testvercomp () {
+    vercomp $1 $2
+    case $? in
+        0) op='=';;
+        1) op='>';;
+        2) op='<';;
+    esac
+    if [[ $op != $3 ]]
+    then
+        echo "FAIL: Your docker compose version is $1. It must be 2.2.0 or higher!"
+        exit
+    else
+        echo "Pass: Docker compose version is $1."
+    fi
+}
+
+testvercomp $(docker-compose --version | cut -d ' ' -f 4 | sed 's/^v//') 2.2.0 '>'
+
 PROFILE_ARG="--profile core"
 BUILD_ARG=
 DETACH_ARG="-d"
