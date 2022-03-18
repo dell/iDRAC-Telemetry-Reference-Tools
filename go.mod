@@ -35,7 +35,7 @@ require (
 	github.com/go-playground/validator/v10 v10.4.1 // indirect
 	github.com/golang/protobuf v1.3.3 // indirect
 	github.com/influxdata/influxdb-client-go v1.4.0 // indirect
-	github.com/influxdata/influxdb-client-go/v2 v2.8.0 // indirect
+	github.com/influxdata/influxdb-client-go/v2 v2.8.0
 	github.com/influxdata/line-protocol v0.0.0-20200327222509-2487e7298839 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.8.0 // indirect

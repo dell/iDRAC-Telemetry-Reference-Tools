@@ -1,4 +1,5 @@
 #!/bin/bash 
+
 scriptdir=$(cd $(dirname $0); pwd)
 topdir=$(cd $scriptdir/../; pwd)
 cd $topdir
@@ -62,7 +63,6 @@ testvercomp () {
     fi
 }
 
-testvercomp $(docker-compose --version | cut -d ' ' -f 4 | sed 's/^v//') 2.2.0 '>'
 
 PROFILE_ARG="--profile core"
 BUILD_ARG=
@@ -169,6 +169,8 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
+
+testvercomp $(docker-compose --version | cut -d ' ' -f 4 | sed 's/^v//') 2.2.0 '>'
 
 # re-read env settings so we dont regenerate them unnecessarily
 [ -e $topdir/.env ] && . $topdir/.env
