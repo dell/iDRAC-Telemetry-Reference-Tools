@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash
 
 scriptdir=$(cd $(dirname $0); pwd)
 topdir=$(cd $scriptdir/../; pwd)
@@ -89,8 +89,6 @@ if [[ $? -ne 0 ]]; then
   opts="-h"
   echo
 fi
-
-set -e
 
 eval set -- "$opts"
 while [[ $# -gt 0 ]]; do
