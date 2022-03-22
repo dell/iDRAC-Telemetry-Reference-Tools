@@ -1,32 +1,29 @@
 # How to contribute
 
-### Below are our coding guidelines 
-* Contributions should adhere to Go Language Coding standard guidelines as we follow these standards.
-* Should include docker compose files or [test](./tests) scripts for your changes.
+## Coding guidelines 
 
-### Review
-* The contributions will be reviewed and feedback will be provided. 
-* Once all the feedback is addressed and review committee is convinced, contribution will be accepted. The review is purely subjective.
+- Do your best to follow coding best practice. If writing in Go some good practices are
+  [documented here](https://wiki.crdb.io/wiki/spaces/CRDB/pages/181371303/Go+Golang+coding+guidelines).
+- When in doubt follow the coding style already present
+- We are trying to improve our code documentation, add function comments where applicable or unclear
 
-________________________________________
-All contributions must include acceptance of the [Contributor Agreement](CONTRIBUTOR_AGREEMENT.md)
+## Review
+
+- Other contributors will review PRs, provide feedback, and then accept. We use a two reviewer system.
 
 ## Your Pull Request
 
-To make it easy to review and understand your changes, please keep the
-following things in mind before submitting your pull request:
+To make it easy to review and understand your changes, please keep the following things in mind before submitting 
+your pull request:
 
-* Create a branch dedicated to your change.
-* If possible, write a test case which confirms your change.
-* Make sure your changes and your tests work with all recent versions of
-  Go language. We currently support 1.15 and above
-* Test your changes before creating a pull request (`go test ./...`).
-* Don't mix several features or bug fixes in one pull request.
-* Create a meaningful commit message.
-* Explain your change
-* Format your source with `go fmt`.
+- For the project, create a feature branch with your suggested changes, and PR your feature branch
+- Use GoLang 1.15 or later
+- Don't mix several features or bug fixes in one pull request.
+- Make sure commits are split into logical units with good descriptions
+- Create a meaningful commit message.
+- Format your source with `go fmt`.
 
 ## Additional Resources
 
-* [GitHub documentation](https://help.github.com/)
-* [GitHub pull request documentation](https://help.github.com/en/articles/creating-a-pull-request)
+- [GitHub documentation](https://help.github.com/)
+- [GitHub pull request documentation](https://help.github.com/en/articles/creating-a-pull-request)
