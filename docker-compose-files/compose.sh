@@ -169,6 +169,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 testvercomp $(docker-compose --version | cut -d ' ' -f 4 | sed 's/^v//') 2.2.0 '>'
+set -e
 
 # re-read env settings so we dont regenerate them unnecessarily
 [ -e $topdir/.env ] && . $topdir/.env
