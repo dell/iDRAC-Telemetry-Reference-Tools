@@ -274,6 +274,43 @@ func (r *RedfishClient) GetEventsSSE(event chan<- *RedfishEvent, sseURI string) 
 	return nil
 }
 
+func (r *RedfishClient) GetLceSSE(event chan<- *RedfishEvent, sseURI string) error {
+	sseConfig := new(sse.Config)
+        sseConfig.Client = r.HttpClient
+        sseConfig.RequestCreator = func() *http.Request {
+                req, err := http.NewRequest("GET", sseURI+"?$filter=EventType%20eq%20%27Other%27", nil)
+                if err != nil {
+                        return nil
+                }
+                r.addAuthToRequest(req)
+                req.Header.Add("Accept", "*/*")
+                return req
+        }
+        sseSource, err := sseConfig.Connect()
+        if err != nil {
+                return err
+        }
+
+	for {
+                sseEvent, err := sseSource.Next()
+                if err != nil {
+                        break
+                }
+                redfishEvent := new(RedfishEvent)
+                redfishEvent.ID = sseEvent.ID
+                ret := new(RedfishPayload)
+                err = json.Unmarshal(sseEvent.Data, &ret.Object)
+                if err != nil {
+                        log.Printf("Failed to parse message %v", err)
+                        continue
+                }
+                ret.Client = r
+                redfishEvent.Payload = ret
+		event <- redfishEvent
+        }
+        return nil
+}
+
 func (r *RedfishClient) GetSSEByUri(event chan<- *RedfishEvent, sseURI string) {
 	errEvent := new(RedfishEvent)
 	sseConfig := new(sse.Config)
