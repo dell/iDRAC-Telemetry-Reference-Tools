@@ -120,6 +120,49 @@ func parseReport(metricReport *redfish.RedfishPayload, systemid string, dataBusS
 	dataGroups[systemid][group.ID] = group
 }
 
+// Responsible for taking the lifecycle events received from SSE, getting its events, and then sending it along the
+// data bus
+func parseRedfishLce(lceevents *redfish.RedfishPayload, id string, dataBusService *databus.DataBusService) {
+	eventData, err := lceevents.GetPropertyByName("Events")
+        if err != nil {
+                log.Printf("%s: Unable to get eventData: %v %v", id, err, lceevents)
+                return
+        }
+	log.Printf("RedFish LifeCycle Events Found for parsing: %s\n", eventData)
+
+        group := new(databus.DataGroup)
+
+        group.ID = lceevents.Object["Id"].(string)
+        group.Label = lceevents.Object["Name"].(string)
+	size := lceevents.GetEventSize()
+	for j := 0; j < size; j++ {
+		eventData, err := lceevents.GetEventByIndex(j)
+		if err != nil {
+			log.Printf("Unable to retrieve the redfish lifecycle events\n")
+		}
+		if eventData.Object["EventId"] != nil {
+			data := new(databus.DataValue)
+			data.ID = eventData.Object["EventId"].(string)
+			data.Context = ""
+			data.Label = ""
+                        data.Value = eventData.Object["EventType"].(string)
+			if eventData.Object["EventTimestamp"] == nil {
+                                t := time.Now()
+                                data.Timestamp = t.Format("2006-01-02T15:04:05-0700")
+                        } else {
+                                data.Timestamp = eventData.Object["EventTimestamp"].(string)
+                        }
+                        data.System = id
+                        group.Values = append(group.Values, *data)
+                }
+	}
+        dataBusService.SendGroup(*group)
+	if dataGroups[id] == nil {
+                dataGroups[id] = make(map[string]*databus.DataGroup)
+        }
+        dataGroups[id][group.ID] = group
+}
+
 func (r *RedfishDevice) RestartEventListener() {
 	go r.Redfish.ListenForEvents(r.Events)
 }
@@ -171,6 +214,26 @@ func getTelemetry(r *RedfishDevice, telemetryService *redfish.RedfishPayload, da
 	r.StartEventListener(dataBusService)
 }
 
+// getRedfishLce Starts the service which will listens for Redfish LifeCycle Events from the iDRAC
+func getRedfishLce(r *RedfishDevice, eventService *redfish.RedfishPayload, dataBusService *databus.DataBusService) {
+	eventsIn := make(chan *redfish.RedfishEvent, 10)
+	go r.Redfish.GetLceSSE(eventsIn, "https://"+r.Redfish.Hostname+"/redfish/v1/SSE")
+	eventsOut := new(redfish.RedfishEvent)
+	eventsOut = <-eventsIn
+	eventService = eventsOut.Payload
+        size := eventService.GetEventSize()
+        if size == 0 {
+                log.Printf("%s: No Redfish LifeCycle Events!\n", r.SystemID)
+        }
+        log.Printf("%s: Found %d Redfish LifeCycle Events\n", r.Redfish.Hostname, size)
+	for i := 0; i < size; i++ {
+		parseRedfishLce(eventService, r.SystemID, dataBusService)
+        }
+	r.State = databus.RUNNING
+	r.StartEventListener(dataBusService)
+	return
+}
+
 // Take an instance of a Redfish device, get its system ID, get any child devices if it is a chassis, and then start
 // listening for SSE events. NOTE: This expects that someone has enabled Telemetry reports and started the telemetry
 // service externally.
@@ -198,7 +261,17 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 		r.State = databus.STOPPED
 	} else {
 		log.Printf("%s: Using Telemetry Service...\n", r.Redfish.Hostname)
-		getTelemetry(r, telemetryService, dataBusService)
+		go getTelemetry(r, telemetryService, dataBusService)
+	}
+
+	//Checking for EventService support
+	eventService, err := serviceRoot.GetPropertyByName("EventService")
+	if err != nil {
+		log.Println("EventService not supported...\n")
+		r.State = databus.STOPPED
+	} else {
+		log.Printf("%s: Event Service consumption loading...\n", r.Redfish.Hostname)
+		go getRedfishLce(r, eventService, dataBusService)
 	}
 }
 
