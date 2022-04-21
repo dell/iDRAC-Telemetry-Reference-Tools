@@ -23,6 +23,13 @@
 
 ## Docker
 
+### remove stale docker containers and cleanup environment
+
+```bash
+git clean -dfx
+docker container prune -f;docker volume prune -f;
+docker network ls;docker network rm idrac-telemetry-reference-tools_host-bridge-net
+```
 ### Rebuild a Single Container with Docker Compose
 
 ```bash
