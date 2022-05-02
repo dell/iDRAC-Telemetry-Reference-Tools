@@ -456,6 +456,9 @@ services:
     ############################################################################
     <<: *refdaemon
     image: idrac-telemetry-reference-tools/elkpump:latest
+    environment:
+      <<: *messagebus-env
+      ELASTICSEARCH_URL: http://es01:9200
     profiles:
       - elk-pump
     depends_on:
@@ -468,14 +471,15 @@ services:
 
   elk-pump-withtestserver:
     <<: *elk-pump
+    environment:
+      <<: *messagebus-env
+      ELASTICSEARCH_URL: http://es01:9200
     profiles:
       - elk-test-db
     depends_on:
       - es01
       - activemq
-    environment:
-      <<: *messagebus-env
-      ELASTICSEARCH_URL: http://es01:9200
+    
 
   es01:
     ############################################################################
