@@ -1,4 +1,6 @@
 // Copyright (c) 2022, Dell Inc. or its subsidiaries.  All rights reserved.
+// Licensed to You under the Apache License, Version 2.0.   See the LICENSE file for more details.
+
 
 // This code provides a plugin for the DELL iDRAC SDK to support splunk applications.
 //
