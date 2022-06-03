@@ -403,6 +403,7 @@ services:
         CMD: prometheuspump
 
   prometheus-pump-withtestserver:
+    container_name: prometheus-ingester
     <<: *prometheus-pump
     depends_on:
       - prometheus
