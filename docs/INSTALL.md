@@ -210,9 +210,10 @@ This is not required. It only demonstrates a possible Elasticsearch workflow.
 ### Post Install for InfluxDB, Prometheus, or TimescaleDB
 
 1. Browse to Grafana (`http://<YOUR_IP>:3000`)
-2. For InfluxDB:
+2. Add InfluxDB datasource, select the url (`http://influx:8086`) with the header `Authorization: Token DOCKER_INFLUXDB_INIT_ADMIN_TOKEN`, and `organization:my-org`. Correct addition of datasource will show the available buckets. ![](../images/grafanaAddDataSources.png) 
+3. Visualize metrics using add panel and wrting query for the respective metric in the Query inspector(quick way is to get the query from the influxUI)
 
-![](../images/2022-03-02-06-10-09.png)
+![](../images/Influx-Grafana-FanRPMReading.png)
 
 3. For Prometheus:
 
