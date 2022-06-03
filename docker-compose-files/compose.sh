@@ -157,7 +157,7 @@ while [[ $# -gt 0 ]]; do
       # RUN ONLY setup containers
       PROFILE_ARG="--profile setup-influx-test-db"
       POST_ACTION="influx_setup_finish"
-      DETACH_ARG="-d"
+      DETACH_ARG=""
       BUILD_ARG=
       eval set -- "start"
 
