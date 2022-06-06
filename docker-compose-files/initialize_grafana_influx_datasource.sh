@@ -88,6 +88,14 @@ user="grafana"
 CONFIGDIR=${CONFIGDIR:-/config}
 .  ${CONFIGDIR}/container-info-grafana.txt
 
+# wait until influx is ready
+while ! curl --fail -v "${INFLUXDB_URL}/api/v2" \
+    --header "Authorization: Token ${ADMIN_INFLUX_TOKEN}" \
+    --header 'Content-type: application/json'
+do
+    sleep 1
+done
+
 if [[ -z $INFLUX_TOKEN ]]; then
   INFLUX_TOKEN=$(get_influx_token  $user $INFLUX_ORG)
 fi
@@ -97,6 +105,14 @@ echo "INFLUX_TOKEN=$INFLUX_TOKEN" > ${CONFIGDIR}/container-info-grafana.txt
 ###############################################
 # configure grafana - get API key
 ###############################################
+
+# wait until grafana is ready
+while ! curl --fail -v "${GRAFANA_URL}/api/auth/keys" \
+     --user admin:admin \
+    --header 'Content-type: application/json'
+do
+    sleep 1
+done
 
 if [[ -z $GRAFANA_APIKEY ]]; then
   # create admin api key
