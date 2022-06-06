@@ -260,6 +260,13 @@ influx_setup_finish() {
   done
   echo "Influx pump container setup done. Shutting down."
 
+  while ! grep GRAFANA_DATA_SOURCE_CONNECTED $topdir/docker-compose-files/container-info-grafana.txt;
+  do
+    echo "Waiting for grafana container setup to finish"
+    sleep 1
+  done
+  echo "grafana container setup done. Shutting down."
+  
   docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} stop
 
   echo "Removing completed setup containers that are no longer needed"
