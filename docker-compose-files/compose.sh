@@ -258,18 +258,19 @@ influx_setup_finish() {
     echo "Waiting for container setup to finish"
     sleep 1
   done
-  echo "Influx pump container setup done. Shutting down."
+  echo "Influx pump container setup done. "
 
-  while ! grep GRAFANA_DATA_SOURCE_CONNECTED $topdir/docker-compose-files/container-info-grafana.txt;
+  while ! grep GRAFANA_DASHBOARD_CREATED $topdir/docker-compose-files/container-info-grafana.txt;
   do
-    echo "Waiting for grafana container setup to finish"
+    echo "Waiting for grafana container setup DATA_SOURCE & DASHBOARD to finish"
     sleep 1
   done
-  echo "grafana container setup done. Shutting down."
+
+  echo "grafana container setup done for datasource and dashboards. Shutting down."
   
   docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} stop
 
-  echo "Removing completed setup containers that are no longer needed"
+#  echo "Removing completed setup containers that are no longer needed"
   docker container rm -v $(docker container ls -a --filter ancestor=idrac-telemetry-reference-tools/setup -q)
 }
 
