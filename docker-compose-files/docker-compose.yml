@@ -345,7 +345,7 @@ services:
         source: ${PWD}/dashboards/PowerReadings.json
         target: /dashboards/PowerReadingstemplate.json
       - type: bind
-        source: ${PWD}/dashboards/FanRPMThresholds.json
+        source: ${PWD}/dashboards/FanRPMHexThresholds.json
         target: /dashboards/FanRPMHextemplate.json
     entrypoint: ["/extrabin/initialize_grafana_influx_datasource.sh"]
     command: []
