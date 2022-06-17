@@ -85,6 +85,7 @@ volumes:
   grafana-storage:
   prometheus-data:
   mysqldb-volume:
+  dashboards:
 
 services:
   activemq:
@@ -294,6 +295,9 @@ services:
     # grafana runs as root in latest version. *sigh*
     container_name: telemetry-reference-tools-grafana
     image: grafana/grafana:latest
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./grafana-provisioning/:/etc/grafana/provisioning
     profiles:
       - grafana
       - setup-influx-test-db
@@ -334,6 +338,15 @@ services:
       - type: bind
         source: ${PWD}/docker-compose-files/container-info-grafana.txt
         target: /config/container-info-grafana.txt
+      - type: bind
+        source: ${PWD}/dashboards/FanRPM.json
+        target: /dashboards/FanRPMtemplate.json
+      - type: bind
+        source: ${PWD}/dashboards/PowerReadings.json
+        target: /dashboards/PowerReadingstemplate.json
+      - type: bind
+        source: ${PWD}/dashboards/FanRPMThresholds.json
+        target: /dashboards/FanRPMHextemplate.json
     entrypoint: ["/extrabin/initialize_grafana_influx_datasource.sh"]
     command: []
 
@@ -351,7 +364,7 @@ services:
     # TODO: add
     #
     ############################################################################
-    image: prom/prometheus:v2.1.0
+    image: prom/prometheus:v2.36.0
     restart: always
     container_name: prometheus
     profiles:
@@ -368,6 +381,8 @@ services:
     command:
       - '--config.file=/config/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"  
     networks:
       - host-bridge-net
 
@@ -401,6 +416,8 @@ services:
       args:
         <<: *base-args
         CMD: prometheuspump
+    ports:
+      - "2112:2112"    
 
   prometheus-pump-withtestserver:
     container_name: prometheus-ingester
