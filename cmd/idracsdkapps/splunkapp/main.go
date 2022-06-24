@@ -37,7 +37,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/godbus/dbus/v5"
 	log "github.com/sirupsen/logrus"
+	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/dsl"
 	"net/http"
 	"os"
 	"strconv"
@@ -74,7 +76,7 @@ type SplunkEvent struct {
 var configStringsMu sync.RWMutex
 var configStrings = map[string]string{
 	"splunkURL": "http://10.244.123.128:8088",
-	"splunkKey": "a270b34f-afbd-4d5a-a2c2-520cad1ce2a7",
+	"splunkKey": "ae9fcc4e-923f-4199-b0c8-2e68aba0cdd6",
 }
 
 type stagDellData struct {
@@ -144,7 +146,8 @@ func logToSplunk(events []*SplunkEvent) {
 	if resp.Body != nil {
 		resp.Body.Close()
 	}
-	log.Printf("Sent to Splunk. Got back %d", resp.StatusCode)
+	//log.Printf("Sent to Splunk. Got back %d", resp.StatusCode)
+	fmt.Printf("\nSent to Splunk. Got back %d", resp.StatusCode)
 }
 
 func processValidBuffer(tmp []byte) {
@@ -252,6 +255,20 @@ func main() {
 	// Initialze configuration variables.
 	initConfigParams()
 
+	// First things first, establish the connection to the System DBUS.
+	// so for this use the DEll dsl package
+	// Get the plugin name from argument
+	pluginname := os.Args[1]
+	var sysbus *dbus.Conn
+	var err error
+	for sysbus, err = dsl.DbusWatchdogInit(pluginname); err != nil; sysbus, err = dsl.DbusWatchdogInit(pluginname) {
+		time.Sleep(60 * time.Second)
+	}
+	if err != nil {
+		return
+	}
+	defer sysbus.Close()
+
 	// TODO: This is insecure; use only in dev environments.
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -263,13 +280,13 @@ func main() {
 
 	for {
 
-		req, err := http.NewRequest("GET", "https://10.239.37.136/redfish/v1/SSE?$filter=EventFormatType%20eq%20MetricReport", nil)
+		req, err := http.NewRequest("GET", "https://100.69.104.132/redfish/v1/SSE?$filter=EventFormatType%20eq%20MetricReport", nil)
 		if err != nil {
 			fmt.Println("NewRequest GET", req, err)
 		}
 		fmt.Println("NewRequest GET", req, err)
 
-		req.SetBasicAuth("root", "VMware1!")
+		req.SetBasicAuth("root", "Dell1234")
 
 		resp, err := client.Do(req)
 		if err != nil {
@@ -295,7 +312,7 @@ func main() {
 
 			log.Info("\n\nThe response size and response error\n\n", n, err)
 
-			if n == 0 {
+			if err != nil && n == 0 {
 				log.Info("Got zero lenght when reading body - Don't break, continue for now", n, err)
 				break
 			}
