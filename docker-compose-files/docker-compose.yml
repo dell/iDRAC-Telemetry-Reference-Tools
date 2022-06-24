@@ -339,14 +339,8 @@ services:
         source: ${PWD}/docker-compose-files/container-info-grafana.txt
         target: /config/container-info-grafana.txt
       - type: bind
-        source: ${PWD}/dashboards/FanRPM.json
-        target: /dashboards/FanRPMtemplate.json
-      - type: bind
-        source: ${PWD}/dashboards/PowerReadings.json
-        target: /dashboards/PowerReadingstemplate.json
-      - type: bind
-        source: ${PWD}/dashboards/FanRPMHexThresholds.json
-        target: /dashboards/FanRPMHextemplate.json
+        source: ${PWD}/dashboards
+        target: /dashboardstgt
     entrypoint: ["/extrabin/initialize_grafana_influx_datasource.sh"]
     command: []
 
