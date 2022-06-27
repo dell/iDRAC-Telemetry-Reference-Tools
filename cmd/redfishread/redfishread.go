@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sync"
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/databus"
@@ -114,10 +115,14 @@ func parseReport(metricReport *redfish.RedfishPayload, systemid string, dataBusS
 		}
 	}
 	dataBusService.SendGroup(*group)
+	
+	var dataGrpMu sync.Mutex
+	dataGrpMu.Lock()
 	if dataGroups[systemid] == nil {
 		dataGroups[systemid] = make(map[string]*databus.DataGroup)
 	}
 	dataGroups[systemid][group.ID] = group
+	dataGrpMu.Unlock()
 }
 
 // Responsible for taking the lifecycle events received from SSE, getting its events, and then sending it along the
@@ -157,10 +162,14 @@ func parseRedfishLce(lceevents *redfish.RedfishPayload, id string, dataBusServic
                 }
 	}
         dataBusService.SendGroup(*group)
+	
+	var dataGrpLceMu sync.Mutex
+	dataGrpLceMu.Lock()
 	if dataGroups[id] == nil {
                 dataGroups[id] = make(map[string]*databus.DataGroup)
         }
         dataGroups[id][group.ID] = group
+		dataGrpLceMu.Unlock()	
 }
 
 func (r *RedfishDevice) RestartEventListener() {
