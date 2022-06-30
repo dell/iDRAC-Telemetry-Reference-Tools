@@ -135,10 +135,10 @@ installing docker compose version 2 are [here](https://docs.docker.com/compose/c
 iDRACs
 
 1. git clone https://github.com/dell/iDRAC-Telemetry-Reference-Tools
-2. (For Splunk) Edit `iDRAC-Telemetry-Reference-Tools/docker-compose-files/docker-compose.yml` with your favorite 
-   text editor. Change the environment variables SPLUNK_URL and SPLUNK_KEY for the container named 
-   splunk-pump-standalone to match the token generated for your http event listener and update the URL to match your 
-   external Splunk instance
+2. (For Splunk) Set the following environment variables as per the "HTTP Event Collector" configuration the Splunk.
+       SPLUNK_HEC_KEY=<Token Value>
+       SPLUNK_HEC_URL=http://<hostname or ip>:<HTTP Port Number>
+       SPLUNK_HEC_INDEX=<Index>
 3. Next run `bash compose.sh`. The options you use will depend on what you want to do. There are five different 
    "pumps" for the five different databases: `--influx-pump`, `--prometheus-pump`, `--splunk-pump`, `--elk-pump`, 
    `--timescale-pump`. These pumps are responsible for feeding the data from the pipeline into the pipeline of your 
