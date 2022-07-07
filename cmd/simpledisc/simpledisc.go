@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/disc"
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/disc"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
 )
 
 var configStrings = map[string]string{

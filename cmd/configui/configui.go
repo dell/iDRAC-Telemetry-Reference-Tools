@@ -14,10 +14,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/auth"
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/databus"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/databus"
 
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
 )
 
 var configStrings = map[string]string{

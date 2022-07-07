@@ -10,7 +10,7 @@ import (
 	"github.com/go-stomp/stomp"
 	"github.com/go-stomp/stomp/frame"
 
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
 )
 
 type StompMessagebus struct {
