@@ -19,6 +19,11 @@ func (r *RedfishPayload) IsCollection() bool {
 	return ok
 }
 
+func (r *RedfishPayload) IsEventCollection() bool {
+        _, ok := r.Object["Events"]
+        return ok
+}
+
 func (r *RedfishPayload) IsArray() bool {
 	return r.Array != nil
 }
@@ -28,6 +33,13 @@ func (r *RedfishPayload) GetCollectionSize() int {
 		return 0
 	}
 	return int(r.Object["Members@odata.count"].(float64))
+}
+
+func (r *RedfishPayload) GetEventSize() int {
+        if r.Object["Events@odata.count"] == nil {
+                return 0
+        }
+        return int(r.Object["Events@odata.count"].(float64))
 }
 
 func (r *RedfishPayload) GetArraySize() int {
@@ -83,6 +95,29 @@ func (r *RedfishPayload) GetPropertyByIndex(index int) (*RedfishPayload, error) 
 		}
 	}
 	return nil, fmt.Errorf("No such element %d", index)
+}
+
+func (r *RedfishPayload) GetEventByIndex(index int) (*RedfishPayload, error) {
+        if r.IsEventCollection() {
+                value := r.Object["Events"]
+                array := value.([]interface{})
+                value = array[index]
+                uri := getUriFromValue(value)
+                if len(uri) == 0 {
+                        return valueToPayload(r.Client, value), nil
+                }
+                return r.Client.GetUri(uri)
+        } else {
+                if len(r.Array) >= index {
+                        value := r.Array[index]
+                        uri := getUriFromValue(value)
+                        if len(uri) == 0 {
+                                return valueToPayload(r.Client, value), nil
+                        }
+                        return r.Client.GetUri(uri)
+                }
+        }
+        return nil, fmt.Errorf("No such element %d", index)
 }
 
 func walkChild(value interface{}, client *RedfishClient, res *map[string]*RedfishPayload) {

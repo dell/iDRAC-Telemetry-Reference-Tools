@@ -9,6 +9,7 @@ env
 # INFLUX_ORG
 # INFLUXDB_URL
 ADMIN_INFLUX_TOKEN=${ADMIN_INFLUX_TOKEN:-$DOCKER_INFLUXDB_INIT_ADMIN_TOKEN}
+DASHBOARDDIRS=${DASHBOARDDIRS:-/dashboardstgt}
 
 # Step 1: create grafana user in the influx
 
@@ -75,6 +76,14 @@ get_influx_token() {
   create_token $user $user_id $org_id | jq -r .token
 }
 
+function get_apikey() {
+
+  curl -H "Content-Type: application/json" \
+     --user admin:admin \
+     ${GRAFANA_URL}/api/auth/keys \
+     -d '{"name":"AdminAPIKey", "role": "Admin"}' | tee -a /tmp/apikeyresp.json | jq -r ".key"
+}
+
 trap 'echo "exiting"; for i in /tmp/*.json; do echo "===== $i"; cat $i; done' EXIT
 
 ###############################################
@@ -88,6 +97,14 @@ user="grafana"
 CONFIGDIR=${CONFIGDIR:-/config}
 .  ${CONFIGDIR}/container-info-grafana.txt
 
+# wait until influx is ready
+while ! curl --fail -v "${INFLUXDB_URL}/api/v2" \
+    --header "Authorization: Token ${ADMIN_INFLUX_TOKEN}" \
+    --header 'Content-type: application/json'
+do
+    sleep 1
+done
+
 if [[ -z $INFLUX_TOKEN ]]; then
   INFLUX_TOKEN=$(get_influx_token  $user $INFLUX_ORG)
 fi
@@ -98,15 +115,18 @@ echo "INFLUX_TOKEN=$INFLUX_TOKEN" > ${CONFIGDIR}/container-info-grafana.txt
 # configure grafana - get API key
 ###############################################
 
-if [[ -z $GRAFANA_APIKEY ]]; then
-  # create admin api key
-  GRAFANA_APIKEY=$(curl \
-     -H "Content-Type: application/json" \
+# wait until grafana is ready
+while ! curl --fail -v "${GRAFANA_URL}/api/auth/keys" \
      --user admin:admin \
-     ${GRAFANA_URL}/api/auth/keys \
-     -d '{"name":"AdminAPIKey", "role": "Admin"}' |
-     tee -a /tmp/apikeyresp.json | jq -r .key)
-fi
+    --header 'Content-type: application/json'
+do
+    sleep 1
+done
+
+#this 5 sec temporarily put to avoid the GRAFANA_APIKEY getting null, need to remove once that is fixed.
+sleep 5
+
+GRAFANA_APIKEY=${GRAFANA_APIKEY:-$(get_apikey)}
 
 echo "GRAFANA_APIKEY=$GRAFANA_APIKEY" >> ${CONFIGDIR}/container-info-grafana.txt
 
@@ -118,7 +138,8 @@ echo "GRAFANA_APIKEY=$GRAFANA_APIKEY" >> ${CONFIGDIR}/container-info-grafana.txt
 # configure grafana - setup influx data source
 ###############################################
 
-echo "add grafana source"
+datasource="InfluxDBDataSource"
+
 if [[ -z $GRAFANA_DATA_SOURCE_CONNECTED ]]; then
   curl --fail -s --request POST \
     "${GRAFANA_URL}/api/datasources" \
@@ -140,7 +161,7 @@ if [[ -z $GRAFANA_DATA_SOURCE_CONNECTED ]]; then
       \"user\":\"${user}\",
       \"version\":2,
       \"readOnly\":false,
-      \"name\":\"InfluxDB\",
+      \"name\":\"${datasource}\",
       \"type\":\"influxdb\",
       \"typeLogoUrl\":\"\",
       \"access\":\"proxy\",
@@ -156,13 +177,38 @@ fi
 
 echo "GRAFANA_DATA_SOURCE_CONNECTED=$GRAFANA_DATA_SOURCE_CONNECTED" >> ${CONFIGDIR}/container-info-grafana.txt
 
-
 ###############################################
 # configure grafana - add dashboards
 ###############################################
 
-# TODO
+# get the uid
+curl --fail -s --request GET \
+    -H "Content-Type: application/json" \
+    --user api_key:$GRAFANA_APIKEY  \
+    ${GRAFANA_URL}/api/datasources/name/${datasource} | tee -a /tmp/uuid.json
 
+GRAFANA_UID=`cat /tmp/uuid.json | jq -r .uid`
+
+echo "GRAFANA_UID=$GRAFANA_UID" >> ${CONFIGDIR}/container-info-grafana.txt
+
+# add the dashboards
+for template in ${DASHBOARDDIRS}/*template.json; do
+
+  sed -e "s/##TOKEN##/$INFLUX_TOKEN/g" $template > /tmp/$(basename $template -template.json).json
+  sed -i "s/##UID##/$GRAFANA_UID/g" /tmp/$(basename $template -template.json).json
+  sed -i "s/##DATASRC##/${datasource}/g" /tmp/$(basename $template -template.json).json
+  sed -i "s/##BUCKET##/${INFLUX_BUCKET}/g" /tmp/$(basename $template -template.json).json
+
+  curl --request POST \
+        "${GRAFANA_URL}/api/dashboards/db" \
+        --user api_key:$GRAFANA_APIKEY  \
+        --header 'Content-type: application/json' \
+        --data @/tmp/$(basename $template -template.json).json
+  echo "dashboard for =$template" >> ${CONFIGDIR}/container-info-grafana.txt      
+done
+
+GRAFANA_DASHBOARD_CREATED=1
+echo "GRAFANA_DASHBOARD_CREATED=$GRAFANA_DASHBOARD_CREATED" >> ${CONFIGDIR}/container-info-grafana.txt
 
 exit 0
 ### random grafana queries here for reference. remove after this is all debugged.
@@ -180,6 +226,23 @@ curl -X POST --user admin:admin ${GRAFANA_URL}/api/user/using/$grafana_org_id
 # get api key for user
 curl -X POST -H "Content-Type: application/json" --user admin:admin -d '{"name":"apikeycurl", "role": "Admin"}' ${GRAFANA_URL}/api/auth/keys
 # {"name":"apikeycurl","key":"eyJrIjoiR0ZXZmt1UFc0OEpIOGN5RWdUalBJTllUTk83VlhtVGwiLCJuIjoiYXBpa2V5Y3VybCIsImlkIjo2fQ=="}
+
+#below commented code can be removed after triaging the 5 sec sleep before getting the grafana_apikey
+#if [[ -z $GRAFANA_APIKEY ]]; then
+  # create admin api key
+  #GRAFANA_APIKEY=$(curl \
+  #   -H "Content-Type: application/json" \
+  #   --user admin:admin \
+  #   ${GRAFANA_URL}/api/auth/keys \
+  #   -d '{"name":"AdminAPIKey", "role": "Admin"}' | tee -a /tmp/apikeyresp.json | jq -r .key)
+
+ # curl -H "Content-Type: application/json" \
+ #    --user admin:admin \
+ #    ${GRAFANA_URL}/api/auth/keys \
+ #    -d '{"name":"AdminAPIKey", "role": "Admin"}' | tee -a /tmp/apikeyresp.json
+
+ # GRAFANA_APIKEY=`cat /tmp/apikeyresp.json | jq -r .key`
+#fi
 
 exit 0
 

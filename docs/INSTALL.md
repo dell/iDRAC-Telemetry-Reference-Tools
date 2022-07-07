@@ -135,10 +135,10 @@ installing docker compose version 2 are [here](https://docs.docker.com/compose/c
 iDRACs
 
 1. git clone https://github.com/dell/iDRAC-Telemetry-Reference-Tools
-2. (For Splunk) Edit `iDRAC-Telemetry-Reference-Tools/docker-compose-files/docker-compose.yml` with your favorite 
-   text editor. Change the environment variables SPLUNK_URL and SPLUNK_KEY for the container named 
-   splunk-pump-standalone to match the token generated for your http event listener and update the URL to match your 
-   external Splunk instance
+2. (For Splunk) Set the following environment variables as per the "HTTP Event Collector" configuration in the Splunk.  
+       SPLUNK_HEC_KEY=\<Token value\>  
+       SPLUNK_HEC_URL=http://\<Splunk hostname or ip\>:\<HTTP Port Number\>  
+       SPLUNK_HEC_INDEX=\<Index name\>  
 3. Next run `bash compose.sh`. The options you use will depend on what you want to do. There are five different 
    "pumps" for the five different databases: `--influx-pump`, `--prometheus-pump`, `--splunk-pump`, `--elk-pump`, 
    `--timescale-pump`. These pumps are responsible for feeding the data from the pipeline into the pipeline of your 
@@ -152,6 +152,10 @@ iDRACs
       See https://github.com/dell/iDRAC-Telemetry-Reference-Tools/issues/46. It will look like this:
 
 ![](images/2022-03-03-16-56-01.png)
+   2. **Running influx with grafana** This is a 2 step process with starting the influx, grafana to generate the tokens and stop the setup before going to run with the option --influx-test-db
+    a. ./docker-compose-files/compose.sh --setup-influx-test-db ![](images/setup-influx-test-db.png) 
+    b. ./docker-compose-files/compose.sh --influx-test-db ![](images/influx-test-db.PNG) 
+    
 
 4. On your system, you will need to allow ports 8161 and 8080 through your firewall
    1. If you are running Elasticsearch, you will also need to open port 5601 for Kibana if you chose to run compose 
@@ -198,12 +202,18 @@ This is not required. It only demonstrates a possible Elasticsearch workflow.
 
 ![](../images/2022-03-02-06-05-24.png)
 
+### Post Install for Influx UI
+1. Browse to influx (`http://<YOUR_IP>:8086`) using the admin/DOCKER_INFLUXDB_INIT_PASSWORD ![](../images/Tokens.PNG)
+2. load data ![](../images/Influxdb-loadData.png)
+3. view telmetry metrics from my-org-bucket database ![](../images/Influxdb-my-org-bucket.png)
+
 ### Post Install for InfluxDB, Prometheus, or TimescaleDB
 
 1. Browse to Grafana (`http://<YOUR_IP>:3000`)
-2. For InfluxDB:
+2. Add InfluxDB datasource, select the url (`http://influx:8086`) with the header `Authorization: Token DOCKER_INFLUXDB_INIT_ADMIN_TOKEN`, and `organization:my-org`. Correct addition of datasource will show the available buckets. ![](../images/grafanaAddDataSources.png) 
+3. Visualize metrics using add panel and wrting query for the respective metric in the Query inspector(quick way is to get the query from the influxUI)
 
-![](../images/2022-03-02-06-10-09.png)
+![](../images/Influx-Grafana-FanRPMReading.png)
 
 3. For Prometheus:
 

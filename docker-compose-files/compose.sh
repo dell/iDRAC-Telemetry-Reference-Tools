@@ -67,6 +67,7 @@ testvercomp () {
 PROFILE_ARG="--profile core"
 BUILD_ARG=
 DETACH_ARG="-d"
+POST_ACTION=
 
 opts=$(getopt \
   -n $(basename $0) \
@@ -80,6 +81,7 @@ opts=$(getopt \
   --longoptions "elk-pump" \
   --longoptions "timescale-pump" \
   --longoptions "influx-test-db" \
+  --longoptions "setup-influx-test-db" \
   --longoptions "prometheus-test-db" \
   --longoptions "elk-test-db" \
   --longoptions "timescale-test-db" \
@@ -117,6 +119,9 @@ while [[ $# -gt 0 ]]; do
       echo "    --elk-test-db"
       echo "    --timescale-test-db"
       echo
+      echo "  One time setup for various options above"
+      echo "    --setup-influx-test-db"
+      echo
       echo "Start options:"
       echo "  --detach|--nodetach   Either detach from docker compose or stay attached and view debug"
       exit 0
@@ -140,7 +145,47 @@ while [[ $# -gt 0 ]]; do
       PROFILE_ARG="$PROFILE_ARG --profile timescale-pump"
       ;;
     --influx-test-db)
+      if [ ! -e docker-compose-files/container-info-influx-pump.txt ]; then
+        echo "Influx must be set up before running. Please run using the --setup-influx-test-db option first"
+        exit 1
+      fi
       PROFILE_ARG="$PROFILE_ARG --profile influx-test-db"
+      ;;
+    --setup-influx-test-db)
+      # RUN ONLY setup containers
+      PROFILE_ARG="--profile setup-influx-test-db"
+      POST_ACTION="influx_setup_finish"
+      DETACH_ARG="-d"
+      BUILD_ARG=
+      eval set -- "start"
+
+      for i in  $topdir/docker-compose-files/container-info-influx-pump.txt $topdir/docker-compose-files/container-info-grafana.txt
+      do
+        rm -f $i
+        touch $i
+      done
+
+      # delete any older setup for grafana
+      for container in telemetry-reference-tools-influx telemetry-reference-tools-grafana
+      do
+        id=$(docker container ls -a --filter name=$container -q)
+        if [[ -z $id ]]; then
+          continue
+        fi
+        echo "Cleaning up old containers for $container: $id"
+        echo -n "Stopping: "
+        docker container stop $id
+        echo -n "Removing: "
+        docker container rm -v $id
+      done
+
+      volume=$(docker volume ls --filter name=telemetry-reference-tools_influxdb-storage -q)
+      if [[ -n $volume ]]; then
+        echo -n "Removing volume: $volume"
+        docker volume rm $volume
+      fi
+
+      break
       ;;
     --prometheus-test-db)
       PROFILE_ARG="$PROFILE_ARG --profile prometheus-test-db"
@@ -185,9 +230,6 @@ echo "GROUP_ID=$(id -g)" >> $topdir/.env
 echo "DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${DOCKER_INFLUXDB_INIT_ADMIN_TOKEN}" >> $topdir/.env
 echo "DOCKER_INFLUXDB_INIT_PASSWORD=${DOCKER_INFLUXDB_INIT_PASSWORD}" >> $topdir/.env
 
-touch $topdir/docker-compose-files/container-info-influx-pump.txt
-touch $topdir/docker-compose-files/container-info-grafana.txt
-
 case $1 in
   rm)
     docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} rm -f
@@ -210,3 +252,27 @@ case $1 in
     exit 1
     ;;
 esac
+
+influx_setup_finish() {
+  while ! grep INFLUX_TOKEN $topdir/docker-compose-files/container-info-influx-pump.txt;
+  do
+    echo "Waiting for container setup to finish"
+    sleep 1
+  done
+  echo "Influx pump container setup done. "
+
+  while ! grep GRAFANA_DASHBOARD_CREATED $topdir/docker-compose-files/container-info-grafana.txt;
+  do
+    echo "Waiting for grafana container setup DATA_SOURCE & DASHBOARD to finish"
+    sleep 1
+  done
+
+  echo "grafana container setup done for datasource and dashboards. Shutting down."
+  
+  docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} stop
+
+#  echo "Removing completed setup containers that are no longer needed"
+  docker container rm -v $(docker container ls -a --filter ancestor=idrac-telemetry-reference-tools/setup -q)
+}
+
+$POST_ACTION

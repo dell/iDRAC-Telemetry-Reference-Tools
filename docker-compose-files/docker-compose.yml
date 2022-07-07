@@ -85,6 +85,7 @@ volumes:
   grafana-storage:
   prometheus-data:
   mysqldb-volume:
+  dashboards:
 
 services:
   activemq:
@@ -173,10 +174,11 @@ services:
     #  /docker-entrypoint-initdb.d directory. When multiple scripts are
     #  present, they will be executed in lexical sort order by name."
     #
-    container_name: influx
+    container_name: telemetry-reference-tools-influx
     image: influxdb:latest
     profiles:
       - influx-test-db
+      - setup-influx-test-db
     volumes:
       - influxdb-storage:/var/lib/influxdb
     environment:
@@ -216,7 +218,13 @@ services:
       - activemq
     environment:
       <<: *messagebus-env
-      <<: *influx-env
+      # set these environment variables using docker command line if using external influx
+      INFLUXDB_DB:
+      INFLUXDB_URL:
+      INFLUX_ORG:
+      INFLUX_HOST:
+      INFLUX_BUCKET:
+      INFLUX_TOKEN:
     env_file:
       - ${PWD}/docker-compose-files/container-info-influx-pump.txt
     profiles:
@@ -229,12 +237,15 @@ services:
 
   influx-pump-withtestserver:
     <<: *influx-pump
+    environment:
+      <<: *messagebus-env
+    env_file:
+      - ${PWD}/docker-compose-files/container-info-influx-pump.txt
     depends_on:
       - influx
       - activemq
     profiles:
       - influx-test-db
-      - setup-influx-pump
 
   setup-influx-pump:
     build:
@@ -242,7 +253,7 @@ services:
       dockerfile: docker-compose-files/Dockerfile.setup
     image: idrac-telemetry-reference-tools/setup:latest
     profiles:
-      - influx-test-db
+      - setup-influx-test-db
     depends_on:
       - influx
       - activemq
@@ -282,10 +293,14 @@ services:
     ############################################################################
 
     # grafana runs as root in latest version. *sigh*
-    container_name: grafana
+    container_name: telemetry-reference-tools-grafana
     image: grafana/grafana:latest
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./grafana-provisioning/:/etc/grafana/provisioning
     profiles:
       - grafana
+      - setup-influx-test-db
       - influx-test-db
       - prometheus-test-db
     depends_on:
@@ -304,7 +319,7 @@ services:
       dockerfile: docker-compose-files/Dockerfile.setup
     image: idrac-telemetry-reference-tools/setup:latest
     profiles:
-      - influx-test-db
+      - setup-influx-test-db
     depends_on:
       - influx
       - grafana
@@ -323,6 +338,15 @@ services:
       - type: bind
         source: ${PWD}/docker-compose-files/container-info-grafana.txt
         target: /config/container-info-grafana.txt
+      - type: bind
+        source: ${PWD}/dashboards/FanRPM.json
+        target: /dashboards/FanRPMtemplate.json
+      - type: bind
+        source: ${PWD}/dashboards/PowerReadings.json
+        target: /dashboards/PowerReadingstemplate.json
+      - type: bind
+        source: ${PWD}/dashboards/FanRPMHexThresholds.json
+        target: /dashboards/FanRPMHextemplate.json
     entrypoint: ["/extrabin/initialize_grafana_influx_datasource.sh"]
     command: []
 
@@ -340,7 +364,7 @@ services:
     # TODO: add
     #
     ############################################################################
-    image: prom/prometheus:v2.1.0
+    image: prom/prometheus:v2.36.0
     restart: always
     container_name: prometheus
     profiles:
@@ -357,6 +381,8 @@ services:
     command:
       - '--config.file=/config/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"  
     networks:
       - host-bridge-net
 
@@ -390,8 +416,11 @@ services:
       args:
         <<: *base-args
         CMD: prometheuspump
+    ports:
+      - "2112:2112"    
 
   prometheus-pump-withtestserver:
+    container_name: prometheus-ingester
     <<: *prometheus-pump
     depends_on:
       - prometheus
@@ -421,8 +450,9 @@ services:
       - activemq
     environment:
       <<: *messagebus-env
-      SPLUNK_URL: "http://splunkhost:8088"
-      SPLUNK_KEY: "87b52214-1950-4b22-8fd7-f57543431b81"
+      SPLUNK_HEC_URL: ${SPLUNK_HEC_URL}
+      SPLUNK_HEC_KEY: ${SPLUNK_HEC_KEY}
+      SPLUNK_HEC_INDEX: ${SPLUNK_HEC_INDEX}
     build:
       <<: *base-build
       args:
@@ -445,6 +475,9 @@ services:
     ############################################################################
     <<: *refdaemon
     image: idrac-telemetry-reference-tools/elkpump:latest
+    environment:
+      <<: *messagebus-env
+      ELASTICSEARCH_URL: http://es01:9200
     profiles:
       - elk-pump
     depends_on:
@@ -457,14 +490,15 @@ services:
 
   elk-pump-withtestserver:
     <<: *elk-pump
+    environment:
+      <<: *messagebus-env
+      ELASTICSEARCH_URL: http://es01:9200
     profiles:
       - elk-test-db
     depends_on:
       - es01
       - activemq
-    environment:
-      <<: *messagebus-env
-      ELASTICSEARCH_URL: http://es01:9200
+    
 
   es01:
     ############################################################################
