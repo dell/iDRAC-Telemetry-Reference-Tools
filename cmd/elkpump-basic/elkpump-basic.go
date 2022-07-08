@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 
@@ -221,7 +222,8 @@ func main() {
 
 	//Initialize elasticsearch client
 	time.Sleep(15 * time.Second)
-	es, err := elasticsearch.NewDefaultClient(elasticsearch.Config{
+	retryBackoff := backoff.NewExponentialBackOff()
+	es, err := elasticsearch.NewClient(elasticsearch.Config{
 		RetryOnStatus: []int{502, 503, 504, 429},
 
 		// Configure the backoff function
