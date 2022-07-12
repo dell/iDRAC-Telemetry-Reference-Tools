@@ -24,6 +24,7 @@ import (
 type SplunkEventFields struct {
 	Value      float64 `json:"_value"`
 	MetricName string  `json:"metric_name"`
+	Source     string      `json:"source"`
 }
 
 type SplunkEvent struct {
@@ -41,7 +42,7 @@ var configStrings = map[string]string{
 	"mbhost":    "activemq",
 	"mbport":    "61613",
 	"splunkURL": "http://splunkhost:8088",
-	"splunkKey": "87b52214-1950-4b22-8fd7-f57543431b81",
+	"splunkKey": "",
 }
 
 var configItems = map[string]*config.ConfigEntry{
@@ -53,7 +54,7 @@ var configItems = map[string]*config.ConfigEntry{
 	"splunkKey": {
 		Set:     configSet,
 		Get:     configGet,
-		Default: "87b52214-1950-4b22-8fd7-f57543431b81",
+		Default: "",
 	},
 }
 
@@ -101,13 +102,17 @@ func getEnvSettings() {
 	if len(mbPort) > 0 {
 		configStrings["mbport"] = mbPort
 	}
-	splunkURL := os.Getenv("SPLUNK_URL")
-	if len(mbPort) > 0 {
+	splunkURL := os.Getenv("SPLUNK_HEC_URL")
+	if len(splunkURL) > 0 {
 		configStrings["splunkURL"] = splunkURL
 	}
-	splunkKey := os.Getenv("SPLUNK_KEY")
-	if len(mbPort) > 0 {
+	splunkKey := os.Getenv("SPLUNK_HEC_KEY")
+	if len(splunkKey) > 0 {
 		configStrings["splunkKey"] = splunkKey
+	}
+	splunkIndex := os.Getenv("SPLUNK_HEC_INDEX")
+	if len(splunkIndex) > 0 {
+		configStrings["splunkIndex"] = splunkIndex 
 	}
 }
 
@@ -122,6 +127,7 @@ func logToSplunk(events []*SplunkEvent) {
 	configStringsMu.RLock()
 	url := configStrings["splunkURL"] + "/services/collector"
 	key := configStrings["splunkKey"]
+	//index := configStrings["splunkIndex"]
 	configStringsMu.RUnlock()
 
 	req, err := http.NewRequest("POST", url, strings.NewReader(builder.String()))
@@ -135,6 +141,7 @@ func logToSplunk(events []*SplunkEvent) {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println("Error doing http request: ", err)
+		return
 	}
 	if resp.Body != nil {
 		resp.Body.Close()
@@ -143,7 +150,7 @@ func logToSplunk(events []*SplunkEvent) {
 }
 
 // handleGroups brings in the events from ActiveMQ
-func handleGroups(groupsChan chan *databus.DataGroup) {
+func handleGroups(groupsChan chan *databus.DataGroup, metricIndex string) {
 	for {
 		group := <-groupsChan // If you are new to GoLang see https://golangdocs.com/channels-in-golang
 		events := make([]*SplunkEvent, len(group.Values))
@@ -166,6 +173,7 @@ func handleGroups(groupsChan chan *databus.DataGroup) {
 			floatVal, _ := strconv.ParseFloat(value.Value, 64)
 			event.Fields.Value = floatVal
 			event.Fields.MetricName = value.Context + "_" + value.ID
+			event.Fields.Source = "http:" + metricIndex
 			events[index] = event
 		}
 		logToSplunk(events)
@@ -180,8 +188,9 @@ func main() {
 	configName := flag.String("config", "config.ini", "The configuration ini file")
 	mbhost := flag.String("mbhost", "", fmt.Sprintf("Message Bus hostname. Overrides default (%s). Overrides environment: MESSAGEBUS_HOST", configStrings["mbhost"]))
 	mbport := flag.Int("mbport", 0, fmt.Sprintf("Message Bus port. Overrides default (%s). Overrides environment: MESSAGEBUS_PORT", configStrings["mbport"]))
-	splunkurl := flag.String("splunkurl", "", "URL of the splunk host")
-	splunkkey := flag.String("splunkkey", "", "Splunk key")
+	splunkurl := flag.String("splunkurl", "", "Splunk HEC URL ")
+	splunkkey := flag.String("splunkkey", "", "Splunk HEC Key")
+	splunkindex := flag.String("splunkindex", "", "Splunk HEC Index")
 
 	flag.Parse()
 
@@ -219,11 +228,22 @@ func main() {
 	if *splunkkey != "" {
 		configStrings["splunkKey"] = *splunkkey
 	}
+	if *splunkindex != "" {
+		configStrings["splunkIndex"] = *splunkindex
+	}
 
 	host := configStrings["mbhost"]
 	port, _ = strconv.Atoi(configStrings["mbport"])
+	metricIndex := configStrings["splunkIndex"]
+	url := configStrings["splunkURL"]
+	key := configStrings["splunkKey"]
 	configStringsMu.Unlock()
 
+	if  url == ""  || key == "" || metricIndex == "" {
+		log.Printf("Splunk url/key/index not set, exiting!!! ")
+		return
+	}
+		
 	var mb messagebus.Messagebus
 	for {
 		mb, err = stomp.NewStompMessageBus(host, port)
@@ -246,5 +266,5 @@ func main() {
 
 	go dbClient.GetGroup(groupsIn, "/spunk")
 	go configService.Run()
-	handleGroups(groupsIn)
+	handleGroups(groupsIn, metricIndex)
 }
