@@ -293,12 +293,10 @@ services:
     ############################################################################
 
     # grafana runs as root in latest version. *sigh*
-    # Polystat plugin install doesnt work with prior versions of Grafana. Grafana 9.0.1 is just released on 2022-06-21
     container_name: telemetry-reference-tools-grafana
-    image: grafana/grafana:9.0.1
+    image: grafana/grafana:latest
     volumes:
       - grafana-storage:/var/lib/grafana
-      - ./:/var/lib/grafana/grafana-polystat-panel
       - ./grafana-provisioning/:/etc/grafana/provisioning
     profiles:
       - grafana
@@ -310,7 +308,6 @@ services:
     environment:
       <<: *influx-env
       <<: *grafana-env
-      GF_INSTALL_PLUGINS: grafana-polystat-panel
     ports:
       - "3000:3000"
     networks:
@@ -342,8 +339,14 @@ services:
         source: ${PWD}/docker-compose-files/container-info-grafana.txt
         target: /config/container-info-grafana.txt
       - type: bind
-        source: ${PWD}/dashboards
-        target: /dashboardstgt
+        source: ${PWD}/dashboards/FanRPM.json
+        target: /dashboards/FanRPMtemplate.json
+      - type: bind
+        source: ${PWD}/dashboards/PowerReadings.json
+        target: /dashboards/PowerReadingstemplate.json
+      - type: bind
+        source: ${PWD}/dashboards/FanRPMHexThresholds.json
+        target: /dashboards/FanRPMHextemplate.json
     entrypoint: ["/extrabin/initialize_grafana_influx_datasource.sh"]
     command: []
 
@@ -447,8 +450,9 @@ services:
       - activemq
     environment:
       <<: *messagebus-env
-      SPLUNK_URL: "http://splunkhost:8088"
-      SPLUNK_KEY: "87b52214-1950-4b22-8fd7-f57543431b81"
+      SPLUNK_HEC_URL: ${SPLUNK_HEC_URL}
+      SPLUNK_HEC_KEY: ${SPLUNK_HEC_KEY}
+      SPLUNK_HEC_INDEX: ${SPLUNK_HEC_INDEX}
     build:
       <<: *base-build
       args:
