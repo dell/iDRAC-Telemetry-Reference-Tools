@@ -1,4 +1,5 @@
 #!/bin/bash 
+set -x
 scriptdir=$(cd $(dirname $0); pwd)
 topdir=$(cd $scriptdir/../; pwd)
 cd $topdir
@@ -103,6 +104,7 @@ while [[ $# -gt 0 ]]; do
       echo "Args:"
       echo "  start      Start up dockerized telemetry services"
       echo "  stop       Stop telemetry services"
+      echo "  setup      Setup (influx-test-db) one time for Influx and Grafana"
       echo
       echo "Flags:"
       echo "  --build    (Re-)build the docker containers from source"
@@ -121,11 +123,8 @@ while [[ $# -gt 0 ]]; do
       echo "    --elk-test-db"
       echo "    --timescale-test-db"
       echo
-      echo "  One time setup for various options above"
-      echo "    --setup-influx-test-db"
-      echo
       echo "Start options:"
-      echo "  --detach|--nodetach   Either detach from docker compose or stay attached and view debug"
+      echo "  --detach|--nodetach   Either detach (default) from docker compose or stay attached and view debug"
       exit 0
       ;;
     --build)
@@ -139,6 +138,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --splunk-pump)
       PROFILE_ARG="$PROFILE_ARG --profile splunk-pump"
+      SPLUNK=1     
       ;;
     --elk-pump)
       PROFILE_ARG="$PROFILE_ARG --profile elk-pump"
@@ -147,48 +147,10 @@ while [[ $# -gt 0 ]]; do
       PROFILE_ARG="$PROFILE_ARG --profile timescale-pump"
       ;;
     --influx-test-db)
-      if [ ! -e docker-compose-files/container-info-influx-pump.txt ]; then
-        echo "Influx must be set up before running. Please run using the --setup-influx-test-db option first"
-        exit 1
-      fi
       PROFILE_ARG="$PROFILE_ARG --profile influx-test-db"
-      ;;
-    --setup-influx-test-db)
-      # RUN ONLY setup containers
-      PROFILE_ARG="--profile setup-influx-test-db"
-      POST_ACTION="influx_setup_finish"
-      DETACH_ARG="-d"
-      BUILD_ARG=
-      eval set -- "start"
+      INFLUX=1
+      ;;    
 
-      for i in  $topdir/docker-compose-files/container-info-influx-pump.txt $topdir/docker-compose-files/container-info-grafana.txt
-      do
-        rm -f $i
-        touch $i
-      done
-
-      # delete any older setup for grafana
-      for container in telemetry-reference-tools-influx telemetry-reference-tools-grafana
-      do
-        id=$(docker container ls -a --filter name=$container -q)
-        if [[ -z $id ]]; then
-          continue
-        fi
-        echo "Cleaning up old containers for $container: $id"
-        echo -n "Stopping: "
-        docker container stop $id
-        echo -n "Removing: "
-        docker container rm -v $id
-      done
-
-      volume=$(docker volume ls --filter name=telemetry-reference-tools_influxdb-storage -q)
-      if [[ -n $volume ]]; then
-        echo -n "Removing volume: $volume"
-        docker volume rm $volume
-      fi
-
-      break
-      ;;
     --prometheus-test-db)
       PROFILE_ARG="$PROFILE_ARG --profile prometheus-test-db"
       ;;
@@ -229,16 +191,79 @@ echo "GROUP_ID=$(id -g)" >> $topdir/.env
 echo "DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${DOCKER_INFLUXDB_INIT_ADMIN_TOKEN}" >> $topdir/.env
 echo "DOCKER_INFLUXDB_INIT_PASSWORD=${DOCKER_INFLUXDB_INIT_PASSWORD}" >> $topdir/.env
 
+# init Splink env variables if not set to avoid warnings from docker-compose for other pumps
+if [ -z $SPLUNK_HEC_URL ]; then
+   export SPLUNK_HEC_URL=
+fi
+if [ -z $SPLUNK_HEC_KEY ]; then
+   export SPLUNK_HEC_KEY=
+fi
+if [ -z $SPLUNK_HEC_INDEX ]; then
+   export SPLUNK_HEC_INDEX=
+fi
+
+ # remove dependency on setup influx-test-db
+touch $topdir/docker-compose-files/container-info-influx-pump.txt 
+touch $topdir/docker-compose-files/container-info-grafana.txt
+
 case $1 in
   rm)
     docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} rm -f
     ;;
 
+  setup)
+      if [[ -z $INFLUX ]]; then
+          echo  "Setup only with influx-test-db  profile... "
+          exit 1
+      fi
+      # RUN ONLY setup containers
+      PROFILE_ARG="--profile setup-influx-test-db"
+      POST_ACTION="influx_setup_finish"
+      DETACH_ARG="-d"
+      BUILD_ARG=
+      #eval set -- "start"
+
+      for i in  $topdir/docker-compose-files/container-info-influx-pump.txt $topdir/docker-compose-files/container-info-grafana.txt
+      do
+        rm -f $i
+        touch $i
+      done
+
+      # delete any older setup for grafana
+      for container in telemetry-reference-tools-influx telemetry-reference-tools-grafana
+      do
+        id=$(docker container ls -a --filter name=$container -q)
+        if [[ -z $id ]]; then
+          continue
+        fi
+        echo "Cleaning up old containers for $container: $id"
+        echo -n "Stopping: "
+        docker container stop $id
+        echo -n "Removing: "
+        docker container rm -v $id
+      done
+
+      volume=$(docker volume ls --filter name=telemetry-reference-tools_influxdb-storage -q)
+      if [[ -n $volume ]]; then
+        echo -n "Removing volume: $volume"
+        docker volume rm $volume
+      fi
+      docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG} ${DETACH_ARG}
+      ;;  
+
   stop)
     docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} stop
     ;;
 
-  start)
+  start)  
+    if [[ -n $SPLUNK ]] && [[ -z $SPLUNK_HEC_URL || -z $SPLUNK_HEC_KEY || -z $SPLUNK_HEC_INDEX ]];then 
+       echo "Splunk env variables SPLUNK_HEC_URL, SPLUNK_HEC_KEY, and/or SPLUNK_HEC_INDEX not set! "
+       exit 1
+    fi
+    if  [[ -n $INFLUX ]] && [[ ! -s docker-compose-files/container-info-influx-pump.txt ]]; then
+      echo "Influx must be set up before running. Please run setup --influx-test-db first"
+      exit 1
+    fi
     echo "Set up environment file in $topdir/.env"
     echo "To run manually, run the following command line:"
     echo "docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG} ${DETACH_ARG}"

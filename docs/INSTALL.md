@@ -152,9 +152,10 @@ iDRACs
       See https://github.com/dell/iDRAC-Telemetry-Reference-Tools/issues/46. It will look like this:
 
 ![](images/2022-03-03-16-56-01.png)
-   2. **Running influx with grafana** This is a 2 step process with starting the influx, grafana to generate the tokens and stop the setup before going to run with the option --influx-test-db
-    a. ./docker-compose-files/compose.sh --setup-influx-test-db ![](images/setup-influx-test-db.png) 
-    b. ./docker-compose-files/compose.sh --influx-test-db ![](images/influx-test-db.PNG) 
+
+   2. **Running influx with grafana** This is a 2 step process of generating influx and grafana tokens and starting --influx-test-db.
+    a. ./docker-compose-files/compose.sh setup --influx-test-db
+    b. ./docker-compose-files/compose.sh start --influx-test-db
     
 
 4. On your system, you will need to allow ports 8161 and 8080 through your firewall
