@@ -91,6 +91,7 @@ func initalizePQLWithTimescale(ctx context.Context) (*pgxpool.Pool, error) {
 		configStrings["timescaleDBName"])
 	dbpool, err := pgxpool.Connect(ctx, connStr)
 	if err != nil {
+		fmt.Println("not able to connect to the timescale database**")
 		return dbpool, err
 	}
 	/********************************************/
