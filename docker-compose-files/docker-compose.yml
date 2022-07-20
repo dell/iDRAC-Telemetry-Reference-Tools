@@ -20,15 +20,15 @@ version: "3.9"
 ######
 
 x-env-mysql: &mysql-env
-  MYSQL_DATABASE: "telemetrysource_services_db"  #specify configured database name
-  MYSQL_USER: "reftools"           #sample reference - specify configured user name
-  MYSQL_PASSWORD: "*Ref!**lsq8#v*" #sample reference - specify configured credentials
-  MYSQL_HOST: "mysqldb"            #sample reference - specify mysql hostname
-  MYSQL_HOST_PORT: "3306"          #sample reference - specify mysql port number
+  MYSQL_DATABASE: "telemetrysource_services_db"
+  MYSQL_USER: "reftools"
+  MYSQL_PASSWORD:
+  MYSQL_HOST: "mysqldb"
+  MYSQL_HOST_PORT: "3306"
 
 x-env-messagebus: &messagebus-env
-  MESSAGEBUS_HOST: activemq      #sample reference - specify messagebus hostname
-  MESSAGEBUS_PORT: 61613         #sample reference - specify messagebus port
+  MESSAGEBUS_HOST: activemq
+  MESSAGEBUS_PORT: 61613
 
 x-env-influx: &influx-env
   INFLUXDB_DB: poweredge_telemetry_metrics
@@ -106,8 +106,7 @@ services:
     restart: always
     environment:
       <<: *mysql-env
-      # this should only be passed to mysqldb, not needed by other daemons and would be security issue if leaked
-      MYSQL_ROOT_PASSWORD: "bananas"   #sample reference - specify configured credentials
+      MYSQL_ROOT_PASSWORD:
     networks:
       - host-bridge-net
     volumes:
