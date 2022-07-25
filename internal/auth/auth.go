@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"log"
 
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/disc"
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/disc"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
 )
 
 const (

@@ -1,5 +1,5 @@
-#!/bin/bash 
-#set -x
+#!/bin/bash
+
 scriptdir=$(cd $(dirname $0); pwd)
 topdir=$(cd $scriptdir/../; pwd)
 cd $topdir
@@ -63,7 +63,6 @@ testvercomp () {
     fi
 }
 
-testvercomp $(docker-compose --version | cut -d ' ' -f 4 | sed 's/^v//') 2.2.0 '>'
 
 PROFILE_ARG="--profile core"
 BUILD_ARG=
@@ -92,8 +91,6 @@ if [[ $? -ne 0 ]]; then
   opts="-h"
   echo
 fi
-
-set -e
 
 eval set -- "$opts"
 while [[ $# -gt 0 ]]; do
@@ -177,10 +174,15 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
+testvercomp $(docker-compose --version | cut -d ' ' -f 4 | sed 's/^v//') 2.2.0 '>'
+set -e
+
 # re-read env settings so we dont regenerate them unnecessarily
 [ -e $topdir/.env ] && . $topdir/.env
 export DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${DOCKER_INFLUXDB_INIT_ADMIN_TOKEN:-$(uuidgen -r)}
 export DOCKER_INFLUXDB_INIT_PASSWORD=${DOCKER_INFLUXDB_INIT_PASSWORD:-$(uuidgen -r)}
+export MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-$(uuidgen -r)}
+export MYSQL_PASSWORD=${MYSQL_PASSWORD:-$(uuidgen -r)}
 
 # make container user UID match calling user so that containers dont leave droppings we cant remove
 > $topdir/.env
@@ -190,6 +192,8 @@ echo "GROUP_ID=$(id -g)" >> $topdir/.env
 # generate some secrets that should be different across all deployments
 echo "DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${DOCKER_INFLUXDB_INIT_ADMIN_TOKEN}" >> $topdir/.env
 echo "DOCKER_INFLUXDB_INIT_PASSWORD=${DOCKER_INFLUXDB_INIT_PASSWORD}" >> $topdir/.env
+echo "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}" >> $topdir/.env
+echo "MYSQL_PASSWORD=${MYSQL_PASSWORD}" >> $topdir/.env
 
 # init Splink env variables if not set to avoid warnings from docker-compose for other pumps
 if [ -z $SPLUNK_HEC_URL ]; then

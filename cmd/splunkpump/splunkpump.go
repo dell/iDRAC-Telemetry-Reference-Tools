@@ -13,12 +13,12 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/config"
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/databus"
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/config"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/databus"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
 
-	//"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/amqp"
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
+	//"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/amqp"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
 )
 
 type SplunkEventFields struct {
