@@ -14,10 +14,10 @@ import (
 	"golang.org/x/crypto/ssh"
 	"gopkg.in/ini.v1"
 
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/auth"
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/disc"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/disc"
 
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
 )
 
 var configStrings = map[string]string{

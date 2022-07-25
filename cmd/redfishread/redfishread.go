@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/auth"
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/databus"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/databus"
 
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/redfish"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/redfish"
 )
 
 var configStrings = map[string]string{
