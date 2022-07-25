@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"strings"
 
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/sse"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/sse"
 )
 
 type RedfishClient struct {

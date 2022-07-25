@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log"
 
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
 )
 
 type SetFunc func(name string, value interface{}) error

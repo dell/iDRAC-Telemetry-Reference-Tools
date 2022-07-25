@@ -18,8 +18,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	mr "gitlab.pgre.dell.com/enterprise/telemetryservice/utilities/source-simulator/metricreport"
-	br "gitlab.pgre.dell.com/enterprise/telemetryservice/utilities/source-simulator/ssebroker"
+	mr "github.com/dell/iDRAC-Telemetry-Reference-Tools/utilities/source-simulator/metricreport"
+	br "github.com/dell/iDRAC-Telemetry-Reference-Tools/utilities/source-simulator/ssebroker"
 )
 
 var configStrings = map[string]string{
