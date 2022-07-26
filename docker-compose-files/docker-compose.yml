@@ -304,6 +304,7 @@ services:
       - setup-influx-test-db
       - influx-test-db
       - prometheus-test-db
+      - timescale-test-db
     depends_on:
       - influx
     environment:
@@ -613,9 +614,12 @@ services:
       - node.name=timescale
       - POSTGRES_USER=postgres
       - POSTGRES_PASS=postgres
+      - POSTGRES_HOST_AUTH_METHOD=trust
       - TIMESCALE_DB=poweredge_telemetry_metrics
     networks:
       - host-bridge-net
+    ports:
+      - "5432:5432"
 
   timescale-setup:
     image: timescale/timescaledb:latest-pg12
@@ -630,6 +634,7 @@ services:
       - POSTGRES_PORT=5432
       - POSTGRES_USER=postgres
       - POSTGRES_PASS=postgres
+      - POSTGRES_HOST_AUTH_METHOD=trust
       - TIMESCALE_DB=poweredge_telemetry_metrics
     volumes:
       - type: bind
@@ -679,6 +684,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_DEFAULT_PWD: postgres
       TIMESCALE_SERVER: timescale
+      POSTGRES_HOST_AUTH_METHOD: trust
       TIMESCALE_DB: poweredge_telemetry_metrics
 
 

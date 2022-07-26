@@ -189,8 +189,6 @@ curl --fail -s --request GET \
 
 GRAFANA_UID=`cat /tmp/uuid.json | jq -r .uid`
 
-echo "GRAFANA_UID=$GRAFANA_UID" >> ${CONFIGDIR}/container-info-grafana.txt
-
 # add the dashboards
 for template in ${DASHBOARDDIRS}/*template.json; do
 
@@ -204,7 +202,6 @@ for template in ${DASHBOARDDIRS}/*template.json; do
         --user api_key:$GRAFANA_APIKEY  \
         --header 'Content-type: application/json' \
         --data @/tmp/$(basename $template -template.json).json
-  echo "dashboard for =$template" >> ${CONFIGDIR}/container-info-grafana.txt      
 done
 
 GRAFANA_DASHBOARD_CREATED=1
