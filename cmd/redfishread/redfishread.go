@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
@@ -35,6 +36,7 @@ type RedfishDevice struct {
 
 var devices map[string]*RedfishDevice
 var dataGroups map[string]map[string]*databus.DataGroup
+var dataGroupsMu sync.RWMutex
 
 // populateChildChassis If the device is a chassis, we also have to obtain IDs / info for all children in that chassis
 // and pull telemetry on them. This function will expand the chassis information and obtain the necessary information.
@@ -114,26 +116,29 @@ func parseReport(metricReport *redfish.RedfishPayload, systemid string, dataBusS
 		}
 	}
 	dataBusService.SendGroup(*group)
+
+	dataGroupsMu.Lock()
 	if dataGroups[systemid] == nil {
 		dataGroups[systemid] = make(map[string]*databus.DataGroup)
 	}
 	dataGroups[systemid][group.ID] = group
+	dataGroupsMu.Unlock()
 }
 
 // Responsible for taking the lifecycle events received from SSE, getting its events, and then sending it along the
 // data bus
 func parseRedfishLce(lceevents *redfish.RedfishPayload, id string, dataBusService *databus.DataBusService) {
 	eventData, err := lceevents.GetPropertyByName("Events")
-        if err != nil {
-                log.Printf("%s: Unable to get eventData: %v %v", id, err, lceevents)
-                return
-        }
+	if err != nil {
+		log.Printf("%s: Unable to get eventData: %v %v", id, err, lceevents)
+		return
+	}
 	log.Printf("RedFish LifeCycle Events Found for parsing: %s\n", eventData)
 
-        group := new(databus.DataGroup)
+	group := new(databus.DataGroup)
 
-        group.ID = lceevents.Object["Id"].(string)
-        group.Label = lceevents.Object["Name"].(string)
+	group.ID = lceevents.Object["Id"].(string)
+	group.Label = lceevents.Object["Name"].(string)
 	size := lceevents.GetEventSize()
 	for j := 0; j < size; j++ {
 		eventData, err := lceevents.GetEventByIndex(j)
@@ -145,22 +150,26 @@ func parseRedfishLce(lceevents *redfish.RedfishPayload, id string, dataBusServic
 			data.ID = eventData.Object["EventId"].(string)
 			data.Context = ""
 			data.Label = ""
-                        data.Value = eventData.Object["EventType"].(string)
+			data.Value = eventData.Object["EventType"].(string)
 			if eventData.Object["EventTimestamp"] == nil {
-                                t := time.Now()
-                                data.Timestamp = t.Format("2006-01-02T15:04:05-0700")
-                        } else {
-                                data.Timestamp = eventData.Object["EventTimestamp"].(string)
-                        }
-                        data.System = id
-                        group.Values = append(group.Values, *data)
-                }
+				t := time.Now()
+				data.Timestamp = t.Format("2006-01-02T15:04:05-0700")
+			} else {
+				data.Timestamp = eventData.Object["EventTimestamp"].(string)
+			}
+			data.System = id
+			group.Values = append(group.Values, *data)
+		}
 	}
-        dataBusService.SendGroup(*group)
+
+	dataBusService.SendGroup(*group)
+
+	dataGroupsMu.Lock()
 	if dataGroups[id] == nil {
-                dataGroups[id] = make(map[string]*databus.DataGroup)
-        }
-        dataGroups[id][group.ID] = group
+		dataGroups[id] = make(map[string]*databus.DataGroup)
+	}
+	dataGroups[id][group.ID] = group
+	dataGroupsMu.Unlock()
 }
 
 func (r *RedfishDevice) RestartEventListener() {
@@ -221,14 +230,14 @@ func getRedfishLce(r *RedfishDevice, eventService *redfish.RedfishPayload, dataB
 	eventsOut := new(redfish.RedfishEvent)
 	eventsOut = <-eventsIn
 	eventService = eventsOut.Payload
-        size := eventService.GetEventSize()
-        if size == 0 {
-                log.Printf("%s: No Redfish LifeCycle Events!\n", r.SystemID)
-        }
-        log.Printf("%s: Found %d Redfish LifeCycle Events\n", r.Redfish.Hostname, size)
+	size := eventService.GetEventSize()
+	if size == 0 {
+		log.Printf("%s: No Redfish LifeCycle Events!\n", r.SystemID)
+	}
+	log.Printf("%s: Found %d Redfish LifeCycle Events\n", r.Redfish.Hostname, size)
 	for i := 0; i < size; i++ {
 		parseRedfishLce(eventService, r.SystemID, dataBusService)
-        }
+	}
 	r.State = databus.RUNNING
 	r.StartEventListener(dataBusService)
 	return
@@ -358,11 +367,13 @@ func main() {
 		log.Printf("Received command in redfishread: %s", command.Command)
 		switch command.Command {
 		case databus.GET:
+			dataGroupsMu.Lock()
 			for _, system := range dataGroups {
 				for _, group := range system {
 					dataBusService.SendGroupToQueue(*group, command.ReceiveQueue)
 				}
 			}
+			dataGroupsMu.Unlock()
 		case databus.GETPRODUCERS:
 			producers := make([]*databus.DataProducer, len(devices))
 			i := 0
