@@ -37,10 +37,6 @@ type DataValueElasticSearch struct {
 	ValueAggregatable float64
 }
 
-var (
-	countSuccessful uint64
-)
-
 func handleGroups(groupsChan chan *databus.DataGroup,
 	es *elasticsearch.Client, indexName string) {
 
@@ -99,7 +95,7 @@ func handleGroups(groupsChan chan *databus.DataGroup,
 
 			data, err := json.Marshal(esvalue)
 			if err != nil {
-				log.Fatalf("Cannot encode article %d: %s", value.ID, err)
+				log.Fatalf("Cannot encode article %s: %s", value.ID, err)
 			}
 
 			// Append newline to the data payload
@@ -171,8 +167,6 @@ func getEnvSettings() {
 
 func main() {
 	var (
-		//countSuccessful uint64
-
 		res *esapi.Response
 		err error
 	)

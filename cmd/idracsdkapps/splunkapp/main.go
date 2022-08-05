@@ -37,13 +37,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Use this to set the log level
@@ -121,7 +122,7 @@ func logToSplunk(events []*SplunkEvent) {
 	for _, event := range events {
 		b, _ := json.Marshal(event)
 		builder.Write(b)
-		log.Info("Timestamp = %d ID = %s Value = %f System = %s", event.Time, event.Fields.MetricName, event.Fields.Value, event.Host)
+		log.Infof("Timestamp = %d ID = %s Value = %f System = %s", event.Time, event.Fields.MetricName, event.Fields.Value, event.Host)
 	}
 
 	configStringsMu.RLock()
@@ -131,7 +132,7 @@ func logToSplunk(events []*SplunkEvent) {
 
 	req, err := http.NewRequest("POST", url, strings.NewReader(builder.String()))
 	if err != nil {
-		log.Print("Error creating request for %s: ", url, err)
+		log.Printf("Error creating request for %s: %v", url, err)
 		return
 	}
 
@@ -198,7 +199,7 @@ func checkHeader(tmp []byte) bool {
 	dataPresent := bytes.Contains(tmp, []byte("data: "))
 	namePresent := bytes.Contains(tmp, []byte("Name"))
 
-	if idPresent == true && dataPresent == true && namePresent == true {
+	if idPresent && dataPresent && namePresent {
 		return true
 	} else {
 		return false
@@ -310,7 +311,7 @@ func main() {
 			log.Info("The ReportSequence starts at index", bytes.Index(buf, []byte("ReportSequence")))
 			log.Info("The iDRACFirmwareVersion  starts at index", bytes.Index(buf, []byte("iDracFirmwareVersion")))
 
-			if reportStart == true {
+			if reportStart {
 				if validHeader > 1 {
 					var index1 int
 					log.Info("\n Detected a new header -- process it \n")
@@ -374,15 +375,15 @@ func main() {
 
 			log.Debug(TheEnd, len(buf))
 
-			if TheEnd == true {
+			if TheEnd {
 				reportEnd = true
 			}
 			log.Debug("The reportEnd is", reportEnd)
 
-			if reportEnd == true {
+			if reportEnd {
 
 				// Move the buffer for post processing
-				log.Info("\nExtracted a Metric Report with %d chunks\n", reportChunks)
+				log.Infof("\nExtracted a Metric Report with %d chunks\n", reportChunks)
 				// Make a copy of the buffer and send it over to be processed.
 				metricReport := byt
 
@@ -405,7 +406,7 @@ func main() {
 
 				cnt++
 
-				log.Debug("\nThe outerloop is: %d The inner loop count is: %d \n", outerloop, cnt)
+				log.Debugf("\nThe outerloop is: %d The inner loop count is: %d \n", outerloop, cnt)
 
 			}
 		}

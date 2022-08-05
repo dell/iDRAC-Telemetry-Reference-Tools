@@ -67,7 +67,7 @@ func addServiceToDB(db *sql.DB, service auth.Service, authService *auth.Authoriz
 	if err != nil {
 		return err
 	}
-	authService.SendService(service)
+	_ = authService.SendService(service)
 	return nil
 }
 
@@ -126,7 +126,7 @@ func initMySQLDatabase() (*sql.DB, error) {
 	for {
 		db, err = sql.Open("mysql", connStr)
 		if err != nil {
-			log.Printf("Could not connect to mysql database: ", err)
+			log.Print("Could not connect to mysql database: ", err)
 			time.Sleep(5 * time.Second)
 		} else {
 			break
@@ -136,7 +136,7 @@ func initMySQLDatabase() (*sql.DB, error) {
 	for {
 		_, err := db.Query("CREATE TABLE IF NOT EXISTS services(ip VARCHAR(255) PRIMARY KEY, serviceType INT, authType INT, auth VARCHAR(4096));")
 		if err != nil {
-			log.Printf("Could not create DB Table: ", err)
+			log.Print("Could not create DB Table: ", err)
 			time.Sleep(5 * time.Second)
 		} else {
 			break
@@ -170,7 +170,7 @@ func main() {
 	//Initialize mysql db instance which stores service authorizations
 	db, err := initMySQLDatabase()
 	if err != nil {
-		log.Printf("Failed to initalize db: ", err)
+		log.Print("Failed to initalize db: ", err)
 	} else {
 		defer db.Close()
 	}
@@ -178,16 +178,16 @@ func main() {
 	//Fetch and publish configured services in the database
 	authServices, err := getInstancesFromDB(db)
 	if err != nil {
-		log.Printf("Failed to get db entries: ", err)
+		log.Print("Failed to get db entries: ", err)
 	} else {
 		for _, element := range authServices {
-			go authorizationService.SendService(element)
+			go authorizationService.SendService(element) //nolint: errcheck
 		}
 	}
 
 	//Process ADDSERVICE and RESEND requests for authorization services
 	commands := make(chan *auth.Command)
-	go authorizationService.ReceiveCommand(commands)
+	go authorizationService.ReceiveCommand(commands) //nolint: errcheck
 	for {
 		command := <-commands
 		log.Printf("Received command in dbdiscauth: %s", command.Command)
@@ -195,16 +195,16 @@ func main() {
 		case auth.RESEND:
 			authServices, err := getInstancesFromDB(db)
 			if err != nil {
-				log.Printf("Failed to get db entries: ", err)
+				log.Print("Failed to get db entries: ", err)
 				break
 			}
 			for _, element := range authServices {
-				go authorizationService.SendService(element)
+				go authorizationService.SendService(element) //nolint: errcheck
 			}
 		case auth.ADDSERVICE:
 			err = addServiceToDB(db, command.Service, authorizationService)
 			if err != nil {
-				log.Printf("Addservice,Failed to write db entries: ", err)
+				log.Print("Addservice,Failed to write db entries: ", err)
 			}
 		case auth.TERMINATE:
 			os.Exit(0)
