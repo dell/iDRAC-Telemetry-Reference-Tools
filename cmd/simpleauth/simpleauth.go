@@ -14,10 +14,10 @@ import (
 	"golang.org/x/crypto/ssh"
 	"gopkg.in/ini.v1"
 
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/auth"
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/disc"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/disc"
 
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
 )
 
 var configStrings = map[string]string{
@@ -104,7 +104,7 @@ func handleDiscServiceChannel(serviceIn chan *disc.Service, config *ini.File, au
 			}
 		}
 		//log.Print("Got Service = ", *authService)
-		authorizationService.SendService(*authService)
+		_ = authorizationService.SendService(*authService)
 		if authServices == nil {
 			authServices = make(map[string]auth.Service)
 		}
@@ -160,14 +160,14 @@ func main() {
 	discoveryClient.ResendAll()
 	go discoveryClient.GetService(serviceIn)
 	go handleDiscServiceChannel(serviceIn, config, authorizationService)
-	go authorizationService.ReceiveCommand(commands)
+	go authorizationService.ReceiveCommand(commands) //nolint: errcheck
 	for {
 		command := <-commands
 		log.Printf("in simpleauth, Received command: %s", command.Command)
 		switch command.Command {
 		case auth.RESEND:
 			for _, element := range authServices {
-				go authorizationService.SendService(element)
+				go authorizationService.SendService(element) //nolint: errcheck
 			}
 		case auth.TERMINATE:
 			os.Exit(0)

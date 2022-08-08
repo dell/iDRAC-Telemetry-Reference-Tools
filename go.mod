@@ -1,4 +1,4 @@
-module gitlab.pgre.dell.com/enterprise/telemetryservice
+module github.com/dell/iDRAC-Telemetry-Reference-Tools
 
 go 1.17
 
@@ -54,6 +54,7 @@ require (
 	github.com/prometheus/client_model v0.0.0-20190129233127-fd36f4220a90 // indirect
 	github.com/prometheus/common v0.6.0 // indirect
 	github.com/prometheus/procfs v0.0.3 // indirect
+	github.com/sirupsen/logrus v1.4.2
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect

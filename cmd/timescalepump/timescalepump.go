@@ -15,8 +15,8 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/databus"
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/databus"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
 )
 
 var configStrings = map[string]string{
@@ -91,6 +91,7 @@ func initalizePQLWithTimescale(ctx context.Context) (*pgxpool.Pool, error) {
 		configStrings["timescaleDBName"])
 	dbpool, err := pgxpool.Connect(ctx, connStr)
 	if err != nil {
+		fmt.Println("not able to connect to the timescale database**")
 		return dbpool, err
 	}
 	/********************************************/

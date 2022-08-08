@@ -10,7 +10,7 @@ import (
 
 	"pack.ag/amqp"
 
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
 )
 
 type AmqpMessagebus struct {

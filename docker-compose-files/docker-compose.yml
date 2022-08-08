@@ -20,15 +20,15 @@ version: "3.9"
 ######
 
 x-env-mysql: &mysql-env
-  MYSQL_DATABASE: "telemetrysource_services_db"  #specify configured database name
-  MYSQL_USER: "reftools"           #sample reference - specify configured user name
-  MYSQL_PASSWORD: "*Ref!**lsq8#v*" #sample reference - specify configured credentials
-  MYSQL_HOST: "mysqldb"            #sample reference - specify mysql hostname
-  MYSQL_HOST_PORT: "3306"          #sample reference - specify mysql port number
+  MYSQL_DATABASE: "telemetrysource_services_db"
+  MYSQL_USER: "reftools"
+  MYSQL_PASSWORD:
+  MYSQL_HOST: "mysqldb"
+  MYSQL_HOST_PORT: "3306"
 
 x-env-messagebus: &messagebus-env
-  MESSAGEBUS_HOST: activemq      #sample reference - specify messagebus hostname
-  MESSAGEBUS_PORT: 61613         #sample reference - specify messagebus port
+  MESSAGEBUS_HOST: activemq
+  MESSAGEBUS_PORT: 61613
 
 x-env-influx: &influx-env
   INFLUXDB_DB: poweredge_telemetry_metrics
@@ -106,8 +106,7 @@ services:
     restart: always
     environment:
       <<: *mysql-env
-      # this should only be passed to mysqldb, not needed by other daemons and would be security issue if leaked
-      MYSQL_ROOT_PASSWORD: "bananas"   #sample reference - specify configured credentials
+      MYSQL_ROOT_PASSWORD:
     networks:
       - host-bridge-net
     volumes:
@@ -293,21 +292,25 @@ services:
     ############################################################################
 
     # grafana runs as root in latest version. *sigh*
+     # Polystat plugin install doesnt work with prior versions of Grafana. Grafana 9.0.1 is just released on 2022-06-21
     container_name: telemetry-reference-tools-grafana
-    image: grafana/grafana:latest
+    image: grafana/grafana:9.0.1
     volumes:
       - grafana-storage:/var/lib/grafana
+      - ./:/var/lib/grafana/grafana-polystat-panel
       - ./grafana-provisioning/:/etc/grafana/provisioning
     profiles:
       - grafana
       - setup-influx-test-db
       - influx-test-db
       - prometheus-test-db
+      - timescale-test-db
     depends_on:
       - influx
     environment:
       <<: *influx-env
       <<: *grafana-env
+      GF_INSTALL_PLUGINS: grafana-polystat-panel
     ports:
       - "3000:3000"
     networks:
@@ -339,14 +342,8 @@ services:
         source: ${PWD}/docker-compose-files/container-info-grafana.txt
         target: /config/container-info-grafana.txt
       - type: bind
-        source: ${PWD}/dashboards/FanRPM.json
-        target: /dashboards/FanRPMtemplate.json
-      - type: bind
-        source: ${PWD}/dashboards/PowerReadings.json
-        target: /dashboards/PowerReadingstemplate.json
-      - type: bind
-        source: ${PWD}/dashboards/FanRPMHexThresholds.json
-        target: /dashboards/FanRPMHextemplate.json
+        source: ${PWD}/dashboards
+        target: /dashboardstgt
     entrypoint: ["/extrabin/initialize_grafana_influx_datasource.sh"]
     command: []
 
@@ -615,11 +612,16 @@ services:
     restart: always
     environment:
       - node.name=timescale
+      - POSTGRES_HOST=timescale
+      - POSTGRES_PORT=5432
       - POSTGRES_USER=postgres
       - POSTGRES_PASS=postgres
+      - POSTGRES_HOST_AUTH_METHOD=trust
       - TIMESCALE_DB=poweredge_telemetry_metrics
     networks:
       - host-bridge-net
+    ports:
+      - "5432:5432"
 
   timescale-setup:
     image: timescale/timescaledb:latest-pg12
@@ -634,6 +636,7 @@ services:
       - POSTGRES_PORT=5432
       - POSTGRES_USER=postgres
       - POSTGRES_PASS=postgres
+      - POSTGRES_HOST_AUTH_METHOD=trust
       - TIMESCALE_DB=poweredge_telemetry_metrics
     volumes:
       - type: bind
@@ -683,6 +686,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_DEFAULT_PWD: postgres
       TIMESCALE_SERVER: timescale
+      POSTGRES_HOST_AUTH_METHOD: trust
       TIMESCALE_DB: poweredge_telemetry_metrics
 
 

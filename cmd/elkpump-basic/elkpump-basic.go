@@ -14,11 +14,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/databus"
-	"gitlab.pgre.dell.com/enterprise/telemetryservice/internal/messagebus/stomp"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/databus"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
 )
 
 var configStrings = map[string]string{
@@ -35,10 +36,6 @@ type DataValueElasticSearch struct {
 	Timestamp         string
 	ValueAggregatable float64
 }
-
-var (
-	countSuccessful uint64
-)
 
 func handleGroups(groupsChan chan *databus.DataGroup,
 	es *elasticsearch.Client, indexName string) {
@@ -98,7 +95,7 @@ func handleGroups(groupsChan chan *databus.DataGroup,
 
 			data, err := json.Marshal(esvalue)
 			if err != nil {
-				log.Fatalf("Cannot encode article %d: %s", value.ID, err)
+				log.Fatalf("Cannot encode article %s: %s", value.ID, err)
 			}
 
 			// Append newline to the data payload
@@ -170,8 +167,6 @@ func getEnvSettings() {
 
 func main() {
 	var (
-		//countSuccessful uint64
-
 		res *esapi.Response
 		err error
 	)
@@ -221,7 +216,8 @@ func main() {
 
 	//Initialize elasticsearch client
 	time.Sleep(15 * time.Second)
-	es, err := elasticsearch.NewDefaultClient(elasticsearch.Config{
+	retryBackoff := backoff.NewExponentialBackOff()
+	es, err := elasticsearch.NewClient(elasticsearch.Config{
 		RetryOnStatus: []int{502, 503, 504, 429},
 
 		// Configure the backoff function
