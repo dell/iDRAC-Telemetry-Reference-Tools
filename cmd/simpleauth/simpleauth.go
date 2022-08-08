@@ -104,7 +104,7 @@ func handleDiscServiceChannel(serviceIn chan *disc.Service, config *ini.File, au
 			}
 		}
 		//log.Print("Got Service = ", *authService)
-		authorizationService.SendService(*authService)
+		_ = authorizationService.SendService(*authService)
 		if authServices == nil {
 			authServices = make(map[string]auth.Service)
 		}
@@ -160,14 +160,14 @@ func main() {
 	discoveryClient.ResendAll()
 	go discoveryClient.GetService(serviceIn)
 	go handleDiscServiceChannel(serviceIn, config, authorizationService)
-	go authorizationService.ReceiveCommand(commands)
+	go authorizationService.ReceiveCommand(commands) //nolint: errcheck
 	for {
 		command := <-commands
 		log.Printf("in simpleauth, Received command: %s", command.Command)
 		switch command.Command {
 		case auth.RESEND:
 			for _, element := range authServices {
-				go authorizationService.SendService(element)
+				go authorizationService.SendService(element) //nolint: errcheck
 			}
 		case auth.TERMINATE:
 			os.Exit(0)

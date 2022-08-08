@@ -612,6 +612,8 @@ services:
     restart: always
     environment:
       - node.name=timescale
+      - POSTGRES_HOST=timescale
+      - POSTGRES_PORT=5432
       - POSTGRES_USER=postgres
       - POSTGRES_PASS=postgres
       - POSTGRES_HOST_AUTH_METHOD=trust

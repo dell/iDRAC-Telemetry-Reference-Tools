@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"gopkg.in/ini.v1"
 	"log"
 	"net/http"
 	"os"
@@ -12,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"gopkg.in/ini.v1"
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/config"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/databus"
@@ -24,7 +25,7 @@ import (
 type SplunkEventFields struct {
 	Value      float64 `json:"_value"`
 	MetricName string  `json:"metric_name"`
-	Source     string      `json:"source"`
+	Source     string  `json:"source"`
 }
 
 type SplunkEvent struct {
@@ -112,7 +113,7 @@ func getEnvSettings() {
 	}
 	splunkIndex := os.Getenv("SPLUNK_HEC_INDEX")
 	if len(splunkIndex) > 0 {
-		configStrings["splunkIndex"] = splunkIndex 
+		configStrings["splunkIndex"] = splunkIndex
 	}
 }
 
@@ -132,7 +133,7 @@ func logToSplunk(events []*SplunkEvent) {
 
 	req, err := http.NewRequest("POST", url, strings.NewReader(builder.String()))
 	if err != nil {
-		log.Print("Error creating request for %s: ", url, err)
+		log.Printf("Error creating request for %s: %v ", url, err)
 		return
 	}
 
@@ -239,11 +240,11 @@ func main() {
 	key := configStrings["splunkKey"]
 	configStringsMu.Unlock()
 
-	if  url == ""  || key == "" || metricIndex == "" {
+	if url == "" || key == "" || metricIndex == "" {
 		log.Printf("Splunk url/key/index not set, exiting!!! ")
 		return
 	}
-		
+
 	var mb messagebus.Messagebus
 	for {
 		mb, err = stomp.NewStompMessageBus(host, port)
@@ -251,7 +252,7 @@ func main() {
 			defer mb.Close()
 			break
 		}
-		log.Printf("Could not connect to message bus (%s:%v): ", host, port, err)
+		log.Printf("Could not connect to message bus (%s:%d): %v ", host, port, err)
 		time.Sleep(time.Minute)
 	}
 
