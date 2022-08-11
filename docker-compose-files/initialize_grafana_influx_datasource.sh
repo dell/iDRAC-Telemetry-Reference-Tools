@@ -178,6 +178,37 @@ fi
 echo "GRAFANA_DATA_SOURCE_CONNECTED=$GRAFANA_DATA_SOURCE_CONNECTED" >> ${CONFIGDIR}/container-info-grafana.txt
 
 ###############################################
+# configure grafana - setup prometheus data source
+###############################################
+
+# datasourceprom="PrometheusDataSource"
+
+# if [[ -z $GRAFANA_PROM_DATA_SOURCE_CONNECTED ]]; then
+#   curl --fail -s --request POST \
+#     "${GRAFANA_URL}/api/datasources" \
+#     --user api_key:$GRAFANA_APIKEY  \
+#     --header 'Content-type: application/json' \
+#     --data "{
+#       \"orgID\":\"${1}\",
+#       \"url\":\"${PROMETHEUS_URL}\",
+#       \"user\":\"${user}\",
+#       \"readOnly\":false,
+#       \"name\":\"${datasourceprom}\",
+#       \"type\":\"Prometheus\",
+#       \"typeLogoUrl\":\"\",
+#       \"access\":\"proxy\",
+#       \"password\":\"\",
+#       \"basicAuth\":false,
+#       \"basicAuthUser\":\"\",
+#       \"basicAuthPassword\":\"\",
+#       \"withCredentials\":false,
+#       \"isDefault\":false
+#      }" | tee -a /tmp/grafana-source.json
+#   GRAFANA_PROM_DATA_SOURCE_CONNECTED=1
+# fi
+
+# echo "GRAFANA_PROM_DATA_SOURCE_CONNECTED=$GRAFANA_PROM_DATA_SOURCE_CONNECTED" >> ${CONFIGDIR}/container-info-grafana.txt
+###############################################
 # configure grafana - add dashboards
 ###############################################
 
@@ -188,6 +219,14 @@ curl --fail -s --request GET \
     ${GRAFANA_URL}/api/datasources/name/${datasource} | tee -a /tmp/uuid.json
 
 GRAFANA_UID=`cat /tmp/uuid.json | jq -r .uid`
+
+# curl --fail -s --request GET \
+#     -H "Content-Type: application/json" \
+#     --user api_key:$GRAFANA_APIKEY  \
+#     ${GRAFANA_URL}/api/datasources/name/${datasourceprom} | tee -a /tmp/uuidprom.json
+
+# GRAFANA_PROM_UID=`cat /tmp/uuidprom.json | jq -r .uid`
+#echo "GRAFANA_PROM_UID=$GRAFANA_PROM_UID" >> ${CONFIGDIR}/container-info-promgrafana.txt
 
 # add the dashboards
 for template in ${DASHBOARDDIRS}/*template.json; do
@@ -203,6 +242,19 @@ for template in ${DASHBOARDDIRS}/*template.json; do
         --header 'Content-type: application/json' \
         --data @/tmp/$(basename $template -template.json).json
 done
+
+# add the dashboards
+# for template in ${DASHBOARDDIRS}/*Promtemp.json; do
+  
+#   sed -i "s/##UID##/$GRAFANA_PROM_UID/g" /tmp/$(basename $template -promtemplate.json).json
+#   sed -i "s/##DATASRC##/${datasourceprom}/g" /tmp/$(basename $template -promtemplate.json).json
+
+#   curl --request POST \
+#         "${GRAFANA_URL}/api/dashboards/db" \
+#         --user api_key:$GRAFANA_APIKEY  \
+#         --header 'Content-type: application/json' \
+#         --data @/tmp/$(basename $template -promtemplate.json).json
+# done
 
 GRAFANA_DASHBOARD_CREATED=1
 echo "GRAFANA_DASHBOARD_CREATED=$GRAFANA_DASHBOARD_CREATED" >> ${CONFIGDIR}/container-info-grafana.txt
