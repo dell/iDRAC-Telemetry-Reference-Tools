@@ -238,7 +238,7 @@ case $1 in
         PROFILE_ARG="--profile setup-prometheus-test-db"
         POST_ACTION="prometheus_setup_finish"
       fi
-      
+
       DETACH_ARG="-d"
       BUILD_ARG=
       #eval set -- "start"
