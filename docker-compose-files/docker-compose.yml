@@ -365,7 +365,7 @@ services:
       - type: bind
         source: ${PWD}/dashboards
         target: /dashboardstgt
-    entrypoint: ["/extrabin/initialize_grafana_prometheus_datasource.sh"]
+    entrypoint: ["/extrabin/initialize_grafana_influx_datasource.sh"]
     command: []
 
   prometheus:
