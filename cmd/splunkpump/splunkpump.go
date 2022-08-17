@@ -179,7 +179,7 @@ func handleGroups(groupsChan chan *databus.DataGroup) {
 			event.Fields.MetricName = value.Context + "_" + value.ID
 
 			configStringsMu.RLock()
-			fmt.Println("GSR: url, key, metricIndex", configStrings["splunkURL"], configStrings["splunkKey"], configStrings["splunkIndex"])
+			//fmt.Println("url, key, metricIndex", configStrings["splunkURL"], configStrings["splunkKey"], configStrings["splunkIndex"])
 			event.Fields.Source = "http:" + configStrings["splunkIndex"]
 			configStringsMu.RUnlock()
 			events[index] = event
