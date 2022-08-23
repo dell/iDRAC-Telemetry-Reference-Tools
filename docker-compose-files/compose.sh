@@ -278,10 +278,6 @@ case $1 in
     ;;
 
   start)  
-    if [[ -n $SPLUNK ]] && [[ -z $SPLUNK_HEC_URL || -z $SPLUNK_HEC_KEY || -z $SPLUNK_HEC_INDEX ]];then 
-       echo "Splunk env variables SPLUNK_HEC_URL, SPLUNK_HEC_KEY, and/or SPLUNK_HEC_INDEX not set! "
-       exit 1
-    fi
     if  [[ -n $INFLUX ]] && [[ ! -s docker-compose-files/container-info-influx-pump.txt ]]; then
       echo "Influx must be set up before running. Please run setup --influx-test-db first"
       exit 1
