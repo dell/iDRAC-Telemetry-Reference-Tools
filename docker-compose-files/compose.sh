@@ -189,7 +189,6 @@ export DOCKER_PROMETHEUS_INIT_ADMIN_TOKEN=${DOCKER_PROMETHEUS_INIT_ADMIN_TOKEN:-
 export DOCKER_PROMETHEUS_INIT_PASSWORD=${DOCKER_PROMETHEUS_INIT_PASSWORD:-$(uuidgen -r)}
 
 
-
 # make container user UID match calling user so that containers dont leave droppings we cant remove
 > $topdir/.env
 echo "USER_ID=$(id -u)" >> $topdir/.env
@@ -238,6 +237,9 @@ case $1 in
         PROFILE_ARG="--profile setup-prometheus-test-db"
         POST_ACTION="prometheus_setup_finish"
       fi
+
+      export CHK_INFLUX_PROMETHEUS=${POST_ACTION}
+      echo "CHK_INFLUX_PROMETHEUS=${CHK_INFLUX_PROMETHEUS}" >> $topdir/.env
 
       DETACH_ARG="-d"
       BUILD_ARG=
