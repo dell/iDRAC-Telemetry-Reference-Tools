@@ -189,7 +189,6 @@ export DOCKER_PROMETHEUS_INIT_ADMIN_TOKEN=${DOCKER_PROMETHEUS_INIT_ADMIN_TOKEN:-
 export DOCKER_PROMETHEUS_INIT_PASSWORD=${DOCKER_PROMETHEUS_INIT_PASSWORD:-$(uuidgen -r)}
 
 
-
 # make container user UID match calling user so that containers dont leave droppings we cant remove
 > $topdir/.env
 echo "USER_ID=$(id -u)" >> $topdir/.env
@@ -238,8 +237,11 @@ case $1 in
         PROFILE_ARG="--profile setup-prometheus-test-db"
         POST_ACTION="prometheus_setup_finish"
       fi
-      
-      DETACH_ARG=""
+
+      export CHK_INFLUX_PROMETHEUS=${POST_ACTION}
+      echo "CHK_INFLUX_PROMETHEUS=${CHK_INFLUX_PROMETHEUS}" >> $topdir/.env
+
+      DETACH_ARG="-d"
       BUILD_ARG=
       #eval set -- "start"
 
@@ -276,10 +278,6 @@ case $1 in
     ;;
 
   start)  
-    if [[ -n $SPLUNK ]] && [[ -z $SPLUNK_HEC_URL || -z $SPLUNK_HEC_KEY || -z $SPLUNK_HEC_INDEX ]];then 
-       echo "Splunk env variables SPLUNK_HEC_URL, SPLUNK_HEC_KEY, and/or SPLUNK_HEC_INDEX not set! "
-       exit 1
-    fi
     if  [[ -n $INFLUX ]] && [[ ! -s docker-compose-files/container-info-influx-pump.txt ]]; then
       echo "Influx must be set up before running. Please run setup --influx-test-db first"
       exit 1

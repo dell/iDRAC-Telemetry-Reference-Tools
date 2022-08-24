@@ -36,6 +36,7 @@ x-env-influx: &influx-env
   INFLUX_ORG: my-org
   INFLUX_HOST: influx
   INFLUX_BUCKET: my-org-bucket
+  INFLUX_OR_PROMETHEUS: influx_setup_finish
 
 x-env-prometheus: &prometheus-env
   PROMETHEUS_DB: poweredge_telemetry_metrics
@@ -50,6 +51,7 @@ x-env-influx-setup: &influx-setup-env
   INFLUXDB_HTTP_AUTH_ENABLED: 1
   DOCKER_INFLUXDB_INIT_ADMIN_TOKEN:
   DOCKER_INFLUXDB_INIT_PASSWORD:
+  CHK_INFLUX_PROMETHEUS:
 
 x-env-prometheus-setup: &prometheus-setup-env
   node.name: prometheus
@@ -356,16 +358,12 @@ services:
         source: ${PWD}/docker-compose-files/container-info-grafana.txt
         target: /config/container-info-grafana.txt
       - type: bind
-        source: ${PWD}/docker-compose-files/initialize_grafana_prometheus_datasource.sh
-        target: /extrabin/initialize_grafana_prometheus_datasource.sh
-        read_only: true
-      - type: bind
         source: ${PWD}/docker-compose-files/container-info-promgrafana.txt
         target: /config/container-info-promgrafana.txt
       - type: bind
         source: ${PWD}/dashboards
         target: /dashboardstgt
-    entrypoint: ["/extrabin/initialize_grafana_prometheus_datasource.sh"]
+    entrypoint: ["/extrabin/initialize_grafana_influx_datasource.sh"]
     command: []
 
   prometheus:
