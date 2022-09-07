@@ -31,9 +31,10 @@ type Service struct {
 }
 
 const (
-	RESEND     = "resend"
-	ADDSERVICE = "addservice"
-	TERMINATE  = "terminate"
+	RESEND        = "resend"
+	ADDSERVICE    = "addservice"
+	DELETESERVICE = "deleteservice"
+	TERMINATE     = "terminate"
 )
 
 type Command struct {
@@ -107,6 +108,13 @@ func (d *AuthorizationClient) ResendAll() {
 func (d *AuthorizationClient) AddService(service Service) error {
 	c := new(Command)
 	c.Command = ADDSERVICE
+	c.Service = service
+	return d.SendCommand(*c)
+}
+
+func (d *AuthorizationClient) DeleteService(service Service) error {
+	c := new(Command)
+	c.Command = DELETESERVICE
 	c.Service = service
 	return d.SendCommand(*c)
 }

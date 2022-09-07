@@ -44,6 +44,10 @@ type MySys struct {
 	Password string `json:"password"`
 }
 
+type MyDelSys struct {
+	Hostname []string `json:"hostname"`
+}
+
 type MyHec struct {
 	Url   string `json:"url"`
 	Key   string `json:"key"`
@@ -95,6 +99,30 @@ func addSystem(c *gin.Context, s *SystemHandler) {
 		} else {
 			c.JSON(200, gin.H{"success": "true"})
 		}
+	}
+}
+
+func deleteSystem(c *gin.Context, s *SystemHandler) {
+	var tmp MyDelSys
+	err := c.ShouldBind(&tmp)
+	if err != nil {
+		log.Println("Failed to parse json: ", err)
+		_ = c.AbortWithError(500, err)
+	} else {
+		// host := []string{tmp.Hostname}
+		for i := 0; i < len(tmp.Hostname); i++ {
+			var service auth.Service
+			service.ServiceType = auth.IDRAC
+			service.Ip = tmp.Hostname[i]
+			serviceerr := s.AuthClient.DeleteService(service) // Deletes from database
+			if serviceerr != nil {
+				log.Println("Failed to delete service parse json: ", serviceerr)
+				_ = c.AbortWithError(500, err)
+			}
+			s.DataBus.DeleteProducer("/configui/databus_in", service)
+
+		}
+		c.JSON(200, gin.H{"success": "true"})
 	}
 }
 
@@ -205,11 +233,12 @@ func main() {
 	router.POST("/api/v1/CsvUpload", func(c *gin.Context) {
 		handleCsv(c, systemHandler)
 	})
-
+	router.POST("/api/v1/Delete", func(c *gin.Context) {
+		deleteSystem(c, systemHandler)
+	})
 	router.POST("/api/v1/HecConfig", func(c *gin.Context) {
 		configHEC(c, systemHandler)
 	})
-
 	err := router.Run(fmt.Sprintf(":%s", configStrings["httpport"]))
 	if err != nil {
 		log.Printf("Failed to run webserver %v", err)
