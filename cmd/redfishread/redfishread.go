@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -32,6 +33,8 @@ type RedfishDevice struct {
 	Events       chan *redfish.RedfishEvent
 	State        string
 	LastEvent    time.Time
+	CtxCancel    context.CancelFunc
+	Ctx          context.Context
 }
 
 var devices map[string]*RedfishDevice
@@ -173,7 +176,7 @@ func parseRedfishLce(lceevents *redfish.RedfishPayload, id string, dataBusServic
 }
 
 func (r *RedfishDevice) RestartEventListener() {
-	go r.Redfish.ListenForEvents(r.Events)
+	go r.Redfish.ListenForEvents(r.Ctx, r.Events)
 }
 
 // StartEventListener Directly responsible for receiving SSE events from iDRAC. Will parse received reports or issue a
@@ -184,7 +187,7 @@ func (r *RedfishDevice) StartEventListener(dataBusService *databus.DataBusServic
 	}
 	timer := time.AfterFunc(time.Minute*5, r.RestartEventListener)
 	log.Printf("%s: Starting event listener...\n", r.SystemID)
-	go r.Redfish.ListenForEvents(r.Events)
+	go r.Redfish.ListenForEvents(r.Ctx, r.Events)
 	for {
 		event := <-r.Events
 		timer.Reset(time.Minute * 5)
@@ -194,7 +197,8 @@ func (r *RedfishDevice) StartEventListener(dataBusService *databus.DataBusServic
 			log.Printf("%s: Got new report for %s\n", r.SystemID, event.Payload.Object["@odata.id"].(string))
 			parseReport(event.Payload, r.SystemID, dataBusService)
 		} else {
-			log.Printf("%s: Got unknown SSE event %v\n", r.SystemID, event.Payload)
+			//log.Printf("%s: Got unknown SSE event %v\n", r.SystemID, event.Payload)
+			log.Printf("%s: Got unknown SSE event \n", r.SystemID)
 		}
 	}
 }
@@ -226,7 +230,8 @@ func getTelemetry(r *RedfishDevice, telemetryService *redfish.RedfishPayload, da
 // getRedfishLce Starts the service which will listens for Redfish LifeCycle Events from the iDRAC
 func getRedfishLce(r *RedfishDevice, eventService *redfish.RedfishPayload, dataBusService *databus.DataBusService) {
 	eventsIn := make(chan *redfish.RedfishEvent, 10)
-	go r.Redfish.GetLceSSE(eventsIn, "https://"+r.Redfish.Hostname+"/redfish/v1/SSE") //nolint: errcheck
+	//contxt := r.Ctx
+	go r.Redfish.GetLceSSE(r.Ctx, eventsIn, "https://"+r.Redfish.Hostname+"/redfish/v1/SSE") //nolint: errcheck
 	//eventsOut := new(redfish.RedfishEvent)
 	eventsOut := <-eventsIn
 	eventSvc := eventsOut.Payload
@@ -309,6 +314,10 @@ func handleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *data
 		device.Redfish = r
 		device.State = databus.STARTING
 		device.HasChildren = service.ServiceType == auth.MSM
+		ctx, cancel := context.WithCancel(context.Background())
+		device.Ctx = ctx
+		device.CtxCancel = cancel
+
 		if devices == nil {
 			devices = make(map[string]*RedfishDevice)
 		}
@@ -359,8 +368,8 @@ func main() {
 
 	authClient.ResendAll()
 	go authClient.GetService(serviceIn)
-	go handleAuthServiceChannel(serviceIn, dataBusService)
-	go dataBusService.ReceiveCommand(commands) //nolint: errcheck
+	go handleAuthServiceChannel(serviceIn, dataBusService) // THIS FUNCTION ADDS SERVICE
+	go dataBusService.ReceiveCommand(commands)             //nolint: errcheck
 	for {
 		command := <-commands
 		log.Printf("Received command in redfishread: %s", command.Command)
@@ -389,6 +398,11 @@ func main() {
 			if err != nil {
 				log.Printf("aft SendProducersToQueue got error,so continue")
 			}
+		case databus.DELETEPRODUCER:
+			devices[command.ServiceIP].CtxCancel()
+			log.Printf("service has been cancelled, Ctx = ", devices[command.ServiceIP].Ctx)
+			time.Sleep(2 * time.Second)
+			delete(devices, command.ServiceIP)
 		case auth.TERMINATE:
 			os.Exit(0)
 		}

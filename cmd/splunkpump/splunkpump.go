@@ -57,20 +57,26 @@ var configItems = map[string]*config.ConfigEntry{
 		Get:     configGet,
 		Default: "",
 	},
+	"splunkIndex": {
+		Set:     configSet,
+		Get:     configGet,
+		Default: "",
+	},
 }
 
 var client = &http.Client{}
 
 func configSet(name string, value interface{}) error {
+	configStringsMu.Lock()
+	defer configStringsMu.Unlock()
+
 	switch name {
 	case "splunkURL":
-		configStringsMu.Lock()
 		configStrings["splunkURL"] = value.(string)
-		configStringsMu.Unlock()
 	case "splunkKey":
-		configStringsMu.Lock()
 		configStrings["splunkKey"] = value.(string)
-		configStringsMu.Unlock()
+	case "splunkIndex":
+		configStrings["splunkIndex"] = value.(string)
 	default:
 		return fmt.Errorf("Unknown property %s", name)
 	}
@@ -79,9 +85,7 @@ func configSet(name string, value interface{}) error {
 
 func configGet(name string) (interface{}, error) {
 	switch name {
-	case "splunkURL":
-		fallthrough
-	case "splunkKey":
+	case "splunkURL", "splunkKey", "splunkIndex":
 		configStringsMu.RLock()
 		ret := configStrings[name]
 		configStringsMu.RUnlock()
@@ -128,7 +132,6 @@ func logToSplunk(events []*SplunkEvent) {
 	configStringsMu.RLock()
 	url := configStrings["splunkURL"] + "/services/collector"
 	key := configStrings["splunkKey"]
-	//index := configStrings["splunkIndex"]
 	configStringsMu.RUnlock()
 
 	req, err := http.NewRequest("POST", url, strings.NewReader(builder.String()))
@@ -151,7 +154,7 @@ func logToSplunk(events []*SplunkEvent) {
 }
 
 // handleGroups brings in the events from ActiveMQ
-func handleGroups(groupsChan chan *databus.DataGroup, metricIndex string) {
+func handleGroups(groupsChan chan *databus.DataGroup) {
 	for {
 		group := <-groupsChan // If you are new to GoLang see https://golangdocs.com/channels-in-golang
 		events := make([]*SplunkEvent, len(group.Values))
@@ -174,7 +177,11 @@ func handleGroups(groupsChan chan *databus.DataGroup, metricIndex string) {
 			floatVal, _ := strconv.ParseFloat(value.Value, 64)
 			event.Fields.Value = floatVal
 			event.Fields.MetricName = value.Context + "_" + value.ID
-			event.Fields.Source = "http:" + metricIndex
+
+			configStringsMu.RLock()
+			//fmt.Println("url, key, metricIndex", configStrings["splunkURL"], configStrings["splunkKey"], configStrings["splunkIndex"])
+			event.Fields.Source = "http:" + configStrings["splunkIndex"]
+			configStringsMu.RUnlock()
 			events[index] = event
 		}
 		logToSplunk(events)
@@ -235,15 +242,7 @@ func main() {
 
 	host := configStrings["mbhost"]
 	port, _ = strconv.Atoi(configStrings["mbport"])
-	metricIndex := configStrings["splunkIndex"]
-	url := configStrings["splunkURL"]
-	key := configStrings["splunkKey"]
 	configStringsMu.Unlock()
-
-	if url == "" || key == "" || metricIndex == "" {
-		log.Printf("Splunk url/key/index not set, exiting!!! ")
-		return
-	}
 
 	var mb messagebus.Messagebus
 	for {
@@ -267,5 +266,5 @@ func main() {
 
 	go dbClient.GetGroup(groupsIn, "/spunk")
 	go configService.Run()
-	handleGroups(groupsIn, metricIndex)
+	handleGroups(groupsIn)
 }

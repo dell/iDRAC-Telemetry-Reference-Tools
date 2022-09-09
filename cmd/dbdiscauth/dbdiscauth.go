@@ -48,10 +48,21 @@ func getInstancesFromDB(db *sql.DB) ([]auth.Service, error) {
 		if err != nil {
 			return nil, err
 		}
-		log.Print(value)
 		ret = append(ret, value)
 	}
 	return ret, nil
+}
+
+func deleteServiceFromDB(db *sql.DB, service auth.Service, authService *auth.AuthorizationService) error {
+	stmt, err := db.Prepare("DELETE FROM services WHERE ip = ?")
+	if err != nil {
+		return err
+	}
+	_, err = stmt.Exec(service.Ip)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func addServiceToDB(db *sql.DB, service auth.Service, authService *auth.AuthorizationService) error {
@@ -205,6 +216,11 @@ func main() {
 			err = addServiceToDB(db, command.Service, authorizationService)
 			if err != nil {
 				log.Print("Addservice,Failed to write db entries: ", err)
+			}
+		case auth.DELETESERVICE:
+			err = deleteServiceFromDB(db, command.Service, authorizationService)
+			if err != nil {
+				log.Print("Deleteservice Failed to delete db entries: ", err)
 			}
 		case auth.TERMINATE:
 			os.Exit(0)

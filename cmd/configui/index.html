@@ -2,7 +2,6 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous"/>
     <script src="http://code.jquery.com/jquery-3.4.1.min.js" integrity="sha384-vk5WoKIaW/vJyUAd9n/wmopsmNhiy+L2Z+SBxGYnUkunIxVxAv/UtMOhba/xskxh" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
@@ -49,6 +48,25 @@
             </div>
             <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#serviceModal">Add New Service</button>
             <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#csvModal">Upload CSV File</button>
+            <button type="button" class="btn btn-primary" id ="deleteButton" style="display: none;" onclick="deleteService(this)">Delete Service</button>
+            <br>
+            <br>
+            <br>
+            <h2><a id="HEC"></a>Splunk HTTP Event Collector</h2>
+            <div class="table-responsive">
+                <table class="table table-striped table-sm">
+                    <thead>
+                    <tr>
+                        <th>URL</th>
+                        <th>Token</th>
+                        <th>Index</th>
+                    </tr>
+                    </thead>
+                    <tbody id="HEC">
+                    </tbody>
+                </table>
+            </div>
+            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#hecModal">Add</button>
         </main>
     </div>
 </div>
@@ -99,6 +117,31 @@
         </div>
     </div>
 </div>
+<br>
+<br>
+<div class="modal fade" id="hecModal" tabindex="-1" role="dialog" aria-labelledby="serviceModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">Add Splunk HEC </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="newHEC">
+                    <input class="form-control" id="url" name="url" type="text" placeholder="http://splunkhost:8088"/>
+                    <input class="form-control" id="key" name="key" type="text" placeholder="HEC Token"/>
+                    <input class="form-control" id="index" name="index" type="text" placeholder="HEC Index Name"/>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="configHEC()">Add HEC</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Preview-->
 <div id='preview'></div>
@@ -113,6 +156,7 @@
 </script>
 
 <script>
+    let serviceData;
     $.getJSON("/api/v1/Systems", gotServiceList);
     $(function () {
         $('[data-toggle="tooltip"]').tooltip()
@@ -120,6 +164,7 @@
 
     function gotServiceList(data) {
         var tbody = $('#services');
+        serviceData = data;
         for(var i = 0; i < data.length; i++) {
             classStr = "text-warning"
             switch(data[i].State) {
@@ -130,10 +175,22 @@
                     classStr = "text-danger";
                     break;
             }
-            tbody.append('<tr><td>'+data[i].Hostname+'</td><td>'+data[i].Username+'</td><td class="'+classStr+'">'+data[i].State+'</td><td>'+new Date(data[i].LastEvent)+'</td></tr>')
+            tbody.append('<tr><td>'+data[i].Hostname+'</td><td>'+data[i].Username+'</td><td class="'+classStr+'">'+data[i].State+'</td><td>'+new Date(data[i].LastEvent)+ "</td><td><input type='checkbox' id='checkboxservice-" + i + "'' class='check' onclick='checkboxClick(this);' ></td></tr>")
         }
     }
-
+    
+    function checkboxClick(checkbox) {
+            let checkboxIndex = parseInt(checkbox.id.split('-')[1])
+            if(checkbox.checked){
+                serviceData[checkboxIndex].toDelete=true
+            }
+            else{
+                serviceData[checkboxIndex].toDelete=false
+            }
+            if ($(".check:checked").length) $("#deleteButton").show();
+            else $("#deleteButton").hide();
+        };
+  
     async function uploadFile() {
         let formData = new FormData();
         formData.append("file", fileupload.files[0]);
@@ -162,11 +219,51 @@
             complete: addDone
         })
     }
+    function deleteService(){
+        hostnames = []
+        h=0
+        for(var i =0;i<serviceData.length;i++){
+            if(serviceData[i].toDelete==true){
+                hostnames[h++] = serviceData[i].Hostname
+            } 
+        }
+        $.ajax({
+            url: '/api/v1/Delete',
+            method: 'POST',
+            data:JSON.stringify({Hostname : hostnames }),
+            contentType: 'application/json',
+            dataType: 'json',
+            complete: deleteDone 
+        })
+    }
+
+    function configHEC() {
+        var arr = $('#newHEC').serializeArray();
+        var obj = {};
+        for(var i = 0; i < arr.length; i++) {
+            obj[arr[i].name] = arr[i].value;
+        }
+        $.ajax({
+            url: '/api/v1/HecConfig',
+            method: 'POST',
+            data: JSON.stringify(obj),
+            contentType: 'application/json',
+            dataType: 'json',
+            complete: addDone
+        })
+    }
 
     function addDone(jqXHR) {
         if(jqXHR.status != 200) {
             alert("Failed to add new service!");
-            console.error(jqXHR)
+        }
+        else {
+            location.reload();
+        }
+    }
+    function deleteDone(jqXHR) {
+        if(jqXHR.status != 200) {
+            alert("Failed to delete new service!");
         }
         else {
             location.reload();
@@ -174,7 +271,5 @@
     }
 
 </script>
-
-
 </body>
 </html>
