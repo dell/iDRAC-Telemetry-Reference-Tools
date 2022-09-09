@@ -82,6 +82,7 @@ opts=$(getopt \
   --longoptions "timescale-pump" \
   --longoptions "influx-test-db" \
   --longoptions "setup-influx-test-db" \
+  --longoptions "setup-prometheus-test-db" \
   --longoptions "prometheus-test-db" \
   --longoptions "elk-test-db" \
   --longoptions "timescale-test-db" \
@@ -150,6 +151,7 @@ while [[ $# -gt 0 ]]; do
 
     --prometheus-test-db)
       PROFILE_ARG="$PROFILE_ARG --profile prometheus-test-db"
+      PROMETHEUS=1
       ;;
     --elk-test-db)
       PROFILE_ARG="$PROFILE_ARG --profile elk-test-db"
@@ -183,6 +185,9 @@ export DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${DOCKER_INFLUXDB_INIT_ADMIN_TOKEN:-$(uu
 export DOCKER_INFLUXDB_INIT_PASSWORD=${DOCKER_INFLUXDB_INIT_PASSWORD:-$(uuidgen -r)}
 export MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-$(uuidgen -r)}
 export MYSQL_PASSWORD=${MYSQL_PASSWORD:-$(uuidgen -r)}
+export DOCKER_PROMETHEUS_INIT_ADMIN_TOKEN=${DOCKER_PROMETHEUS_INIT_ADMIN_TOKEN:-$(uuidgen -r)}
+export DOCKER_PROMETHEUS_INIT_PASSWORD=${DOCKER_PROMETHEUS_INIT_PASSWORD:-$(uuidgen -r)}
+
 
 # make container user UID match calling user so that containers dont leave droppings we cant remove
 > $topdir/.env
@@ -194,6 +199,8 @@ echo "DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${DOCKER_INFLUXDB_INIT_ADMIN_TOKEN}" >> $
 echo "DOCKER_INFLUXDB_INIT_PASSWORD=${DOCKER_INFLUXDB_INIT_PASSWORD}" >> $topdir/.env
 echo "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}" >> $topdir/.env
 echo "MYSQL_PASSWORD=${MYSQL_PASSWORD}" >> $topdir/.env
+echo "DOCKER_PROMETHEUS_INIT_ADMIN_TOKEN=${DOCKER_PROMETHEUS_INIT_ADMIN_TOKEN}" >> $topdir/.env
+echo "DOCKER_PROMETHEUS_INIT_PASSWORD=${DOCKER_PROMETHEUS_INIT_PASSWORD}" >> $topdir/.env
 
 # init Splink env variables if not set to avoid warnings from docker-compose for other pumps
 if [ -z $SPLUNK_HEC_URL ]; then
@@ -209,6 +216,7 @@ fi
  # remove dependency on setup influx-test-db
 touch $topdir/docker-compose-files/container-info-influx-pump.txt 
 touch $topdir/docker-compose-files/container-info-grafana.txt
+touch $topdir/docker-compose-files/container-info-promgrafana.txt
 
 case $1 in
   rm)
@@ -216,25 +224,35 @@ case $1 in
     ;;
 
   setup)
-      if [[ -z $INFLUX ]]; then
-          echo  "Setup only with influx-test-db  profile... "
+      if [[ -z $INFLUX ]] && [[ -z $PROMETHEUS ]]; then
+          echo  "Setup only with influx-test-db or prometheus-test-db profile... "
           exit 1
       fi
       # RUN ONLY setup containers
-      PROFILE_ARG="--profile setup-influx-test-db"
-      POST_ACTION="influx_setup_finish"
+      if [[ -n $INFLUX ]]; then
+        PROFILE_ARG="--profile setup-influx-test-db"
+        POST_ACTION="influx_setup_finish"
+      fi  
+      if [[ -n $PROMETHEUS ]]; then
+        PROFILE_ARG="--profile setup-prometheus-test-db"
+        POST_ACTION="prometheus_setup_finish"
+      fi
+
+      export CHK_INFLUX_PROMETHEUS=${POST_ACTION}
+      echo "CHK_INFLUX_PROMETHEUS=${CHK_INFLUX_PROMETHEUS}" >> $topdir/.env
+
       DETACH_ARG="-d"
       BUILD_ARG=
       #eval set -- "start"
 
-      for i in  $topdir/docker-compose-files/container-info-influx-pump.txt $topdir/docker-compose-files/container-info-grafana.txt
+      for i in  $topdir/docker-compose-files/container-info-influx-pump.txt $topdir/docker-compose-files/container-info-grafana.txt $topdir/docker-compose-files/container-info-promgrafana.txt
       do
         rm -f $i
         touch $i
       done
 
       # delete any older setup for grafana
-      for container in telemetry-reference-tools-influx telemetry-reference-tools-grafana
+      for container in telemetry-reference-tools-influx telemetry-reference-tools-grafana prometheus
       do
         id=$(docker container ls -a --filter name=$container -q)
         if [[ -z $id ]]; then
@@ -260,14 +278,16 @@ case $1 in
     ;;
 
   start)  
-    if [[ -n $SPLUNK ]] && [[ -z $SPLUNK_HEC_URL || -z $SPLUNK_HEC_KEY || -z $SPLUNK_HEC_INDEX ]];then 
-       echo "Splunk env variables SPLUNK_HEC_URL, SPLUNK_HEC_KEY, and/or SPLUNK_HEC_INDEX not set! "
-       exit 1
-    fi
     if  [[ -n $INFLUX ]] && [[ ! -s docker-compose-files/container-info-influx-pump.txt ]]; then
       echo "Influx must be set up before running. Please run setup --influx-test-db first"
       exit 1
     fi
+    echo "prometheus variable is: $PROMETHEUS"
+    if  [[ -n $PROMETHEUS ]] && [[ ! -s docker-compose-files/container-info-promgrafana.txt ]]; then
+      echo "Prometheus must be set up before running. Please run setup --prometheus-test-db first"
+      exit 1
+    fi
+
     echo "Set up environment file in $topdir/.env"
     echo "To run manually, run the following command line:"
     echo "docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG} ${DETACH_ARG}"
@@ -291,16 +311,31 @@ influx_setup_finish() {
 
   while ! grep GRAFANA_DASHBOARD_CREATED $topdir/docker-compose-files/container-info-grafana.txt;
   do
-    echo "Waiting for grafana container setup DATA_SOURCE & DASHBOARD to finish"
+    echo "Waiting for grafana container setup Influx DATA_SOURCE & DASHBOARD to finish"
     sleep 1
   done
 
-  echo "grafana container setup done for datasource and dashboards. Shutting down."
+    echo "grafana container setup done for datasource and dashboards. Shutting down."
   
-  docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} stop
+    docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} stop
 
 #  echo "Removing completed setup containers that are no longer needed"
-  docker container rm -v $(docker container ls -a --filter ancestor=idrac-telemetry-reference-tools/setup -q)
+    docker container rm -v $(docker container ls -a --filter ancestor=idrac-telemetry-reference-tools/setup -q)
+}
+
+prometheus_setup_finish() {
+  while ! grep GRAFANA_PROM_DASHBOARD_CREATED $topdir/docker-compose-files/container-info-promgrafana.txt;
+  do
+    echo "Waiting for grafana container setup Prometheus DATA_SOURCE & DASHBOARD to finish"
+    sleep 1
+  done
+
+    echo "grafana container setup done for datasource and dashboards. Shutting down."
+  
+    docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} stop
+
+#  echo "Removing completed setup containers that are no longer needed"    
+    docker container rm -v $(docker container ls -a --filter ancestor=idrac-telemetry-reference-tools/setupprometheus -q)
 }
 
 $POST_ACTION

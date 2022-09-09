@@ -36,6 +36,11 @@ x-env-influx: &influx-env
   INFLUX_ORG: my-org
   INFLUX_HOST: influx
   INFLUX_BUCKET: my-org-bucket
+  INFLUX_OR_PROMETHEUS: influx_setup_finish
+
+x-env-prometheus: &prometheus-env
+  PROMETHEUS_DB: poweredge_telemetry_metrics
+  PROMETHEUS_URL: http://prometheus:9090
 
 x-env-influx-setup: &influx-setup-env
   node.name: influx
@@ -46,6 +51,12 @@ x-env-influx-setup: &influx-setup-env
   INFLUXDB_HTTP_AUTH_ENABLED: 1
   DOCKER_INFLUXDB_INIT_ADMIN_TOKEN:
   DOCKER_INFLUXDB_INIT_PASSWORD:
+  CHK_INFLUX_PROMETHEUS:
+
+x-env-prometheus-setup: &prometheus-setup-env
+  node.name: prometheus
+  DOCKER_PROMETHEUS_INIT_ADMIN_TOKEN:
+  DOCKER_PROMETHEUS_INIT_PASSWORD:
 
 x-env-grafana: &grafana-env
   GRAFANA_URL: http://grafana:3000
@@ -292,7 +303,7 @@ services:
     ############################################################################
 
     # grafana runs as root in latest version. *sigh*
-     # Polystat plugin install doesnt work with prior versions of Grafana. Grafana 9.0.1 is just released on 2022-06-21
+    # Polystat plugin install doesnt work with prior versions of Grafana. Grafana 9.0.1 is just released on 2022-06-21
     container_name: telemetry-reference-tools-grafana
     image: grafana/grafana:9.0.1
     volumes:
@@ -302,6 +313,7 @@ services:
     profiles:
       - grafana
       - setup-influx-test-db
+      - setup-prometheus-test-db
       - influx-test-db
       - prometheus-test-db
       - timescale-test-db
@@ -309,6 +321,7 @@ services:
       - influx
     environment:
       <<: *influx-env
+      <<: *prometheus-env
       <<: *grafana-env
       GF_INSTALL_PLUGINS: grafana-polystat-panel
     ports:
@@ -323,13 +336,16 @@ services:
     image: idrac-telemetry-reference-tools/setup:latest
     profiles:
       - setup-influx-test-db
+      - setup-prometheus-test-db
     depends_on:
       - influx
       - grafana
     restart: "no"
     environment:
       <<: *influx-env
+      <<: *prometheus-env
       <<: *influx-setup-env
+      <<: *prometheus-setup-env
       <<: *grafana-env
     networks:
       - host-bridge-net
@@ -341,6 +357,9 @@ services:
       - type: bind
         source: ${PWD}/docker-compose-files/container-info-grafana.txt
         target: /config/container-info-grafana.txt
+      - type: bind
+        source: ${PWD}/docker-compose-files/container-info-promgrafana.txt
+        target: /config/container-info-promgrafana.txt
       - type: bind
         source: ${PWD}/dashboards
         target: /dashboardstgt
@@ -366,6 +385,7 @@ services:
     container_name: prometheus
     profiles:
       - prometheus-test-db
+      - setup-prometheus-test-db
     volumes:
       - type: bind
         source: ${PWD}/cmd/prometheuspump/prometheus.yml
@@ -373,8 +393,9 @@ services:
         read_only: true
       - prometheus-data:/prometheus
     environment:
-      - node.name=prometheus
-      - PROMETHEUS_DB=poweredge_telemetry_metrics
+      <<: *prometheus-setup-env
+      node.name: prometheus
+      PROMETHEUS_DB: poweredge_telemetry_metrics
     command:
       - '--config.file=/config/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -424,6 +445,24 @@ services:
       - activemq
     profiles:
       - prometheus-test-db
+
+  setup-prometheus-pump:
+    build:
+      <<: *base-build
+      dockerfile: docker-compose-files/Dockerfile.setup
+    image: idrac-telemetry-reference-tools/setupprometheus:latest
+    profiles:
+      - setup-prometheus-test-db
+    depends_on:
+      - prometheus
+      - activemq
+    restart: "no"
+    environment:
+      <<: *prometheus-env
+      <<: *prometheus-setup-env
+    networks:
+      - host-bridge-net
+    command: []
 
   splunk-pump-standalone:
     ############################################################################

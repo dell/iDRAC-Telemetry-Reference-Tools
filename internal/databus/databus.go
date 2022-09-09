@@ -10,6 +10,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
 )
 
@@ -43,16 +44,18 @@ const (
 )
 
 const (
-	GET          = "get"
-	SUBSCRIBE    = "subscribe"
-	GETPRODUCERS = "getproducers"
-	TERMINATE    = "terminate"
+	GET            = "get"
+	SUBSCRIBE      = "subscribe"
+	GETPRODUCERS   = "getproducers"
+	DELETEPRODUCER = "deleteproducers"
+	TERMINATE      = "terminate"
 )
 
 type Command struct {
 	Command      string `json:"command"`
 	ReceiveQueue string `json:"ReceiveQueue"`
 	ReportData   string `json:"reportdata,omitempty"`
+	ServiceIP    string `json:"serviceIP,omitempty"`
 }
 
 type Response struct {
@@ -190,6 +193,15 @@ func (d *DataBusClient) GetResponse(queue string) *Response {
 	}
 
 	return resp
+}
+
+func (d *DataBusClient) DeleteProducer(queue string, service auth.Service) {
+	fmt.Println("Entered Delete Producer")
+	var command Command
+	command.Command = DELETEPRODUCER
+	command.ReceiveQueue = queue
+	command.ServiceIP = service.Ip
+	d.SendCommand(command)
 }
 
 func (d *DataBusClient) GetProducers(queue string) []DataProducer {

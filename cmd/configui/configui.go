@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/config"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/databus"
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
@@ -29,6 +30,7 @@ var configStrings = map[string]string{
 type SystemHandler struct {
 	AuthClient *auth.AuthorizationClient
 	DataBus    *databus.DataBusClient
+	ConfigBus  *config.ConfigClient
 }
 
 func getSystemList(c *gin.Context, s *SystemHandler) {
@@ -40,6 +42,40 @@ type MySys struct {
 	Hostname string `json:"hostname"`
 	Username string `json:"username"`
 	Password string `json:"password"`
+}
+
+type MyDelSys struct {
+	Hostname []string `json:"hostname"`
+}
+
+type MyHec struct {
+	Url   string `json:"url"`
+	Key   string `json:"key"`
+	Index string `json:"index"`
+}
+
+func configHEC(c *gin.Context, s *SystemHandler) {
+	var tmp MyHec
+	err := c.ShouldBind(&tmp)
+	if err != nil {
+		log.Println("Failed to parse json: ", err)
+		_ = c.AbortWithError(500, err)
+	} else {
+		s.ConfigBus.CommandQueue = "/splunkpump/config"
+		s.ConfigBus.ResponseQueue = "/configui"
+		_, err = s.ConfigBus.Set("splunkURL", tmp.Url)
+		if err != nil {
+			log.Printf("Failed to send config (splunkURL) %v", err)
+		}
+		_, err = s.ConfigBus.Set("splunkKey", tmp.Key)
+		if err != nil {
+			log.Printf("Failed to send config (splunkKey) %v", err)
+		}
+		_, err = s.ConfigBus.Set("splunkIndex", tmp.Index)
+		if err != nil {
+			log.Printf("Failed to send config (splunkIndex) %v", err)
+		}
+	}
 }
 
 func addSystem(c *gin.Context, s *SystemHandler) {
@@ -63,6 +99,30 @@ func addSystem(c *gin.Context, s *SystemHandler) {
 		} else {
 			c.JSON(200, gin.H{"success": "true"})
 		}
+	}
+}
+
+func deleteSystem(c *gin.Context, s *SystemHandler) {
+	var tmp MyDelSys
+	err := c.ShouldBind(&tmp)
+	if err != nil {
+		log.Println("Failed to parse json: ", err)
+		_ = c.AbortWithError(500, err)
+	} else {
+		// host := []string{tmp.Hostname}
+		for i := 0; i < len(tmp.Hostname); i++ {
+			var service auth.Service
+			service.ServiceType = auth.IDRAC
+			service.Ip = tmp.Hostname[i]
+			serviceerr := s.AuthClient.DeleteService(service) // Deletes from database
+			if serviceerr != nil {
+				log.Println("Failed to delete service parse json: ", serviceerr)
+				_ = c.AbortWithError(500, err)
+			}
+			s.DataBus.DeleteProducer("/configui/databus_in", service)
+
+		}
+		c.JSON(200, gin.H{"success": "true"})
 	}
 }
 
@@ -130,6 +190,7 @@ func main() {
 	systemHandler := new(SystemHandler)
 	systemHandler.AuthClient = new(auth.AuthorizationClient)
 	systemHandler.DataBus = new(databus.DataBusClient)
+	systemHandler.ConfigBus = new(config.ConfigClient)
 
 	//Initialize messagebus
 	for {
@@ -141,6 +202,7 @@ func main() {
 		} else {
 			systemHandler.AuthClient.Bus = mb
 			systemHandler.DataBus.Bus = mb
+			systemHandler.ConfigBus.Bus = mb
 			defer mb.Close()
 			break
 		}
@@ -171,7 +233,12 @@ func main() {
 	router.POST("/api/v1/CsvUpload", func(c *gin.Context) {
 		handleCsv(c, systemHandler)
 	})
-
+	router.POST("/api/v1/Delete", func(c *gin.Context) {
+		deleteSystem(c, systemHandler)
+	})
+	router.POST("/api/v1/HecConfig", func(c *gin.Context) {
+		configHEC(c, systemHandler)
+	})
 	err := router.Run(fmt.Sprintf(":%s", configStrings["httpport"]))
 	if err != nil {
 		log.Printf("Failed to run webserver %v", err)
