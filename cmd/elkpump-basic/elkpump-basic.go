@@ -203,6 +203,7 @@ func main() {
 			log.Printf("Could not connect to message bus: %s", err)
 			time.Sleep(5 * time.Second)
 		} else {
+			log.Printf("Connected to message bus" )
 			dbClient.Bus = mb
 			defer mb.Close()
 			break
@@ -237,10 +238,28 @@ func main() {
 	}
 
 	indexName := "poweredge_telemetry_metrics"
-	time.Sleep(15 * time.Second)
+	isSuccess := false 
+	// wait for elastic search server to come up
+	for i:= 0; i< 10; i++{
+	    res, err = es.Indices.Get([]string{indexName})
+	    if err == nil{
+	        res.Body.Close()
+		isSuccess = true
+	    	break
+	    }
+	    time.Sleep(30 * time.Second)
+	}
+	
+	if !isSuccess{
+		log.Fatalf("ELK SErver is not up after 300 seconds")
+	}
+	log.Printf("ELK Server is up")
+	log.Printf("GET successful %s: %v", indexName,res)
+
 	// Re-create the index
+	res, err = es.Indices.Delete([]string{indexName})
 	if res, err = es.Indices.Delete([]string{indexName}); err != nil {
-		log.Fatalf("Cannot delete index: %s", err)
+		log.Fatalf("Cannot delete index:%s %s", indexName, err)
 	}
 	res.Body.Close()
 
