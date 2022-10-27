@@ -21,6 +21,20 @@ type DataValue struct {
 	Value     string
 	System    string
 	Timestamp string
+	MessageId string
+        EventType string
+        MaxBandwidthPercent float64
+        MinBandwidthPercent float64
+        DiscardedPkts float64
+        RxBroadcast float64
+        RxBytes float64
+        RxErrorPktAlignmentErrors float64
+        RxMulticastPackets float64
+        RxUnicastPackets float64
+	TxBroadcast float64
+        TxBytes float64
+        TxMutlicastPackets float64
+        TxUnicastPackets float64
 }
 
 type DataGroup struct {
