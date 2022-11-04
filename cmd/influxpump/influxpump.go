@@ -47,6 +47,31 @@ func handleGroups(writeAPI api.WriteAPI, groupsChan chan *databus.DataGroup) {
 
 			// automatically batches things behind the scenes
 			writeAPI.WritePoint(p)
+
+			if group.Label == "Redfish LifeCycle Events" {
+                                log.Printf("Measurement - RLCE\n")
+                                r := write.NewPointWithMeasurement("redfishlce").
+                                        AddTag("RedfishSystem", value.System).
+                                        AddTag("RedfishContext", value.Context).
+                                        AddTag("RedfishLabel", value.Label).
+                                        AddTag("EventId", value.ID).
+                                        AddField("EventType", value.EventType).
+                                        AddField("MaxBandwidthPercent", value.MaxBandwidthPercent).
+                                        AddField("MinBandwidthPercent", value.MinBandwidthPercent).
+                                        AddField("DiscardedPkts", value.DiscardedPkts).
+                                        AddField("RxBroadcast", value.RxBroadcast).
+                                        AddField("RxBytes", value.RxBytes).
+                                        AddField("RxErrorPktAlignmentErrors", value.RxErrorPktAlignmentErrors).
+                                        AddField("RxMulticastPackets", value.RxMulticastPackets).
+                                        AddField("RxUnicastPackets", value.RxUnicastPackets).
+                                        AddField("TxBytes", value.TxBytes).
+                                        AddField("TxMutlicastPackets", value.TxMutlicastPackets).
+                                        AddField("TxUnicastPackets", value.TxUnicastPackets).
+                                        AddField("TxBroadcast", value.TxBroadcast).
+                                        SetTime(timestamp)
+                        // automatically batches things behind the scenes
+                                writeAPI.WritePoint(r)
+			}
 		}
 	}
 }
