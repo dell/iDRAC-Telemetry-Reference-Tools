@@ -23,6 +23,7 @@ import (
 var configStrings = map[string]string{
 	"mbhost": "activemq",
 	"mbport": "61613",
+	"inventoryurl": "/redfish/v1/Chassis/System.Embedded.1",
 }
 
 type RedfishDevice struct {
@@ -130,7 +131,8 @@ func parseReport(metricReport *redfish.RedfishPayload, systemid string, dataBusS
 
 // Responsible for taking the lifecycle events received from SSE, getting its events, and then sending it along the
 // data bus
-func parseRedfishLce(lceevents *redfish.RedfishPayload, id string, dataBusService *databus.DataBusService) {
+func parseRedfishLce(lceevents *redfish.RedfishPayload, r *RedfishDevice, dataBusService *databus.DataBusService) {
+	id := r.SystemID
 	eventData, err := lceevents.GetPropertyByName("Events")
 	if err != nil {
 		log.Printf("%s: Unable to get eventData: %v %v", id, err, lceevents)
@@ -147,20 +149,70 @@ func parseRedfishLce(lceevents *redfish.RedfishPayload, id string, dataBusServic
 		eventData, err := lceevents.GetEventByIndex(j)
 		if err != nil {
 			log.Printf("Unable to retrieve the redfish lifecycle events\n")
+			return
 		}
 		if eventData.Object["EventId"] != nil {
 			data := new(databus.DataValue)
-			data.ID = eventData.Object["EventId"].(string)
-			data.Context = ""
-			data.Label = ""
-			data.Value = eventData.Object["EventType"].(string)
+			originCondition, err := eventData.GetPropertyByName("OriginOfCondition")
+                        if err != nil {
+                                log.Printf("Unable to get property %v\n", err)
+                        }
+                        data.Value = fmt.Sprint(originCondition)
+			data.MessageId = eventData.Object["MessageId"].(string)
+                        data.EventType = eventData.Object["EventType"].(string)
 			if eventData.Object["EventTimestamp"] == nil {
 				t := time.Now()
 				data.Timestamp = t.Format("2006-01-02T15:04:05-0700")
 			} else {
 				data.Timestamp = eventData.Object["EventTimestamp"].(string)
 			}
-			data.System = id
+			if originCondition != nil {
+                                if strings.Contains(originCondition.Object["@odata.id"].(string),configStrings["inventoryurl"]) {
+                                        map_oc, err := r.Redfish.GetUri(originCondition.Object["@odata.id"].(string))
+                                        if err != nil {
+                                                log.Printf("ERROR: %s\n", err)
+                                        }
+                                        inv_oem, err := map_oc.GetPropertyByName("Oem")
+                                        if err != nil {
+                                                log.Printf("Unable to get OEM %s\n", err)
+                                        }
+                                        if inv_oem != nil {
+                                                inv_DellOem, err := inv_oem.GetPropertyByName("Dell")
+                                                if err != nil {
+                                                        log.Printf("Unable to get DELL metrics %s\n", err)
+                                                }
+                                                if inv_DellOem != nil {
+                                                        inv_DellNIC, err := inv_DellOem.GetPropertyByName("DellNIC")
+                                                        if err != nil {
+                                                                log.Printf("Unable to get DellNIC metrics %s\n", err)
+                                                        } else {
+                                                                data.MaxBandwidthPercent = inv_DellNIC.Object["MaxBandwidthPercent"].(float64)
+                                                                data.MinBandwidthPercent = inv_DellNIC.Object["MinBandwidthPercent"].(float64)
+                                                        }
+                                                        inv_DellNICPortMetrics, err := inv_DellOem.GetPropertyByName("DellNICPortMetrics")
+							if err != nil {
+                                                                log.Printf("Unable to get NICPortMetrics%s\n", err)
+                                                        } else {
+                                                                data.Context = inv_DellNICPortMetrics.Object["@odata.context"].(string)
+                                                                data.Label = inv_DellNICPortMetrics.Object["@odata.type"].(string)
+                                                                data.ID = inv_DellNICPortMetrics.Object["@odata.id"].(string)
+                                                                data.DiscardedPkts = inv_DellNICPortMetrics.Object["DiscardedPkts"].(float64)
+                                                                broadcast := inv_DellNICPortMetrics.Object["RxBroadcast"]
+                                                                data.RxBroadcast = broadcast.(float64)
+                                                                data.RxBytes = inv_DellNICPortMetrics.Object["RxBytes"].(float64)
+                                                                data.RxErrorPktAlignmentErrors = inv_DellNICPortMetrics.Object["RxErrorPktAlignmentErrors"].(float64)
+                                                                data.RxMulticastPackets = inv_DellNICPortMetrics.Object["RxMutlicastPackets"].(float64)
+                                                                data.RxUnicastPackets = inv_DellNICPortMetrics.Object["RxUnicastPackets"].(float64)
+                                                                data.TxBroadcast = inv_DellNICPortMetrics.Object["TxBroadcast"].(float64)
+                                                                data.TxBytes = inv_DellNICPortMetrics.Object["TxBytes"].(float64)
+                                                                data.TxMutlicastPackets = inv_DellNICPortMetrics.Object["TxMutlicastPackets"].(float64)
+                                                                data.TxUnicastPackets = inv_DellNICPortMetrics.Object["TxUnicastPackets"].(float64)
+                                                        }
+                                                }
+					}
+                                }
+                        }
+			data.System = r.SystemID
 			group.Values = append(group.Values, *data)
 		}
 	}
@@ -177,6 +229,10 @@ func parseRedfishLce(lceevents *redfish.RedfishPayload, id string, dataBusServic
 
 func (r *RedfishDevice) RestartEventListener() {
 	go r.Redfish.ListenForEvents(r.Ctx, r.Events)
+}
+
+func (r *RedfishDevice) RestartLceEventListener() {
+        go r.Redfish.ListenForLceEvents(r.Ctx, r.Events)
 }
 
 // StartEventListener Directly responsible for receiving SSE events from iDRAC. Will parse received reports or issue a
@@ -201,6 +257,28 @@ func (r *RedfishDevice) StartEventListener(dataBusService *databus.DataBusServic
 			log.Printf("%s: Got unknown SSE event \n", r.SystemID)
 		}
 	}
+}
+
+// StartLceEventListener Directly responsible for receiving Redfish LifeCycleEvents from iDRAC. Will parse received reports or issue a
+// message in the log indicating it received an unknown event.
+func (r *RedfishDevice) StartLceEventListener(dataBusService *databus.DataBusService) {
+        if r.Events == nil {
+                r.Events = make(chan *redfish.RedfishEvent, 10)
+        }
+        timer := time.AfterFunc(time.Minute*5, r.RestartLceEventListener)
+        log.Printf("%s: Starting event listener...\n", r.SystemID)
+        go r.Redfish.ListenForLceEvents(r.Ctx, r.Events)
+        for {
+                lceevent := <-r.Events
+                timer.Reset(time.Minute * 5)
+                r.LastEvent = time.Now()
+                if lceevent != nil {
+                        log.Printf("%s: Got new event with id %s\n", r.SystemID, lceevent.Payload.Object["Id"].(string))
+                        parseRedfishLce(lceevent.Payload, r, dataBusService)
+                } else {
+                        log.Printf("%s: Got unknown LCE event %v\n", r.SystemID, lceevent.Payload)
+                }
+        }
 }
 
 // getTelemetry Starts the service which will listen for SSE reports from the iDRAC
@@ -241,7 +319,7 @@ func getRedfishLce(r *RedfishDevice, eventService *redfish.RedfishPayload, dataB
 	}
 	log.Printf("%s: Found %d Redfish LifeCycle Events\n", r.Redfish.Hostname, size)
 	for i := 0; i < size; i++ {
-		parseRedfishLce(eventSvc, r.SystemID, dataBusService)
+		parseRedfishLce(eventSvc, r, dataBusService)
 	}
 	r.State = databus.RUNNING
 	r.StartEventListener(dataBusService)
