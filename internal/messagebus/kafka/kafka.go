@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	kafka "github.com/segmentio/kafka-go"
@@ -13,49 +14,66 @@ import (
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
 )
 
-const KafkaMaxMessageBytes = 1024
+const KafkaMaxMessageBytes = 16 * 1024
 
 type KafkaMessagebus struct {
-	conn      *kafka.Conn
-	topic     string
-	partition int
-	ctx       context.Context
-	//subs []*kafka.Subscription
+	conns map[string]*kafka.Conn // cache of connections made at first read/write message, mapped by topic name
+	addr  string
+	ctx   context.Context
 }
 
-//type KafkaSubscription struct {
-//	sub *kafka.Subscription
-//}
+type KafkaSubscription struct {
+}
 
-func NewKafkaMessageBus(host string, port int, topic string, partition int) (messagebus.Messagebus, error) {
+func NewKafkaMessageBus(host string, port int) (messagebus.Messagebus, error) {
 	ret := new(KafkaMessagebus)
+	ret.addr = fmt.Sprintf("%s:%d", host, port)
 
-	kafkaAddress := fmt.Sprintf("%s:%d", host, port)
-
-	conn, err := kafka.DialLeader(context.Background(), "tcp", kafkaAddress, topic, partition)
+	// make sure we can connect, real connection made at first read/write
+	conn, err := kafka.Dial("tcp", ret.addr)
 	if err != nil {
 		return nil, err
 	}
+	conn.Close()
 
-	ret.conn = conn
-
+	ret.conns = map[string]*kafka.Conn{}
 	intRet := messagebus.Messagebus(ret)
 	return intRet, nil
 }
 
-func NewKafkaMessageBusFromConn(conn *kafka.Conn) (messagebus.Messagebus, error) {
+func NewKafkaMessageBusFromConn(conn *kafka.Conn, topic string) (messagebus.Messagebus, error) {
 	ret := new(KafkaMessagebus)
-	ret.conn = conn
+	ret.conns[topic] = conn
 	ret.ctx = context.Background()
 	intRet := messagebus.Messagebus(ret)
 	return intRet, nil
 }
 
+func (m *KafkaMessagebus) TopicConnect(queue string) (*kafka.Conn, error) {
+	topic := strings.ReplaceAll(queue, "/", "_")
+	kconn, ok := m.conns[topic]
+	if !ok || kconn == nil {
+		conn, err := kafka.DialLeader(context.Background(), "tcp", m.addr, topic, 0)
+		if err != nil || conn == nil {
+			log.Println("kafka.DialLeader: could not connect ", err)
+			return nil, err
+		}
+		m.conns[topic] = conn
+		kconn = conn
+	}
+	return kconn, nil
+}
+
 func (m *KafkaMessagebus) SendMessage(message []byte, queue string) error {
-	m.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-	_, err := m.conn.WriteMessages(kafka.Message{Value: message})
+
+	kconn, err := m.TopicConnect(queue)
+	if err != nil || kconn == nil {
+		return err
+	}
+	kconn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	_, err = kconn.WriteMessages(kafka.Message{Value: message})
 	if err != nil {
-		log.Println("failed to write messages:", err)
+		log.Println("failed to write messages:", queue, err)
 	}
 	return err
 }
@@ -68,60 +86,59 @@ func (m *KafkaMessagebus) SendMessageWithHeaders(message []byte, queue string, h
 		hdr.Value = []byte(value)
 		hdrs = append(hdrs, hdr)
 	}
-	m.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-	_, err := m.conn.WriteMessages(kafka.Message{Value: message, Headers: hdrs})
+	kconn, err := m.TopicConnect(queue)
 	if err != nil {
-		log.Println("failed to write messages:", err)
+		return err
 	}
+	kconn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	_, err = kconn.WriteMessages(kafka.Message{Value: message, Headers: hdrs})
+	if err != nil {
+		log.Println("failed to write messages:", queue, err)
+	}
+
 	return err
 }
 
 func (m *KafkaMessagebus) ReceiveMessage(message chan<- string, queue string) (messagebus.Subscription, error) {
+	kconn, err := m.TopicConnect(queue)
+	if err != nil || kconn == nil {
+		return nil, err
+	}
+	go m.RecieveLoop(kconn, message, queue)
+
+	mySub := new(KafkaSubscription)
+	return messagebus.Subscription(mySub), nil
+}
+
+func (m *KafkaMessagebus) RecieveLoop(conn *kafka.Conn, message chan<- string, queue string) {
 	defer func() {
 		_, cancel := context.WithTimeout(m.ctx, 1*time.Second)
-		m.conn.Close()
+		conn.Close()
 		cancel()
 	}()
 
 	for {
 		// Receive next message
-		msg, err := m.conn.ReadMessage(KafkaMaxMessageBytes)
+		msg, err := conn.ReadMessage(KafkaMaxMessageBytes)
 		if err != nil {
-			return nil, err
+			log.Println("failed to read message:", err)
+			break
 		}
-
 		message <- string(msg.Value)
 	}
 }
 
-/*
-	func (m *KafkaMessagebus) RecieveLoop(sub *kafka.Subscription, message chan<- string) {
-		for {
-			msg := <-sub.C
-			if msg == nil {
-				break
-			} else if msg.Err != nil {
-				//This can timeout... just keep going...
-				continue
-			}
-			message <- string(msg.Body)
-			err := m.conn.Ack(msg)
-			if err != nil {
-				log.Printf("ACK failed! %v", err)
-			}
+func (m *KafkaMessagebus) Close() error {
+	var err error
+	for _, conn := range m.conns {
+		err1 := conn.Close()
+		if err1 != nil {
+			err = err1
 		}
 	}
-*/
-func (m *KafkaMessagebus) Close() error {
-	//for _, sub := range m.subs {
-	//	err := sub.Unsubscribe()
-	//	if err != nil {
-	//		log.Printf("Failed to unsubscribe %v", err)
-	//	}
-	//}
-	return m.conn.Close()
+	return err
 }
 
-//func (m *KafkaSubscription) Close() error {
-//	return m.sub.Unsubscribe()
-//}
+func (m *KafkaSubscription) Close() error {
+	return nil
+}
