@@ -8,13 +8,12 @@ require (
 	github.com/gin-gonic/gin v1.7.1
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/go-stomp/stomp v2.0.3+incompatible
-	github.com/influxdata/influxdb1-client v0.0.0-20190809212627-fc22c7df067e
 	github.com/jackc/pgx/v4 v4.10.1
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/prometheus/client_golang v1.1.0
-	go.etcd.io/bbolt v1.3.3
-	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
+	github.com/segmentio/kafka-go v0.4.38
+	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
 	google.golang.org/appengine v1.6.5 // indirect
 	gopkg.in/ini.v1 v1.51.0
 	pack.ag/amqp v0.12.3
@@ -34,7 +33,6 @@ require (
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/go-playground/validator/v10 v10.4.1 // indirect
 	github.com/golang/protobuf v1.3.3 // indirect
-	github.com/influxdata/influxdb-client-go v1.4.0 // indirect
 	github.com/influxdata/influxdb-client-go/v2 v2.8.0
 	github.com/influxdata/line-protocol v0.0.0-20200327222509-2487e7298839 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
@@ -54,12 +52,16 @@ require (
 	github.com/prometheus/client_model v0.0.0-20190129233127-fd36f4220a90 // indirect
 	github.com/prometheus/common v0.6.0 // indirect
 	github.com/prometheus/procfs v0.0.3 // indirect
-	github.com/sirupsen/logrus v1.4.2
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
-	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
-	golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1 // indirect
-	golang.org/x/text v0.3.6 // indirect
+	golang.org/x/net v0.0.0-20220706163947-c90051bbdb60 // indirect
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
+	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
+)
+
+require (
+	github.com/klauspost/compress v1.15.9 // indirect
+	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 )
