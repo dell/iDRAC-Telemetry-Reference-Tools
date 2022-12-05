@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	kafka "github.com/segmentio/kafka-go"
@@ -17,9 +18,10 @@ import (
 const KafkaMaxMessageBytes = 16 * 1024
 
 type KafkaMessagebus struct {
-	conns map[string]*kafka.Conn // cache of connections made at first read/write message, mapped by topic name
-	addr  string
-	ctx   context.Context
+	conns       map[string]*kafka.Conn // cache of connections made at first read/write message, mapped by topic name
+	addr        string
+	ctx         context.Context
+	topicConnMu sync.RWMutex
 }
 
 type KafkaSubscription struct {
@@ -37,6 +39,7 @@ func NewKafkaMessageBus(host string, port int) (messagebus.Messagebus, error) {
 	conn.Close()
 
 	ret.conns = map[string]*kafka.Conn{}
+	ret.topicConnMu = sync.RWMutex{}
 	intRet := messagebus.Messagebus(ret)
 	return intRet, nil
 }
@@ -44,6 +47,7 @@ func NewKafkaMessageBus(host string, port int) (messagebus.Messagebus, error) {
 func NewKafkaMessageBusFromConn(conn *kafka.Conn, topic string) (messagebus.Messagebus, error) {
 	ret := new(KafkaMessagebus)
 	ret.conns[topic] = conn
+	ret.topicConnMu = sync.RWMutex{}
 	ret.ctx = context.Background()
 	intRet := messagebus.Messagebus(ret)
 	return intRet, nil
@@ -51,14 +55,18 @@ func NewKafkaMessageBusFromConn(conn *kafka.Conn, topic string) (messagebus.Mess
 
 func (m *KafkaMessagebus) TopicConnect(queue string) (*kafka.Conn, error) {
 	topic := strings.ReplaceAll(queue, "/", "_")
+	m.topicConnMu.RLock()
 	kconn, ok := m.conns[topic]
+	m.topicConnMu.RUnlock()
 	if !ok || kconn == nil {
 		conn, err := kafka.DialLeader(context.Background(), "tcp", m.addr, topic, 0)
 		if err != nil || conn == nil {
 			log.Println("kafka.DialLeader: could not connect ", err)
 			return nil, err
 		}
+		m.topicConnMu.Lock()
 		m.conns[topic] = conn
+		m.topicConnMu.Unlock()
 		kconn = conn
 	}
 	return kconn, nil
@@ -130,11 +138,14 @@ func (m *KafkaMessagebus) RecieveLoop(conn *kafka.Conn, message chan<- string, q
 
 func (m *KafkaMessagebus) Close() error {
 	var err error
-	for _, conn := range m.conns {
+	m.topicConnMu.Lock()
+	defer m.topicConnMu.Unlock()
+	for topic, conn := range m.conns {
 		err1 := conn.Close()
 		if err1 != nil {
 			err = err1
 		}
+		delete(m.conns, topic)
 	}
 	return err
 }
