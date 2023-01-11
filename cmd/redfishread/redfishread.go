@@ -21,8 +21,8 @@ import (
 )
 
 var configStrings = map[string]string{
-	"mbhost": "activemq",
-	"mbport": "61613",
+	"mbhost":       "activemq",
+	"mbport":       "61613",
 	"inventoryurl": "/redfish/v1/Chassis/System.Embedded.1",
 }
 
@@ -154,12 +154,12 @@ func parseRedfishLce(lceevents *redfish.RedfishPayload, r *RedfishDevice, dataBu
 		if eventData.Object["EventId"] != nil {
 			data := new(databus.DataValue)
 			originCondition, err := eventData.GetPropertyByName("OriginOfCondition")
-                        if err != nil {
-                                log.Printf("Unable to get property %v\n", err)
-                        }
-                        data.Value = fmt.Sprint(originCondition)
+			if err != nil {
+				log.Printf("Unable to get property %v\n", err)
+			}
+			data.Value = fmt.Sprint(originCondition)
 			data.MessageId = eventData.Object["MessageId"].(string)
-                        data.EventType = eventData.Object["EventType"].(string)
+			data.EventType = eventData.Object["EventType"].(string)
 			if eventData.Object["EventTimestamp"] == nil {
 				t := time.Now()
 				data.Timestamp = t.Format("2006-01-02T15:04:05-0700")
@@ -167,51 +167,51 @@ func parseRedfishLce(lceevents *redfish.RedfishPayload, r *RedfishDevice, dataBu
 				data.Timestamp = eventData.Object["EventTimestamp"].(string)
 			}
 			if originCondition != nil {
-                                if strings.Contains(originCondition.Object["@odata.id"].(string),configStrings["inventoryurl"]) {
-                                        map_oc, err := r.Redfish.GetUri(originCondition.Object["@odata.id"].(string))
-                                        if err != nil {
-                                                log.Printf("ERROR: %s\n", err)
-                                        }
-                                        inv_oem, err := map_oc.GetPropertyByName("Oem")
-                                        if err != nil {
-                                                log.Printf("Unable to get OEM %s\n", err)
-                                        }
-                                        if inv_oem != nil {
-                                                inv_DellOem, err := inv_oem.GetPropertyByName("Dell")
-                                                if err != nil {
-                                                        log.Printf("Unable to get DELL metrics %s\n", err)
-                                                }
-                                                if inv_DellOem != nil {
-                                                        inv_DellNIC, err := inv_DellOem.GetPropertyByName("DellNIC")
-                                                        if err != nil {
-                                                                log.Printf("Unable to get DellNIC metrics %s\n", err)
-                                                        } else {
-                                                                data.MaxBandwidthPercent = inv_DellNIC.Object["MaxBandwidthPercent"].(float64)
-                                                                data.MinBandwidthPercent = inv_DellNIC.Object["MinBandwidthPercent"].(float64)
-                                                        }
-                                                        inv_DellNICPortMetrics, err := inv_DellOem.GetPropertyByName("DellNICPortMetrics")
-							if err != nil {
-                                                                log.Printf("Unable to get NICPortMetrics%s\n", err)
-                                                        } else {
-                                                                data.Context = inv_DellNICPortMetrics.Object["@odata.context"].(string)
-                                                                data.Label = inv_DellNICPortMetrics.Object["@odata.type"].(string)
-                                                                data.ID = inv_DellNICPortMetrics.Object["@odata.id"].(string)
-                                                                data.DiscardedPkts = inv_DellNICPortMetrics.Object["DiscardedPkts"].(float64)
-                                                                broadcast := inv_DellNICPortMetrics.Object["RxBroadcast"]
-                                                                data.RxBroadcast = broadcast.(float64)
-                                                                data.RxBytes = inv_DellNICPortMetrics.Object["RxBytes"].(float64)
-                                                                data.RxErrorPktAlignmentErrors = inv_DellNICPortMetrics.Object["RxErrorPktAlignmentErrors"].(float64)
-                                                                data.RxMulticastPackets = inv_DellNICPortMetrics.Object["RxMutlicastPackets"].(float64)
-                                                                data.RxUnicastPackets = inv_DellNICPortMetrics.Object["RxUnicastPackets"].(float64)
-                                                                data.TxBroadcast = inv_DellNICPortMetrics.Object["TxBroadcast"].(float64)
-                                                                data.TxBytes = inv_DellNICPortMetrics.Object["TxBytes"].(float64)
-                                                                data.TxMutlicastPackets = inv_DellNICPortMetrics.Object["TxMutlicastPackets"].(float64)
-                                                                data.TxUnicastPackets = inv_DellNICPortMetrics.Object["TxUnicastPackets"].(float64)
-                                                        }
-                                                }
+				if strings.Contains(originCondition.Object["@odata.id"].(string), configStrings["inventoryurl"]) {
+					map_oc, err := r.Redfish.GetUri(originCondition.Object["@odata.id"].(string))
+					if err != nil {
+						log.Printf("ERROR: %s\n", err)
 					}
-                                }
-                        }
+					inv_oem, err := map_oc.GetPropertyByName("Oem")
+					if err != nil {
+						log.Printf("Unable to get OEM %s\n", err)
+					}
+					if inv_oem != nil {
+						inv_DellOem, err := inv_oem.GetPropertyByName("Dell")
+						if err != nil {
+							log.Printf("Unable to get DELL metrics %s\n", err)
+						}
+						if inv_DellOem != nil {
+							inv_DellNIC, err := inv_DellOem.GetPropertyByName("DellNIC")
+							if err != nil {
+								log.Printf("Unable to get DellNIC metrics %s\n", err)
+							} else {
+								data.MaxBandwidthPercent = inv_DellNIC.Object["MaxBandwidthPercent"].(float64)
+								data.MinBandwidthPercent = inv_DellNIC.Object["MinBandwidthPercent"].(float64)
+							}
+							inv_DellNICPortMetrics, err := inv_DellOem.GetPropertyByName("DellNICPortMetrics")
+							if err != nil {
+								log.Printf("Unable to get NICPortMetrics%s\n", err)
+							} else {
+								data.Context = inv_DellNICPortMetrics.Object["@odata.context"].(string)
+								data.Label = inv_DellNICPortMetrics.Object["@odata.type"].(string)
+								data.ID = inv_DellNICPortMetrics.Object["@odata.id"].(string)
+								data.DiscardedPkts = inv_DellNICPortMetrics.Object["DiscardedPkts"].(float64)
+								broadcast := inv_DellNICPortMetrics.Object["RxBroadcast"]
+								data.RxBroadcast = broadcast.(float64)
+								data.RxBytes = inv_DellNICPortMetrics.Object["RxBytes"].(float64)
+								data.RxErrorPktAlignmentErrors = inv_DellNICPortMetrics.Object["RxErrorPktAlignmentErrors"].(float64)
+								data.RxMulticastPackets = inv_DellNICPortMetrics.Object["RxMutlicastPackets"].(float64)
+								data.RxUnicastPackets = inv_DellNICPortMetrics.Object["RxUnicastPackets"].(float64)
+								data.TxBroadcast = inv_DellNICPortMetrics.Object["TxBroadcast"].(float64)
+								data.TxBytes = inv_DellNICPortMetrics.Object["TxBytes"].(float64)
+								data.TxMutlicastPackets = inv_DellNICPortMetrics.Object["TxMutlicastPackets"].(float64)
+								data.TxUnicastPackets = inv_DellNICPortMetrics.Object["TxUnicastPackets"].(float64)
+							}
+						}
+					}
+				}
+			}
 			data.System = r.SystemID
 			group.Values = append(group.Values, *data)
 		}
@@ -232,7 +232,7 @@ func (r *RedfishDevice) RestartEventListener() {
 }
 
 func (r *RedfishDevice) RestartLceEventListener() {
-        go r.Redfish.ListenForLceEvents(r.Ctx, r.Events)
+	go r.Redfish.ListenForLceEvents(r.Ctx, r.Events)
 }
 
 // StartEventListener Directly responsible for receiving SSE events from iDRAC. Will parse received reports or issue a
@@ -262,23 +262,23 @@ func (r *RedfishDevice) StartEventListener(dataBusService *databus.DataBusServic
 // StartLceEventListener Directly responsible for receiving Redfish LifeCycleEvents from iDRAC. Will parse received reports or issue a
 // message in the log indicating it received an unknown event.
 func (r *RedfishDevice) StartLceEventListener(dataBusService *databus.DataBusService) {
-        if r.Events == nil {
-                r.Events = make(chan *redfish.RedfishEvent, 10)
-        }
-        timer := time.AfterFunc(time.Minute*5, r.RestartLceEventListener)
-        log.Printf("%s: Starting event listener...\n", r.SystemID)
-        go r.Redfish.ListenForLceEvents(r.Ctx, r.Events)
-        for {
-                lceevent := <-r.Events
-                timer.Reset(time.Minute * 5)
-                r.LastEvent = time.Now()
-                if lceevent != nil {
-                        log.Printf("%s: Got new event with id %s\n", r.SystemID, lceevent.Payload.Object["Id"].(string))
-                        parseRedfishLce(lceevent.Payload, r, dataBusService)
-                } else {
-                        log.Printf("%s: Got unknown LCE event %v\n", r.SystemID, lceevent.Payload)
-                }
-        }
+	if r.Events == nil {
+		r.Events = make(chan *redfish.RedfishEvent, 10)
+	}
+	timer := time.AfterFunc(time.Minute*5, r.RestartLceEventListener)
+	log.Printf("%s: Starting event listener...\n", r.SystemID)
+	go r.Redfish.ListenForLceEvents(r.Ctx, r.Events)
+	for {
+		lceevent := <-r.Events
+		timer.Reset(time.Minute * 5)
+		r.LastEvent = time.Now()
+		if lceevent != nil {
+			log.Printf("%s: Got new event with id %s\n", r.SystemID, lceevent.Payload.Object["Id"].(string))
+			parseRedfishLce(lceevent.Payload, r, dataBusService)
+		} else {
+			log.Printf("%s: Got unknown LCE event %v\n", r.SystemID, lceevent.Payload)
+		}
+	}
 }
 
 // getTelemetry Starts the service which will listen for SSE reports from the iDRAC
@@ -383,24 +383,32 @@ func handleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *data
 		} else if service.AuthType == auth.AuthTypeBearerToken {
 			r, err = redfish.InitBearer(service.Ip, service.Auth["token"])
 		}
-		if err != nil {
-			log.Printf("%s: Failed to instantiate redfish client %v", service.Ip, err)
-			continue
-		}
 		//log.Print(r)
 		device := new(RedfishDevice)
+		if err != nil {
+			log.Printf("%s: Failed to instantiate redfish client %v", service.Ip, err)
+			// Creating device for failed password so that it will show up on GUI
+			r = new(redfish.RedfishClient)
+			r.Hostname = service.Ip
+			r.Username = service.Auth["username"]
+			r.Password = service.Auth["password"]
+			device.State = databus.STOPPED
+		} else {
+			device.State = databus.STARTING
+		}
 		device.Redfish = r
-		device.State = databus.STARTING
 		device.HasChildren = service.ServiceType == auth.MSM
 		ctx, cancel := context.WithCancel(context.Background())
 		device.Ctx = ctx
 		device.CtxCancel = cancel
-
 		if devices == nil {
 			devices = make(map[string]*RedfishDevice)
 		}
 		devices[service.Ip] = device
-		go redfishMonitorStart(device, dataBusService)
+		// Only want validated devices to be started
+		if err == nil {
+			go redfishMonitorStart(device, dataBusService)
+		}
 	}
 }
 
