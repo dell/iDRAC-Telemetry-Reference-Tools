@@ -62,7 +62,7 @@
                         <th>Index</th>
                     </tr>
                     </thead>
-                    <tbody id="HEC">
+                    <tbody id="hec">
                     </tbody>
                 </table>
             </div>
@@ -137,7 +137,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="configHEC()">Add HEC</button>
+                <button type="button" class="btn btn-primary" onclick="configHEC()">Update HEC</button>
             </div>
         </div>
     </div>
@@ -158,6 +158,7 @@
 <script>
     let serviceData;
     $.getJSON("/api/v1/Systems", gotServiceList);
+    $.getJSON("/api/v1/HttpEventCollector", gotConfigList);
     $(function () {
         $('[data-toggle="tooltip"]').tooltip()
     })
@@ -179,6 +180,11 @@
         }
     }
     
+    function gotConfigList(data) {
+        var tbody = $('#hec');
+        tbody.append('<tr><td>'+data.url+'</td><td>'+data.key+'</td><td>' + data.index+ '</td></tr>')
+    }
+
     function checkboxClick(checkbox) {
             let checkboxIndex = parseInt(checkbox.id.split('-')[1])
             if(checkbox.checked){
@@ -249,13 +255,22 @@
             data: JSON.stringify(obj),
             contentType: 'application/json',
             dataType: 'json',
-            complete: addDone
+            complete: addhec
         })
     }
 
     function addDone(jqXHR) {
         if(jqXHR.status != 200) {
             alert("Failed to add new service!");
+        }
+        else {
+            location.reload();
+        }
+    }
+
+    function addhec(jqXHR){
+        if(jqXHR.status != 200) {
+            alert("Failed to config hec!");
         }
         else {
             location.reload();

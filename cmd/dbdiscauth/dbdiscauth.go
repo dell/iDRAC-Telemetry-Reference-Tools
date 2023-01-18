@@ -30,6 +30,25 @@ var configStrings = map[string]string{
 	"mysqlDBName":   "telemetrysource_services_db", //to be provided by user
 }
 
+func getHECInstancesFromDB(db *sql.DB) ([]auth.SplunkConfig, error) {
+	results, err := db.Query("SELECT url, `key`, `index` FROM HttpEventCollector")
+	if err != nil {
+		return nil, err
+	}
+
+	var ret []auth.SplunkConfig
+	for results.Next() {
+		var value auth.SplunkConfig
+		var tmp string
+		err = results.Scan(&value.Url, &value.Key, &value.Index, &tmp)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, value)
+	}
+	return ret, nil
+}
+
 func getInstancesFromDB(db *sql.DB) ([]auth.Service, error) {
 	results, err := db.Query("SELECT serviceType, ip, authType, auth FROM services")
 	if err != nil {
@@ -79,6 +98,27 @@ func addServiceToDB(db *sql.DB, service auth.Service, authService *auth.Authoriz
 		return err
 	}
 	_ = authService.SendService(service)
+	return nil
+}
+
+// splunk configuration are getting added in the database
+//TO DO: Update it in the db
+func splunkAddHECToDB(db *sql.DB, SplunkConfig auth.SplunkConfig, authService *auth.AuthorizationService) error {
+	log.Print("inside splunkaddhectodb")
+	stmt, err := db.Prepare("INSERT INTO HttpEventCollector(url, `key`, `index`) VALUES(?, ?, ?)")
+	if err != nil {
+		return err
+	}
+	fmt.Println("reached inside splunkAddHECTODB")
+	// jsonStr, err := json.Marshal(SplunkConfig)
+	// if err != nil {
+	// 	return err
+	// }
+	_, err = stmt.Exec(SplunkConfig.Url, SplunkConfig.Key, SplunkConfig.Index)
+	if err != nil {
+		return err
+	}
+	_ = authService.Sendconfig(SplunkConfig)
 	return nil
 }
 
@@ -154,6 +194,20 @@ func initMySQLDatabase() (*sql.DB, error) {
 		}
 	}
 
+	for {
+		_, err = db.Query("CREATE TABLE IF NOT EXISTS HttpEventCollector(url VARCHAR(255), `key` VARCHAR(4096), `index` VARCHAR(4096));")
+		fmt.Println("inside second dbquery")
+		log.Print("inside second dbquery")
+		if err != nil {
+			log.Print("Could not create DB Table: ", err)
+			log.Print("second db is not created")
+			time.Sleep(5 * time.Second)
+		} else {
+			log.Print("second db table is created")
+			break
+		}
+	}
+
 	return db, err
 }
 
@@ -222,6 +276,18 @@ func main() {
 			if err != nil {
 				log.Print("Deleteservice Failed to delete db entries: ", err)
 			}
+		case auth.SPLUNKADDHEC:
+			err = splunkAddHECToDB(db, command.SplunkConfig, authorizationService)
+			if err != nil {
+				log.Print("AddHec Failed to write db entries: ", err)
+			}
+		case auth.GETHECCONFIG:
+			HecConfig, err := getHECInstancesFromDB(db)
+			if err != nil {
+				log.Print("Failed to get db entries: ", err)
+				break
+			}
+			log.Print(HecConfig)
 		case auth.TERMINATE:
 			os.Exit(0)
 		}
