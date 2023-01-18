@@ -74,7 +74,6 @@ func getSplunkHttpConfig(c *gin.Context, s *SystemHandler) {
 		log.Printf("Failed to get any Index values %v", err)
 	}
 	SplunkConfig.Index = configValues.Value.(string)
-	fmt.Println("splunkconfig Index", SplunkConfig.Index)
 	c.JSON(200, SplunkConfig)
 }
 
