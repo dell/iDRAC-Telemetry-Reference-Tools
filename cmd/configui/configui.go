@@ -60,13 +60,11 @@ func getSplunkHttpConfig(c *gin.Context, s *SystemHandler) {
 		log.Printf("Failed to get any config url values %v", err)
 	}
 	SplunkConfig.Url = configValues.Value.(string)
-	fmt.Println("splunkconfig url", SplunkConfig.Url)
 	configValues, err = s.ConfigBus.Get("splunkKey")
 	if err != nil {
 		log.Printf("Failed to get any config key values %v", err)
 	}
 	SplunkConfig.Key = configValues.Value.(string)
-	fmt.Println("Splunkconfig", SplunkConfig.Key)
 	configValues, err = s.ConfigBus.Get("splunkIndex")
 
 	if err != nil {
