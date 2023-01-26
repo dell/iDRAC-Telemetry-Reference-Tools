@@ -104,12 +104,10 @@ func addServiceToDB(db *sql.DB, service auth.Service, authService *auth.Authoriz
 // splunk configuration are getting added in the database
 //TO DO: Update it in the db
 func splunkAddHECToDB(db *sql.DB, SplunkConfig auth.SplunkConfig, authService *auth.AuthorizationService) error {
-	log.Print("inside splunkaddhectodb")
 	stmt, err := db.Prepare("INSERT INTO HttpEventCollector(url, `key`, `index`) VALUES(?, ?, ?)")
 	if err != nil {
 		return err
 	}
-	fmt.Println("reached inside splunkAddHECTODB")
 	// jsonStr, err := json.Marshal(SplunkConfig)
 	// if err != nil {
 	// 	return err
@@ -196,14 +194,10 @@ func initMySQLDatabase() (*sql.DB, error) {
 
 	for {
 		_, err = db.Query("CREATE TABLE IF NOT EXISTS HttpEventCollector(url VARCHAR(255), `key` VARCHAR(4096), `index` VARCHAR(4096));")
-		fmt.Println("inside second dbquery")
-		log.Print("inside second dbquery")
 		if err != nil {
 			log.Print("Could not create DB Table: ", err)
-			log.Print("second db is not created")
 			time.Sleep(5 * time.Second)
 		} else {
-			log.Print("second db table is created")
 			break
 		}
 	}
