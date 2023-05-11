@@ -126,7 +126,7 @@ func logToSplunk(events []*SplunkEvent) {
 	for _, event := range events {
 		b, _ := json.Marshal(event)
 		builder.Write(b)
-		log.Printf("Timestamp = %d ID = %s System = %s", event.Time, event.Fields.MetricName, event.Host)
+		// log.Printf("Timestamp = %d ID = %s System = %s", event.Time, event.Fields.MetricName, event.Host)
 	}
 
 	configStringsMu.RLock()
