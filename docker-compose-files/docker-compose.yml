@@ -15,6 +15,7 @@ version: "3.9"
 #    - influx-pump
 #    - prometheus-pump
 #    - splunk-pump
+#    - kafka-pump
 #    - elk-pump (currently broken?)
 #    - grafana
 ######
@@ -534,6 +535,40 @@ services:
       args:
         <<: *base-args
         CMD: splunkpump
+
+  kafka-pump-standalone:
+    ############################################################################
+    # SPLUNKKAFKA PUMP - data pump to pump telemetry into kafka
+    #    Manually start this profile if you want to point to an external server
+    #
+    # Add this to your docker-compose cli args:
+    #   --profile kafka-pump
+    #
+    # If you want to connect to an external kafka database,
+    # set the following environment variables:
+    #
+    # TODO: add
+    #
+    ############################################################################
+    <<: *refdaemon
+    image: idrac-telemetry-reference-tools/kafkapump:latest
+    profiles:
+      - kafka-pump
+    depends_on:
+      - activemq
+    environment:
+      <<: *messagebus-env
+      KAFKA_URL: ${KAFKA_URL}
+    build:
+      <<: *base-build
+      args:
+        <<: *base-args
+        CMD: kafkapump
+    # volumes:
+    #   - type: bind
+    #     source: ${PWD}/docker-compose-files/serverCA.pem
+    #     target: /extrabin/serverCA.pem
+    #     read_only: true
 
   elk-pump-standalone: &elk-pump
     ############################################################################

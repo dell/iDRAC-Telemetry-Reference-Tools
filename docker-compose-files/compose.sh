@@ -78,6 +78,7 @@ opts=$(getopt \
   --longoptions "influx-pump" \
   --longoptions "prometheus-pump" \
   --longoptions "splunk-pump" \
+  --longoptions "kafka-pump" \
   --longoptions "elk-pump" \
   --longoptions "timescale-pump" \
   --longoptions "influx-test-db" \
@@ -112,6 +113,7 @@ while [[ $# -gt 0 ]]; do
       echo "    --influx-pump"
       echo "    --prometheus-pump"
       echo "    --splunk-pump"
+      echo "    --kafka-pump"
       echo "    --elk-pump"
       echo "    --timescale-pump"
       echo
@@ -137,6 +139,10 @@ while [[ $# -gt 0 ]]; do
     --splunk-pump)
       PROFILE_ARG="$PROFILE_ARG --profile splunk-pump"
       SPLUNK=1     
+      ;;
+    --kafka-pump)
+      PROFILE_ARG="$PROFILE_ARG --profile kafka-pump"
+      KAFKA=1     
       ;;
     --elk-pump)
       PROFILE_ARG="$PROFILE_ARG --profile elk-pump"
