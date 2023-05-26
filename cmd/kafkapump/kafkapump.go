@@ -38,22 +38,17 @@ var configStringsMu sync.RWMutex
 var configStrings = map[string]string{
 	"mbhost":   "activemq",
 	"mbport":   "61613",
-	"kafkaURL": "",
-	"kafkaKey": "",
+	"kafkaBroker": "",
+	"kafkaTopic": "",
 }
 
 var configItems = map[string]*config.ConfigEntry{
-	"kafkaURL": {
+	"kafkaBroker": {
 		Set:     configSet,
 		Get:     configGet,
 		Default: "",
 	},
-	"kafkaKey": {
-		Set:     configSet,
-		Get:     configGet,
-		Default: "",
-	},
-	"kafkaIndex": {
+	"kafkaTopic": {
 		Set:     configSet,
 		Get:     configGet,
 		Default: "",
@@ -67,12 +62,10 @@ func configSet(name string, value interface{}) error {
 	defer configStringsMu.Unlock()
 
 	switch name {
-	case "kafkaURL":
-		configStrings["kafkaURL"] = value.(string)
-	case "kafkaKey":
-		configStrings["kafkaKey"] = value.(string)
-	case "kafkaIndex":
-		configStrings["kafkaIndex"] = value.(string)
+	case "kafkaBroker":
+		configStrings["kafkaBroker"] = value.(string)
+	case "kafkaTopic":
+		configStrings["kafkaTopic"] = value.(string)
 	default:
 		return fmt.Errorf("Unknown property %s", name)
 	}
@@ -81,7 +74,7 @@ func configSet(name string, value interface{}) error {
 
 func configGet(name string) (interface{}, error) {
 	switch name {
-	case "kafkaURL", "kafkaKey", "kafkaIndex":
+	case "kafkaBroker", "kafkaTopic" :
 		configStringsMu.RLock()
 		ret := configStrings[name]
 		configStringsMu.RUnlock()
@@ -103,10 +96,16 @@ func getEnvSettings() {
 	if len(mbPort) > 0 {
 		configStrings["mbport"] = mbPort
 	}
-	kafkaURL := os.Getenv("KAFKA_URL")
-	if len(kafkaURL) > 0 {
-		configStrings["kafkaURL"] = kafkaURL
+	kafkaBroker := os.Getenv("KAFKA_BROKER")
+	if len(kafkaBroker) > 0 {
+		configStrings["kafkaBroker"] = kafkaBroker
 	}
+
+	kafkaTopic := os.Getenv("KAFKA_TOPIC")
+	if len(kafkaTopic) > 0 {
+		configStrings["kafkaTopic"] = kafkaTopic
+	}
+
 
 }
 
@@ -138,8 +137,11 @@ func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Message
 			events[index] = event
 		}
 		// send
+		configStringsMu.RLock()
+		ktopic := configStrings["kafkaTopic"]
+		configStringsMu.RUnlock()
 		jsonStr, _ := json.Marshal(events)
-		kafkamb.SendMessage(jsonStr, "kafka")
+		kafkamb.SendMessage(jsonStr, ktopic)
 	}
 }
 
@@ -166,7 +168,7 @@ func main() {
 
 	for {
 		configStringsMu.RLock()
-		kurl := strings.Split(configStrings["kafkaURL"], ":")
+		kurl := strings.Split(configStrings["kafkaBroker"], ":")
 		configStringsMu.RUnlock()
 
 		if len(kurl) > 1 {
