@@ -558,7 +558,8 @@ services:
       - activemq
     environment:
       <<: *messagebus-env
-      KAFKA_URL: ${KAFKA_URL}
+      KAFKA_BROKER: ${KAFKA_BROKER}
+      KAFKA_TOPIC: ${KAFKA_TOPIC}
     build:
       <<: *base-build
       args:
