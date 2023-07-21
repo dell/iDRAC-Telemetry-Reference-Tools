@@ -17,7 +17,6 @@ import (
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/config"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/databus"
-
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
 )
 
@@ -54,6 +53,27 @@ type MyHec struct {
 	Index string `json:"index"`
 }
 
+func getSplunkHttpConfig(c *gin.Context, s *SystemHandler) {
+	var SplunkConfig MyHec
+	configValues, err := s.ConfigBus.Get("splunkURL")
+	if err != nil {
+		log.Printf("Failed to get any config url values %v", err)
+	}
+	SplunkConfig.Url = configValues.Value.(string)
+	configValues, err = s.ConfigBus.Get("splunkKey")
+	if err != nil {
+		log.Printf("Failed to get any config key values %v", err)
+	}
+	SplunkConfig.Key = configValues.Value.(string)
+	configValues, err = s.ConfigBus.Get("splunkIndex")
+
+	if err != nil {
+		log.Printf("Failed to get any Index values %v", err)
+	}
+	SplunkConfig.Index = configValues.Value.(string)
+	c.JSON(200, SplunkConfig)
+}
+
 func configHEC(c *gin.Context, s *SystemHandler) {
 	var tmp MyHec
 	err := c.ShouldBind(&tmp)
@@ -61,6 +81,7 @@ func configHEC(c *gin.Context, s *SystemHandler) {
 		log.Println("Failed to parse json: ", err)
 		_ = c.AbortWithError(500, err)
 	} else {
+		var hecconfig auth.SplunkConfig
 		s.ConfigBus.CommandQueue = "/splunkpump/config"
 		s.ConfigBus.ResponseQueue = "/configui"
 		_, err = s.ConfigBus.Set("splunkURL", tmp.Url)
@@ -74,6 +95,13 @@ func configHEC(c *gin.Context, s *SystemHandler) {
 		_, err = s.ConfigBus.Set("splunkIndex", tmp.Index)
 		if err != nil {
 			log.Printf("Failed to send config (splunkIndex) %v", err)
+		}
+		Addhec := s.AuthClient.SplunkAddHEC(hecconfig)
+		if Addhec != nil {
+			log.Println("Failed to add HEC config parse json: ", Addhec)
+			_ = c.AbortWithError(500, err)
+		} else {
+			c.JSON(200, gin.H{"success": "true"})
 		}
 	}
 }
@@ -238,6 +266,9 @@ func main() {
 	})
 	router.POST("/api/v1/HecConfig", func(c *gin.Context) {
 		configHEC(c, systemHandler)
+	})
+	router.GET("/api/v1/HttpEventCollector", func(c *gin.Context) {
+		getSplunkHttpConfig(c, systemHandler)
 	})
 	err := router.Run(fmt.Sprintf(":%s", configStrings["httpport"]))
 	if err != nil {

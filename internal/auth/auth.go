@@ -35,11 +35,20 @@ const (
 	ADDSERVICE    = "addservice"
 	DELETESERVICE = "deleteservice"
 	TERMINATE     = "terminate"
+	SPLUNKADDHEC  = "splunkaddhec"
+	GETHECCONFIG  = "gethecconfig"
 )
 
+type SplunkConfig struct {
+	Url   string `json:"url,omitempty"`
+	Key   string `json:"key,omitempty"`
+	Index string `json:"index,omitempty"`
+}
+
 type Command struct {
-	Command string  `json:"command"`
-	Service Service `json:"service,omitempty"`
+	Command      string       `json:"command"`
+	SplunkConfig SplunkConfig `json:"Splunkconfig",omitempty"`
+	Service      Service      `json:"service,omitempty"`
 }
 
 const (
@@ -86,6 +95,20 @@ func (d *AuthorizationService) ReceiveCommand(commands chan<- *Command) error {
 	return nil
 }
 
+func (d *AuthorizationClient) GetHECConfig() {
+	d.SendCommandString(GETHECCONFIG)
+}
+
+func (d *AuthorizationService) Sendconfig(config SplunkConfig) error {
+	jsonStr, _ := json.Marshal(config)
+	err := d.Bus.SendMessage(jsonStr, EventQueue)
+	if err != nil {
+		log.Printf("Failed to send service %v", err)
+	}
+	return err
+
+}
+
 func (d *AuthorizationClient) SendCommand(command Command) error {
 	jsonStr, _ := json.Marshal(command)
 	err := d.Bus.SendMessage(jsonStr, CommandQueue)
@@ -103,6 +126,13 @@ func (d *AuthorizationClient) SendCommandString(command string) {
 
 func (d *AuthorizationClient) ResendAll() {
 	d.SendCommandString(RESEND)
+}
+
+func (d *AuthorizationClient) SplunkAddHEC(SplunkHttp SplunkConfig) error {
+	c := new(Command)
+	c.Command = SPLUNKADDHEC
+	c.SplunkConfig = SplunkHttp
+	return d.SendCommand(*c)
 }
 
 func (d *AuthorizationClient) AddService(service Service) error {
