@@ -304,7 +304,6 @@ services:
       - setup-influx-test-db
     depends_on:
       - influx
-      - activemq
     restart: "no"
     environment:
       <<: [*influx-env, *influx-setup-env]
