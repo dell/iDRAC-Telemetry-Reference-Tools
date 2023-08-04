@@ -55,6 +55,8 @@ type MyHec struct {
 
 func getSplunkHttpConfig(c *gin.Context, s *SystemHandler) {
 	var SplunkConfig MyHec
+	s.ConfigBus.CommandQueue = "/splunkpump/config"
+	s.ConfigBus.ResponseQueue = "/configui"
 	configValues, err := s.ConfigBus.Get("splunkURL")
 	if err != nil {
 		log.Printf("Failed to get any config url values %v", err)
