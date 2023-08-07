@@ -548,16 +548,28 @@ services:
       <<: *messagebus-env
       KAFKA_BROKER: ${KAFKA_BROKER}
       KAFKA_TOPIC: ${KAFKA_TOPIC}
+      KAFKA_CACERT: ${KAFKA_CACERT}
+      KAFKA_CLIENT_CERT: ${KAFKA_CLIENT_CERT}
+      KAFKA_CLIENT_KEY: ${KAFKA_CLIENT_KEY}
+      KAFKA_SKIP_VERIFY: ${KAFKA_SKIP_VERIFY}
     build:
       <<: *base-build
       args:
         <<: *base-args
         CMD: kafkapump
-    # volumes:
-    #   - type: bind
-    #     source: ${PWD}/docker-compose-files/serverCA.pem
-    #     target: /extrabin/serverCA.pem
-    #     read_only: true
+    volumes:
+      - type: bind
+        source: /${KAFKA_CACERT}
+        target: /extrabin/kafka-cacert
+        read_only: true
+      - type: bind  
+        source: /${KAFKA_CLIENT_CERT}
+        target: /extrabin/kafka-clientcert
+        read_only: true
+      - type: bind
+        source: /${KAFKA_CLIENT_KEY}
+        target: /extrabin/kafka-clientkey
+        read_only: true
 
   elk-pump-standalone: &elk-pump
     ############################################################################

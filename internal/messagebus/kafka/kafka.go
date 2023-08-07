@@ -4,8 +4,11 @@ package kafka
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -21,27 +24,85 @@ type KafkaMessagebus struct {
 	conns       map[string]*kafka.Conn // cache of connections made at first read/write message, mapped by topic name
 	addr        string
 	ctx         context.Context
+	dialer      *kafka.Dialer
 	topicConnMu sync.RWMutex
 }
 
 type KafkaSubscription struct {
 }
 
-func NewKafkaMessageBus(host string, port int) (messagebus.Messagebus, error) {
+type KafkaTLSConfig struct {
+	ServerCA   string
+	ClientCert string
+	ClientKey  string
+	SkipVerify bool // skip hostname check
+}
+
+func NewKafkaMessageBus(host string, port int, topic string, tlsCfg *KafkaTLSConfig) (messagebus.Messagebus, error) {
 	ret := new(KafkaMessagebus)
 	ret.addr = fmt.Sprintf("%s:%d", host, port)
-
-	// make sure we can connect, real connection made at first read/write
-	conn, err := kafka.Dial("tcp", ret.addr)
-	if err != nil {
-		return nil, err
-	}
-	conn.Close()
-
+	ret.ctx = context.Background()
 	ret.conns = map[string]*kafka.Conn{}
 	ret.topicConnMu = sync.RWMutex{}
-	intRet := messagebus.Messagebus(ret)
-	return intRet, nil
+
+	dialer := &kafka.Dialer{
+		Timeout:   10 * time.Second,
+		DualStack: true,
+	}
+
+	// TLS
+	if tlsCfg != nil && tlsCfg.ServerCA != "" {
+		ca, err := os.ReadFile(tlsCfg.ServerCA)
+		if err != nil {
+			log.Println("failed to load server CA cert", err)
+			return nil, err
+		}
+		pool := x509.NewCertPool()
+		if ok := pool.AppendCertsFromPEM(ca); !ok {
+			log.Println("Unable to apppend cert to pool")
+		}
+
+		config := tls.Config{
+			RootCAs:            pool,
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: tlsCfg.SkipVerify,
+		}
+
+		// Client Authentication - optional
+		if tlsCfg.ClientCert != "" && tlsCfg.ClientKey != "" {
+			ccrt, err := os.ReadFile(tlsCfg.ClientCert)
+			if err != nil {
+				log.Println("failed to load client cert", err)
+				return nil, err
+			}
+			ckey, err := os.ReadFile(tlsCfg.ClientKey)
+			if err != nil {
+				log.Println("failed to load client key", err)
+				return nil, err
+			}
+			cert, err := tls.X509KeyPair(ccrt, ckey)
+			if err != nil {
+				log.Println("X509KeyPair error ", err)
+				return nil, err
+			}
+			config.Certificates = []tls.Certificate{cert}
+		}
+		dialer.TLS = &config
+	}
+
+	ret.dialer = dialer
+	if topic != "" {
+		conn, err := dialer.DialLeader(context.Background(), "tcp", ret.addr, topic, 0)
+		if err != nil || conn == nil {
+			log.Println("kafka.DialLeader: could not connect ", err)
+			return nil, err
+		}
+		ret.topicConnMu.Lock()
+		ret.conns[topic] = conn
+		ret.topicConnMu.Unlock()
+	}
+
+	return messagebus.Messagebus(ret), nil
 }
 
 func NewKafkaMessageBusFromConn(conn *kafka.Conn, topic string) (messagebus.Messagebus, error) {
@@ -59,7 +120,7 @@ func (m *KafkaMessagebus) TopicConnect(queue string) (*kafka.Conn, error) {
 	kconn, ok := m.conns[topic]
 	m.topicConnMu.RUnlock()
 	if !ok || kconn == nil {
-		conn, err := kafka.DialLeader(context.Background(), "tcp", m.addr, topic, 0)
+		conn, err := m.dialer.DialLeader(context.Background(), "tcp", m.addr, topic, 0)
 		if err != nil || conn == nil {
 			log.Println("kafka.DialLeader: could not connect ", err)
 			return nil, err
