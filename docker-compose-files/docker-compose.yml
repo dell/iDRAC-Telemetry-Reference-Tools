@@ -174,8 +174,7 @@ services:
         <<: *base-args
         CMD: configui
     environment:
-      <<: *mysql-env
-      <<: *messagebus-env
+      <<: [*mysql-env, *messagebus-env]
       CONFIGUI_HTTP_PORT: 8082       #sample reference - specify web application port
     ports:
       - "8080:8082"
@@ -185,8 +184,7 @@ services:
     <<: *refdaemon
     image: idrac-telemetry-reference-tools/dbdiscauth:latest
     environment:
-      <<: *messagebus-env
-      <<: *mysql-env
+      <<: [*messagebus-env, *mysql-env]
     build:
       <<: *base-build
       args:
@@ -233,8 +231,7 @@ services:
     volumes:
       - influxdb-storage:/var/lib/influxdb
     environment:
-      <<: *influx-env
-      <<: *influx-setup-env
+      <<: [*influx-env, *influx-setup-env]
     networks:
       - host-bridge-net
     ports:
@@ -307,11 +304,9 @@ services:
       - setup-influx-test-db
     depends_on:
       - influx
-      - activemq
     restart: "no"
     environment:
-      <<: *influx-env
-      <<: *influx-setup-env
+      <<: [*influx-env, *influx-setup-env]
     networks:
       - host-bridge-net
     volumes:
@@ -361,9 +356,7 @@ services:
     depends_on:
       - influx
     environment:
-      <<: *influx-env
-      <<: *prometheus-env
-      <<: *grafana-env
+      <<: [*influx-env, *prometheus-env, *grafana-env]
       GF_INSTALL_PLUGINS: grafana-polystat-panel
     ports:
       - "3000:3000"
@@ -383,11 +376,7 @@ services:
       - grafana
     restart: "no"
     environment:
-      <<: *influx-env
-      <<: *prometheus-env
-      <<: *influx-setup-env
-      <<: *prometheus-setup-env
-      <<: *grafana-env
+      <<: [*influx-env, *prometheus-env, *influx-setup-env, *prometheus-setup-env, *grafana-env]
     networks:
       - host-bridge-net
     volumes:
@@ -499,8 +488,7 @@ services:
       - activemq
     restart: "no"
     environment:
-      <<: *prometheus-env
-      <<: *prometheus-setup-env
+      <<: [*prometheus-env, *prometheus-setup-env]
     networks:
       - host-bridge-net
     command: []
