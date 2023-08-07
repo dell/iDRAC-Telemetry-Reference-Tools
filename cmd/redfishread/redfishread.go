@@ -371,7 +371,7 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 func handleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *databus.DataBusService) {
 	for {
 		service := <-serviceIn
-		if devices[service.Ip] != nil {
+		if service.Ip == "" || devices[service.Ip] != nil {
 			continue
 		}
 		log.Print("Got new service = ", service.Ip)
