@@ -36,10 +36,10 @@ type kafkaEvent struct {
 // MEB: comment -> this appears to be racy?
 var configStringsMu sync.RWMutex
 var configStrings = map[string]string{
-	"mbhost":   "activemq",
-	"mbport":   "61613",
+	"mbhost":      "activemq",
+	"mbport":      "61613",
 	"kafkaBroker": "",
-	"kafkaTopic": "",
+	"kafkaTopic":  "",
 }
 
 var configItems = map[string]*config.ConfigEntry{
@@ -74,7 +74,7 @@ func configSet(name string, value interface{}) error {
 
 func configGet(name string) (interface{}, error) {
 	switch name {
-	case "kafkaBroker", "kafkaTopic" :
+	case "kafkaBroker", "kafkaTopic":
 		configStringsMu.RLock()
 		ret := configStrings[name]
 		configStringsMu.RUnlock()
@@ -100,12 +100,26 @@ func getEnvSettings() {
 	if len(kafkaBroker) > 0 {
 		configStrings["kafkaBroker"] = kafkaBroker
 	}
-
 	kafkaTopic := os.Getenv("KAFKA_TOPIC")
 	if len(kafkaTopic) > 0 {
 		configStrings["kafkaTopic"] = kafkaTopic
 	}
-
+	kafkaCert := os.Getenv("KAFKA_CACERT")
+	if len(kafkaCert) > 0 {
+		configStrings["kafkaCert"] = kafkaCert
+	}
+	kafkaClientCert := os.Getenv("KAFKA_CLIENT_CERT")
+	if len(kafkaClientCert) > 0 {
+		configStrings["kafkaClientCert"] = kafkaClientCert
+	}
+	kafkaClientKey := os.Getenv("KAFKA_CLIENT_KEY")
+	if len(kafkaClientKey) > 0 {
+		configStrings["kafkaClientKey"] = kafkaClientKey
+	}
+	kafkaSkipVerify := os.Getenv("KAFKA_SKIP_VERIFY")
+	if len(kafkaSkipVerify) > 0 {
+		configStrings["kafkaSkipVerify"] = kafkaSkipVerify
+	}
 
 }
 
@@ -152,6 +166,7 @@ func main() {
 	port, _ := strconv.Atoi(configStrings["mbport"])
 	configStringsMu.RUnlock()
 
+	// internal message bus
 	var mb messagebus.Messagebus
 	for {
 		smb, err := stomp.NewStompMessageBus(host, port)
@@ -164,25 +179,60 @@ func main() {
 		time.Sleep(time.Minute)
 	}
 
+	// external message bus - kafka
 	var kafkamb messagebus.Messagebus
+	var ktopic, kcert, kccert, kckey string
+	var kbroker []string
+	var skipVerify bool
 
 	for {
 		configStringsMu.RLock()
-		kurl := strings.Split(configStrings["kafkaBroker"], ":")
+		kbroker = strings.Split(configStrings["kafkaBroker"], ":")
+		if configStrings["kafkaCert"] != "" {
+			kcert = "/extrabin/kafka-cacert"
+		}
+		if configStrings["kafkaClientCert"] != "" {
+			kccert = "/extrabin/kafka-clientcert"
+		}
+		if configStrings["kafkaClientKey"] != "" {
+			kckey = "/extrabin/kafka-clientkey"
+		}
+		ktopic = configStrings["kafkaTopic"]
+
+		if configStrings["kafkaSkipVerify"] != "true" {
+			skipVerify = true
+		}
 		configStringsMu.RUnlock()
 
-		if len(kurl) > 1 {
-			khost := kurl[0]
-			kport, _ := strconv.Atoi(kurl[1])
-			log.Printf("Connecting to kafka broker (%s:%d) ", khost, kport)
-			kmb, err := kafka.NewKafkaMessageBus(khost, kport)
-			if err == nil {
-				defer kmb.Close()
-				kafkamb = kmb
-				break
-			}
-			log.Printf("Could not connect to kafka broker (%s:%d): %v ", khost, kport, err)
+		// minimum config available
+		if len(kbroker) > 0 && ktopic != "" {
+			break
 		}
+		time.Sleep(time.Minute)
+		getEnvSettings()
+	}
+
+	// connection loop
+	for {
+		tlsCfg := &kafka.KafkaTLSConfig{
+			ServerCA:   kcert,
+			ClientCert: kccert,
+			ClientKey:  kckey,
+			SkipVerify: skipVerify,
+		}
+
+		khost := kbroker[0]
+		kport, _ := strconv.Atoi(kbroker[1])
+		log.Printf("Connecting to kafka broker (%s:%d) cert file %s\n", khost, kport, kcert)
+
+		kmb, err := kafka.NewKafkaMessageBus(khost, kport, ktopic, tlsCfg)
+		if err == nil {
+			defer kmb.Close()
+			kafkamb = kmb
+			break
+		}
+
+		log.Printf("Could not connect to kafka broker (%s:%d): %v ", khost, kport, err)
 		time.Sleep(time.Minute)
 	}
 

@@ -209,14 +209,37 @@ echo "DOCKER_PROMETHEUS_INIT_ADMIN_TOKEN=${DOCKER_PROMETHEUS_INIT_ADMIN_TOKEN}" 
 echo "DOCKER_PROMETHEUS_INIT_PASSWORD=${DOCKER_PROMETHEUS_INIT_PASSWORD}" >> $topdir/.env
 
 # init Splink env variables if not set to avoid warnings from docker-compose for other pumps
-if [ -z $SPLUNK_HEC_URL ]; then
-   export SPLUNK_HEC_URL=
+if [ -z $SPLUNK ]; then
+  if [ -z $SPLUNK_HEC_URL ]; then
+    export SPLUNK_HEC_URL=
+  fi
+  if [ -z $SPLUNK_HEC_KEY ]; then
+    export SPLUNK_HEC_KEY=
+  fi
+  if [ -z $SPLUNK_HEC_INDEX ]; then
+    export SPLUNK_HEC_INDEX=
+  fi
 fi
-if [ -z $SPLUNK_HEC_KEY ]; then
-   export SPLUNK_HEC_KEY=
-fi
-if [ -z $SPLUNK_HEC_INDEX ]; then
-   export SPLUNK_HEC_INDEX=
+
+if [ -z $KAFKA ]; then
+  if [ -z $KAFKA_BROKER ]; then
+    export KAFKA_BROKER=
+  fi
+  if [ -z $KAFKA_TOPIC ]; then
+    export KAFKA_TOPIC=
+  fi
+  if [ -z $KAFKA_CACERT ]; then
+    export KAFKA_CACERT=
+  fi
+  if [ -z $KAFKA_CLIENT_CERT ]; then
+    export KAFKA_CLIENT_CERT=
+  fi
+  if [ -z $KAFKA_CLIENT_KEY ]; then
+    export KAFKA_CLIENT_KEY=
+  fi
+  if [ -z $KAFKA_SKIP_VERIFY]; then
+    export KAFKA_SKIP_VERIFY=
+  fi
 fi
 
  # remove dependency on setup influx-test-db
