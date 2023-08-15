@@ -196,18 +196,84 @@
             if ($(".check:checked").length) $("#deleteButton").show();
             else $("#deleteButton").hide();
         };
+    
+    function isValidIP(ip){
+        // Boolean function to check whether argument is a valid IP using regex
+        matches =  ip.match('^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$')
+        if (matches == null){
+            console.log("IP not valid")
+            return false
+        }else{
+            console.log("IP valid")
+            return true
+        }
+    }
   
     async function uploadFile() {
         let formData = new FormData();
-        formData.append("file", fileupload.files[0]);
-        await fetch('/api/v1/CsvUpload', {
-            method: "POST",
-            body: formData,
-            contentType: 'text/csv'
-        });
-        alert("CSV file processing completed. Refresh the page to confirm the services were added. Check logs for " +
-            "results.")
-        $('#csvModal').modal('toggle');
+        csvFile = fileupload.files[0];
+        var isValidIPFlag = null;
+        var isValidfieldsFlag = null;
+        var isValidCSVFlag = null;
+        if (csvFile){
+
+            // Check the format of the uploaded CSV file. 3 values in each line
+            // and  first value should be a valid IP
+            var reader = new FileReader();
+            reader.readAsText(csvFile, "UTF-8");
+            reader.onload = function(e){
+                var rows = e.target.result.split("\n");
+                for (var i = 0; i < rows.length; i++) {
+                    console.log('row', i)
+                    var cells = rows[i].split(",");
+                    if (cells.length==3){
+                        //  Check if each row in the CSV file has 3 values
+                        if (!isValidIP(cells[0])){
+                            // condition to check whether the IP is correct format
+                            isValidIPFlag = false;
+                        }
+                    }else{
+                        console.log("Row ", i ," should have 3 values")
+                        isValidfieldsFlag = false;
+                    }
+                }
+                // Uploaded file is invalid if either of the 2 conditions mentioned
+                // above (3 values in each line and  first value should be a valid IP)
+                // are not satisfied
+                if (isValidIP==false || isValidfieldsFlag==false){
+                    isValidCSVFlag = false
+                }else{
+                    isValidCSVFlag = true
+                }
+
+                // Send POST request if uploaded file is valid
+                if (isValidCSVFlag==true){
+                    console.log("isValidCSV if ", isValidCSVFlag)
+                    formData.append("file", fileupload.files[0]);
+                    //  Send POST request with csv file as body 
+                    fetch('/api/v1/CsvUpload', {
+                        method: "POST",
+                        body: formData,
+                        contentType: 'text/csv'
+                    }).then((uploadResponse) => {
+                        if (!uploadResponse.ok) {
+                            throw new Error(uploadResponse.statusText)
+                        } else {
+                            alert("CSV file processing completed. Refresh the page to confirm the services were added. "
+                            + "Check logs for results.")
+                            $('#csvModal').modal('toggle');
+                        }
+                    }).catch((error) => {
+                        alert("A runtime error has occured.")
+                    });
+                } else if (isValidCSVFlag==false){
+                    // Alert the user if the uploaded file doesn't have the correct format
+                    console.log("isValidCSV else ", isValidCSVFlag)
+                    alert("Invalid CSV file format. Please ensure that the first value in every row "
+                    + "is a valid IP and that there are 3 values in each row of the csv file (IP, username, password)")
+                }
+            }
+        }
     }
 
     function addService() {
