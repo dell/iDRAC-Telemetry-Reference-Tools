@@ -30,6 +30,13 @@ git clean -dfx
 docker container prune -f;docker volume prune -f;
 docker network ls;docker network rm idrac-telemetry-reference-tools_host-bridge-net
 ```
+
+### --build flag
+
+Changes to the containers (.go files) will only be reflected if the containers are started with the --build flag when `compose.sh` is used.
+```bash
+./compose.sh --build start --influx-pump
+```
 ### Rebuild a Single Container with Docker Compose
 
 ```bash
