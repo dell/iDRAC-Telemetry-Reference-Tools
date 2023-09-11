@@ -240,14 +240,14 @@
                 // Uploaded file is invalid if either of the 2 conditions mentioned
                 // above (3 values in each line and  first value should be a valid IP)
                 // are not satisfied
-                if (isValidIPFlag==false || isValidfieldsFlag==false){
-                    isValidCSVFlag = false
-                }else{
+                if (isValidIPFlag && isValidfieldsFlag){
                     isValidCSVFlag = true
+                }else{
+                    isValidCSVFlag = false
                 }
 
                 // Send POST request if uploaded file is valid
-                if (isValidCSVFlag==true){
+                if (isValidCSVFlag){
                     console.log("isValidCSV if ", isValidCSVFlag)
                     formData.append("file", fileupload.files[0]);
                     //  Send POST request with csv file as body 
@@ -266,7 +266,7 @@
                     }).catch((error) => {
                         alert("A runtime error has occured.")
                     });
-                } else if (isValidCSVFlag==false){
+                } else if (!isValidCSVFlag){
                     // Alert the user if the uploaded file doesn't have the correct format
                     console.log("isValidCSV else ", isValidCSVFlag)
                     alert("Invalid CSV file format. Please ensure that the first value in every row "
