@@ -222,15 +222,19 @@
             var reader = new FileReader();
             reader.readAsText(csvFile, "UTF-8");
             reader.onload = function(e){
-                var rows = e.target.result.split("\n");
+                var rows = e.target.result.trim().split("\n");
                 for (var i = 0; i < rows.length; i++) {
                     console.log('row', i)
-                    var cells = rows[i].split(",");
+                    var cells = rows[i].trim().split(",");
                     if (cells.length==3){
+                        isValidfieldsFlag = true
+
                         //  Check if each row in the CSV file has 3 values
-                        if (!isValidIP(cells[0])){
+                        if (isValidIP(cells[0])){
                             // condition to check whether the IP is correct format
-                            isValidIPFlag = false;
+                            isValidIPFlag = true;
+                        }else{
+                            isValidIPFlag = false
                         }
                     }else{
                         console.log("Row ", i ," should have 3 values")
