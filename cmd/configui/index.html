@@ -175,6 +175,9 @@
                 case 'Stopped':
                     classStr = "text-danger";
                     break;
+                case 'Connection Failed':
+                    classStr = "text-danger";
+                    break;
             }
             tbody.append('<tr><td>'+data[i].Hostname+'</td><td>'+data[i].Username+'</td><td class="'+classStr+'">'+data[i].State+'</td><td>'+new Date(data[i].LastEvent)+ "</td><td><input type='checkbox' id='checkboxservice-" + i + "'' class='check' onclick='checkboxClick(this);' ></td></tr>")
         }

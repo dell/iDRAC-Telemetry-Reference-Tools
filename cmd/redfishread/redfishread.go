@@ -392,7 +392,7 @@ func handleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *data
 			r.Hostname = service.Ip
 			r.Username = service.Auth["username"]
 			r.Password = service.Auth["password"]
-			device.State = databus.STOPPED
+			device.State = databus.CONNFAILED
 		} else {
 			device.State = databus.STARTING
 		}

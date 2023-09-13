@@ -15,26 +15,26 @@ import (
 )
 
 type DataValue struct {
-	ID        string
-	Context   string
-	Label     string
-	Value     string
-	System    string
-	Timestamp string
-	MessageId string
-        EventType string
-        MaxBandwidthPercent float64
-        MinBandwidthPercent float64
-        DiscardedPkts float64
-        RxBroadcast float64
-        RxBytes float64
-        RxErrorPktAlignmentErrors float64
-        RxMulticastPackets float64
-        RxUnicastPackets float64
-	TxBroadcast float64
-        TxBytes float64
-        TxMutlicastPackets float64
-        TxUnicastPackets float64
+	ID                        string
+	Context                   string
+	Label                     string
+	Value                     string
+	System                    string
+	Timestamp                 string
+	MessageId                 string
+	EventType                 string
+	MaxBandwidthPercent       float64
+	MinBandwidthPercent       float64
+	DiscardedPkts             float64
+	RxBroadcast               float64
+	RxBytes                   float64
+	RxErrorPktAlignmentErrors float64
+	RxMulticastPackets        float64
+	RxUnicastPackets          float64
+	TxBroadcast               float64
+	TxBytes                   float64
+	TxMutlicastPackets        float64
+	TxUnicastPackets          float64
 }
 
 type DataGroup struct {
@@ -52,9 +52,10 @@ type DataProducer struct {
 }
 
 const (
-	STARTING = "Starting"
-	RUNNING  = "Running"
-	STOPPED  = "Stopped"
+	STARTING   = "Starting"
+	RUNNING    = "Running"
+	STOPPED    = "Stopped"
+	CONNFAILED = "Connection Failed"
 )
 
 const (
