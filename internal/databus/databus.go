@@ -52,10 +52,10 @@ type DataProducer struct {
 }
 
 const (
-	STARTING   = "Starting"
-	RUNNING    = "Running"
-	STOPPED    = "Stopped"
-	CONNFAILED = "Connection Failed"
+	STARTING    = "Starting"
+	RUNNING     = "Running"
+	TELNOTFOUND = "Telemetry Service Not Found"
+	CONNFAILED  = "Connection Failed"
 )
 
 const (

@@ -349,7 +349,7 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 	telemetryService, err := serviceRoot.GetPropertyByName("TelemetryService")
 	if err != nil {
 		log.Println("TODO: Fake some basic telemetry...") // TODO
-		r.State = databus.STOPPED
+		r.State = databus.TELNOTFOUND
 	} else {
 		log.Printf("%s: Using Telemetry Service...\n", r.Redfish.Hostname)
 		go getTelemetry(r, telemetryService, dataBusService)
@@ -359,7 +359,7 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 	eventService, err := serviceRoot.GetPropertyByName("EventService")
 	if err != nil {
 		log.Println("EventService not supported...")
-		r.State = databus.STOPPED
+		r.State = databus.TELNOTFOUND
 	} else {
 		log.Printf("%s: Event Service consumption loading...\n", r.Redfish.Hostname)
 		go getRedfishLce(r, eventService, dataBusService)
