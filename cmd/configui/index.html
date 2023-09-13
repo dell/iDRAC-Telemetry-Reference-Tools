@@ -228,16 +228,16 @@
             var reader = new FileReader();
             reader.readAsText(csvFile, "UTF-8");
             reader.onload = function(e){
-                var rows = e.target.result.split("\n");
+                var rows = e.target.result.trim().split("\n");
                 for (var i = 0; i < rows.length; i++) {
                     console.log('row', i)
-                    var cells = rows[i].split(",");
+                    var cells = rows[i].trim().split(",");
+
+                    //  Check if each row in the CSV file has 3 values
                     if (cells.length==3){
-                        //  Check if each row in the CSV file has 3 values
-                        if (!isValidIP(cells[0])){
-                            // condition to check whether the IP is correct format
-                            isValidIPFlag = false;
-                        }
+                        isValidfieldsFlag = true
+                        // condition to check whether the IP is correct format
+                        isValidIPFlag = isValidIP(cells[0])
                     }else{
                         console.log("Row ", i ," should have 3 values")
                         isValidfieldsFlag = false;
@@ -246,14 +246,10 @@
                 // Uploaded file is invalid if either of the 2 conditions mentioned
                 // above (3 values in each line and  first value should be a valid IP)
                 // are not satisfied
-                if (isValidIP==false || isValidfieldsFlag==false){
-                    isValidCSVFlag = false
-                }else{
-                    isValidCSVFlag = true
-                }
+                isValidCSVFlag = isValidIPFlag && isValidfieldsFlag
 
                 // Send POST request if uploaded file is valid
-                if (isValidCSVFlag==true){
+                if (isValidCSVFlag){
                     console.log("isValidCSV if ", isValidCSVFlag)
                     formData.append("file", fileupload.files[0]);
                     //  Send POST request with csv file as body 
@@ -272,7 +268,7 @@
                     }).catch((error) => {
                         alert("A runtime error has occured.")
                     });
-                } else if (isValidCSVFlag==false){
+                } else if (!isValidCSVFlag){
                     // Alert the user if the uploaded file doesn't have the correct format
                     console.log("isValidCSV else ", isValidCSVFlag)
                     alert("Invalid CSV file format. Please ensure that the first value in every row "
