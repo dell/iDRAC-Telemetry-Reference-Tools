@@ -12,12 +12,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/config"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/databus"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
+	"github.com/gin-gonic/gin"
 )
 
 var configStrings = map[string]string{
@@ -53,6 +52,65 @@ type MyHec struct {
 	Index string `json:"index"`
 }
 
+type KfkConfig struct {
+	Broker          string `json:"kafkaBroker"`
+	Topic           string `json:"kafkaTopic"`
+	KafkaCACert     string `json:"kafkaCACert"`
+	KafkaClientCert string `json:"kafkaClientCert"`
+	KafkaClientKey  string `json:"kafkaClientKey"`
+	KafkaSkipVerify string `json:"kafkaSkipVerify"`
+	TLS             string `json:"tls"`
+	ClientAuth      string `json:"clientAuth"`
+}
+
+func getKafkaBrokerConfig(c *gin.Context, s *SystemHandler) {
+	var KafkaConfig KfkConfig
+	s.ConfigBus.CommandQueue = "/kafkapump/config"
+	s.ConfigBus.ResponseQueue = "/kconfigui"
+	configValues, err := s.ConfigBus.Get("kafkaBroker")
+	if err != nil {
+		log.Printf("Failed to get kafkaBroker values %v", err)
+	} else {
+		KafkaConfig.Broker = configValues.Value.(string)
+	}
+
+	configValues, err = s.ConfigBus.Get("kafkaTopic")
+	if err != nil {
+		log.Printf("Failed to get kafkaTopic values %v", err)
+	} else {
+		KafkaConfig.Topic = configValues.Value.(string)
+	}
+
+	configValues, err = s.ConfigBus.Get("kafkaCACert")
+	if err != nil {
+		log.Printf("Failed to get kafkaTopic values %v", err)
+	} else {
+		val := configValues.Value.(string)
+		if val != "" {
+			KafkaConfig.TLS = "true"
+		}
+	}
+
+	configValues, err = s.ConfigBus.Get("kafkaSkipVerify")
+	if err != nil {
+		log.Printf("Failed to get kafkaClientCert values %v", err)
+	} else {
+		KafkaConfig.KafkaSkipVerify = configValues.Value.(string)
+	}
+
+	configValues, err = s.ConfigBus.Get("kafkaClientCert")
+	if err != nil {
+		log.Printf("Failed to get kafkaClientCert values %v", err)
+	} else {
+		val := configValues.Value.(string)
+		if val != "" {
+			KafkaConfig.ClientAuth = "true"
+		}
+	}
+
+	c.JSON(200, KafkaConfig)
+}
+
 func getSplunkHttpConfig(c *gin.Context, s *SystemHandler) {
 	var SplunkConfig MyHec
 	s.ConfigBus.CommandQueue = "/splunkpump/config"
@@ -74,6 +132,81 @@ func getSplunkHttpConfig(c *gin.Context, s *SystemHandler) {
 	}
 	SplunkConfig.Index = configValues.Value.(string)
 	c.JSON(200, SplunkConfig)
+}
+
+func kafkaConfig(c *gin.Context, s *SystemHandler) {
+	var tmp KfkConfig
+	err := c.ShouldBind(&tmp)
+	if err != nil {
+		log.Println("Failed to parse json: ", err)
+		_ = c.AbortWithError(500, err)
+	}
+	s.ConfigBus.CommandQueue = "/kafkapump/config"
+	s.ConfigBus.ResponseQueue = "/kconfigui"
+
+	if tmp.Broker != "" {
+		_, err = s.ConfigBus.Set("kafkaBroker", tmp.Broker)
+		if err != nil {
+			log.Println("Failed to update kafkaBroker config: ", err)
+		}
+	}
+
+	if tmp.Topic != "" {
+		_, err = s.ConfigBus.Set("kafkaTopic", tmp.Topic)
+		if err != nil {
+			log.Println("Failed to update kafkaTopic config: ", err)
+		}
+	}
+	if tmp.KafkaSkipVerify != "" {
+		_, err = s.ConfigBus.Set("kafkaSkipVerify", tmp.KafkaSkipVerify)
+		if err != nil {
+			log.Println("Failed to update kafkaTopic config: ", err)
+		}
+	}
+
+	if tmp.KafkaCACert != "" {
+		err = SaveUploadedFile(tmp.KafkaCACert, "/extrabin/certs/kafkaCACert")
+		if err != nil {
+			log.Println("Failed to save CA cert: ", err)
+		}
+
+		//log.Println(tmp.KafkaCACert.Filename)
+		_, err = s.ConfigBus.Set("kafkaCACert", "kafkaCACert")
+		if err != nil {
+			log.Println("Failed to update kafkaCACert config: ", err)
+		}
+	}
+	if tmp.KafkaClientCert != "" {
+		err = SaveUploadedFile(tmp.KafkaClientCert, "/extrabin/certs/kafkaClientCert")
+		if err != nil {
+			log.Println("Failed to save client cert: ", err)
+		}
+
+		_, err = s.ConfigBus.Set("kafkaClientCert", "kafkaClientCert")
+		if err != nil {
+			log.Println("Failed to update kafkaClientCert config: ", err)
+		}
+	}
+	if tmp.KafkaClientKey != "" {
+		err = SaveUploadedFile(tmp.KafkaClientKey, "/extrabin/certs/kafkaClientKey")
+		if err != nil {
+			log.Println("Failed to save client key: ", err)
+		}
+		_, err = s.ConfigBus.Set("kafkaClientKey", "kafkaClientKey")
+		if err != nil {
+			log.Println("Failed to update kafkaClientCert config: ", err)
+		}
+	}
+
+}
+
+func SaveUploadedFile(cert string, destFile string) error {
+	log.Println("Saving cert to ", destFile)
+	err := os.WriteFile(destFile, []byte(cert), 0644)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func configHEC(c *gin.Context, s *SystemHandler) {
@@ -269,8 +402,14 @@ func main() {
 	router.POST("/api/v1/HecConfig", func(c *gin.Context) {
 		configHEC(c, systemHandler)
 	})
+	router.POST("/api/v1/KafkaConfig", func(c *gin.Context) {
+		kafkaConfig(c, systemHandler)
+	})
 	router.GET("/api/v1/HttpEventCollector", func(c *gin.Context) {
 		getSplunkHttpConfig(c, systemHandler)
+	})
+	router.GET("api/v1/KafkaBrokerConnection", func(c *gin.Context) {
+		getKafkaBrokerConfig(c, systemHandler)
 	})
 	err := router.Run(fmt.Sprintf(":%s", configStrings["httpport"]))
 	if err != nil {

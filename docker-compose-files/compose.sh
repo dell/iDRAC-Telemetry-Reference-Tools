@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 
 scriptdir=$(cd $(dirname $0); pwd)
 topdir=$(cd $scriptdir/../; pwd)
@@ -209,7 +210,7 @@ echo "DOCKER_PROMETHEUS_INIT_ADMIN_TOKEN=${DOCKER_PROMETHEUS_INIT_ADMIN_TOKEN}" 
 echo "DOCKER_PROMETHEUS_INIT_PASSWORD=${DOCKER_PROMETHEUS_INIT_PASSWORD}" >> $topdir/.env
 
 # init Splink env variables if not set to avoid warnings from docker-compose for other pumps
-if [ -z $SPLUNK ]; then
+#if [ -n $SPLUNK ]; then
   if [ -z $SPLUNK_HEC_URL ]; then
     export SPLUNK_HEC_URL=
   fi
@@ -219,9 +220,11 @@ if [ -z $SPLUNK ]; then
   if [ -z $SPLUNK_HEC_INDEX ]; then
     export SPLUNK_HEC_INDEX=
   fi
-fi
+#fi
 
-if [ -z $KAFKA ]; then
+mkdir -p $topdir/.certs
+chmod 700 $topdir/.certs
+#if [ -n $KAFKA ]; then
   if [ -z $KAFKA_BROKER ]; then
     export KAFKA_BROKER=
   fi
@@ -240,7 +243,7 @@ if [ -z $KAFKA ]; then
   if [ -z $KAFKA_SKIP_VERIFY]; then
     export KAFKA_SKIP_VERIFY=
   fi
-fi
+#fi
 
  # remove dependency on setup influx-test-db
 touch $topdir/docker-compose-files/container-info-influx-pump.txt 
