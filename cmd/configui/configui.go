@@ -157,6 +157,7 @@ func kafkaConfig(c *gin.Context, s *SystemHandler) {
 			log.Println("Failed to update kafkaTopic config: ", err)
 		}
 	}
+
 	if tmp.KafkaSkipVerify != "" {
 		_, err = s.ConfigBus.Set("kafkaSkipVerify", tmp.KafkaSkipVerify)
 		if err != nil {
@@ -176,6 +177,7 @@ func kafkaConfig(c *gin.Context, s *SystemHandler) {
 			log.Println("Failed to update kafkaCACert config: ", err)
 		}
 	}
+
 	if tmp.KafkaClientCert != "" {
 		err = SaveUploadedFile(tmp.KafkaClientCert, "/extrabin/certs/kafkaClientCert")
 		if err != nil {
@@ -187,6 +189,7 @@ func kafkaConfig(c *gin.Context, s *SystemHandler) {
 			log.Println("Failed to update kafkaClientCert config: ", err)
 		}
 	}
+
 	if tmp.KafkaClientKey != "" {
 		err = SaveUploadedFile(tmp.KafkaClientKey, "/extrabin/certs/kafkaClientKey")
 		if err != nil {
