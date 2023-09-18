@@ -254,11 +254,6 @@ func main() {
 	router := gin.Default()
 	router.StaticFile("/", "index.html")
 	router.StaticFile("/index.html", "index.html")
-	router.StaticFile("/bootstrap.min.css", "/resources/css/bootstrap.min.css")
-	router.StaticFile("/feather.min.js", "/resources/js/icons/feather.min.js")
-	router.StaticFile("/bootstrap.min.js", "/resources/js/bootstrap.min.js")
-	router.StaticFile("/jquery-3.4.1.min.js", "/resources/js/jquery-3.4.1.min.js")
-	router.StaticFile("/popper.min.js", "/resources/js/popper.min.js")
 	router.GET("/api/v1/Systems", func(c *gin.Context) {
 		getSystemList(c, systemHandler)
 	})
