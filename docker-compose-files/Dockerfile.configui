@@ -37,7 +37,6 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifi
 COPY --from=builder /etc/passwd /etc/group /etc/
 COPY --from=builder /build/app /app
 COPY cmd/configui/index.html /
-COPY cmd/configui/resources /resources
 
 USER ${USERNAME}
 ENTRYPOINT ["/app"]
