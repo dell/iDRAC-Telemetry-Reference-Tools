@@ -241,12 +241,22 @@ func (r *RedfishDevice) StartEventListener(dataBusService *databus.DataBusServic
 	if r.Events == nil {
 		r.Events = make(chan *redfish.RedfishEvent, 10)
 	}
-	timer := time.AfterFunc(time.Minute*5, r.RestartEventListener)
+	//timer := time.AfterFunc(time.Minute*5, r.RestartEventListener)
 	log.Printf("%s: Starting event listener...\n", r.SystemID)
 	go r.Redfish.ListenForEvents(r.Ctx, r.Events)
 	for {
 		event := <-r.Events
-		timer.Reset(time.Minute * 5)
+		if event == nil {
+			log.Printf("%s: Got SSE nil event \n", r.SystemID)
+			continue
+		}
+		if event.Err != nil { // SSE connect failure , retry connection
+			if event.Err.Error() != "EOF" { // EOF after an hr of inactivity, restart now
+				time.Sleep(time.Minute * 5)
+			}
+			r.RestartEventListener()
+			continue
+		}
 		r.LastEvent = time.Now()
 		if event != nil && event.Payload != nil &&
 			event.Payload.Object["@odata.id"] != nil {
@@ -322,7 +332,7 @@ func getRedfishLce(r *RedfishDevice, eventService *redfish.RedfishPayload, dataB
 		parseRedfishLce(eventSvc, r, dataBusService)
 	}
 	r.State = databus.RUNNING
-	r.StartEventListener(dataBusService)
+	//r.StartEventListener(dataBusService)
 }
 
 // Take an instance of a Redfish device, get its system ID, get any child devices if it is a chassis, and then start

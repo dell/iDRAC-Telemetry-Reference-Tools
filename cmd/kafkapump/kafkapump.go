@@ -2,13 +2,15 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/config"
@@ -33,13 +35,16 @@ type kafkaEvent struct {
 	Fields kafkaEventFields `json:"fields"`
 }
 
-// MEB: comment -> this appears to be racy?
 var configStringsMu sync.RWMutex
 var configStrings = map[string]string{
-	"mbhost":      "activemq",
-	"mbport":      "61613",
-	"kafkaBroker": "",
-	"kafkaTopic":  "",
+	"mbhost":          "activemq",
+	"mbport":          "61613",
+	"kafkaBroker":     "",
+	"kafkaTopic":      "",
+	"kafkaCACert":     "",
+	"kafkaClientCert": "",
+	"kafkaClientKey":  "",
+	"kafkaSkipVerify": "",
 }
 
 var configItems = map[string]*config.ConfigEntry{
@@ -53,34 +58,50 @@ var configItems = map[string]*config.ConfigEntry{
 		Get:     configGet,
 		Default: "",
 	},
+	"kafkaCACert": {
+		Set:     configSet,
+		Get:     configGet,
+		Default: "",
+	},
+	"kafkaClientCert": {
+		Set:     configSet,
+		Get:     configGet,
+		Default: "",
+	},
+	"kafkaClientKey": {
+		Set:     configSet,
+		Get:     configGet,
+		Default: "",
+	},
+	"kafkaSkipVerify": {
+		Set:     configSet,
+		Get:     configGet,
+		Default: "",
+	},
 }
-
-var client = &http.Client{}
 
 func configSet(name string, value interface{}) error {
 	configStringsMu.Lock()
 	defer configStringsMu.Unlock()
 
 	switch name {
-	case "kafkaBroker":
-		configStrings["kafkaBroker"] = value.(string)
-	case "kafkaTopic":
-		configStrings["kafkaTopic"] = value.(string)
+	case "kafkaBroker", "kafkaTopic", "kafkaCACert", "kafkaClientCert", "kafkaClientKey", "kafkaSkipVerify":
+		configStrings[name] = value.(string)
 	default:
-		return fmt.Errorf("Unknown property %s", name)
+		return fmt.Errorf("unknown property %s", name)
 	}
 	return nil
 }
 
 func configGet(name string) (interface{}, error) {
 	switch name {
-	case "kafkaBroker", "kafkaTopic":
+	case "kafkaBroker", "kafkaTopic", "kafkaCACert", "kafkaClientCert", "kafkaClientKey", "kafkaSkipVerify":
 		configStringsMu.RLock()
 		ret := configStrings[name]
 		configStringsMu.RUnlock()
 		return ret, nil
 	default:
-		return nil, fmt.Errorf("Unknown property %s", name)
+		return nil, fmt.Errorf("unknown property %s", name)
 	}
 }
 
@@ -106,7 +127,7 @@ func getEnvSettings() {
 	}
 	kafkaCert := os.Getenv("KAFKA_CACERT")
 	if len(kafkaCert) > 0 {
-		configStrings["kafkaCert"] = kafkaCert
+		configStrings["kafkaCACert"] = kafkaCert
 	}
 	kafkaClientCert := os.Getenv("KAFKA_CLIENT_CERT")
 	if len(kafkaClientCert) > 0 {
@@ -156,6 +177,16 @@ func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Message
 		configStringsMu.RUnlock()
 		jsonStr, _ := json.Marshal(events)
 		kafkamb.SendMessage(jsonStr, ktopic)
+
+		err := kafkamb.SendMessage(jsonStr, ktopic)
+		// if broker idle (>10mins) timed out reconnect
+		if err == io.EOF || errors.Is(err, syscall.EPIPE) {
+			log.Println("Broker idle timeout detected, reconnecting....")
+			_ = kafkamb.Close()
+			// reconnect and resend the message
+			_ = kafkamb.SendMessage(jsonStr, ktopic)
+		}
+
 	}
 }
 
@@ -179,37 +210,52 @@ func main() {
 		time.Sleep(time.Minute)
 	}
 
+	dbClient := new(databus.DataBusClient)
+	dbClient.Bus = mb
+	configService := config.NewConfigService(mb, "/kafkapump/config", configItems)
+
+	dbClient.Subscribe("/kafka")
+	dbClient.Get("/kafka")
+	groupsIn := make(chan *databus.DataGroup, 10)
+	go dbClient.GetGroup(groupsIn, "/kafka")
+	go configService.Run()
+
 	// external message bus - kafka
 	var kafkamb messagebus.Messagebus
 	var ktopic, kcert, kccert, kckey string
 	var kbroker []string
 	var skipVerify bool
 
+	// wait for configuration
 	for {
 		configStringsMu.RLock()
 		kbroker = strings.Split(configStrings["kafkaBroker"], ":")
-		if configStrings["kafkaCert"] != "" {
-			kcert = "/extrabin/kafka-cacert"
+		if configStrings["kafkaCACert"] != "" {
+			kcert = "/extrabin/certs/" + configStrings["kafkaCACert"]
 		}
 		if configStrings["kafkaClientCert"] != "" {
-			kccert = "/extrabin/kafka-clientcert"
+			kccert = "/extrabin/certs/" + configStrings["kafkaClientCert"]
 		}
 		if configStrings["kafkaClientKey"] != "" {
-			kckey = "/extrabin/kafka-clientkey"
+			kckey = "/extrabin/certs/" + configStrings["kafkaClientKey"]
 		}
 		ktopic = configStrings["kafkaTopic"]
 
-		if configStrings["kafkaSkipVerify"] != "true" {
+		if configStrings["kafkaSkipVerify"] == "true" {
 			skipVerify = true
 		}
+
+		log.Println("configStrings : ", configStrings)
+
 		configStringsMu.RUnlock()
 
 		// minimum config available
-		if len(kbroker) > 0 && ktopic != "" {
+		if len(kbroker) > 1 && kbroker[0] != "" && ktopic != "" {
+			log.Printf("Kafka minimum configuration available, continuing ... \n")
 			break
 		}
+		// wait for min configuration
 		time.Sleep(time.Minute)
-		getEnvSettings()
 	}
 
 	// connection loop
@@ -236,16 +282,7 @@ func main() {
 		time.Sleep(time.Minute)
 	}
 
-	dbClient := new(databus.DataBusClient)
-	dbClient.Bus = mb
-	configService := config.NewConfigService(mb, "/kafkapump/config", configItems)
-	groupsIn := make(chan *databus.DataGroup, 10)
-	dbClient.Subscribe("/kafka")
-	dbClient.Get("/kafka")
-
 	log.Printf("Entering processing loop")
 
-	go dbClient.GetGroup(groupsIn, "/kafka")
-	go configService.Run()
 	handleGroups(groupsIn, kafkamb)
 }
