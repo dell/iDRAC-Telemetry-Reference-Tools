@@ -2,12 +2,15 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/config"
@@ -174,6 +177,16 @@ func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Message
 		configStringsMu.RUnlock()
 		jsonStr, _ := json.Marshal(events)
 		kafkamb.SendMessage(jsonStr, ktopic)
+
+		err := kafkamb.SendMessage(jsonStr, ktopic)
+		// if broker idle (>10mins) timed out reconnect
+		if err == io.EOF || errors.Is(err, syscall.EPIPE) {
+			log.Println("Broker idle timeout detected, reconnecting....")
+			_ = kafkamb.Close()
+			// reconnect and resend the message
+			_ = kafkamb.SendMessage(jsonStr, ktopic)
+		}
+
 	}
 }
 
