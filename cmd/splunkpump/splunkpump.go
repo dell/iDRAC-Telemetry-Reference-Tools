@@ -35,9 +35,7 @@ type SplunkEvent struct {
 	Fields SplunkEventFields `json:"fields"`
 }
 
-//
 // MEB: comment -> this appears to be racy?
-//
 var configStringsMu sync.RWMutex
 var configStrings = map[string]string{
 	"mbhost":    "activemq",
@@ -266,5 +264,33 @@ func main() {
 
 	go dbClient.GetGroup(groupsIn, "/spunk")
 	go configService.Run()
+
+	var splunkKeyFinal, splunkindexFinal, splunkUrlFinal string
+
+	// wait for configuration
+	for {
+		configStringsMu.RLock()
+		if configStrings["splunkIndex"] != "" {
+			splunkindexFinal = configStrings["splunkIndex"]
+		}
+		if configStrings["splunkKey"] != "" {
+			splunkKeyFinal = configStrings["splunkKey"]
+		}
+		if configStrings["splunkURL"] != "" {
+			splunkUrlFinal = configStrings["splunkURL"]
+		}
+
+		log.Println("configStrings : ", configStrings)
+
+		configStringsMu.RUnlock()
+
+		// minimum config available
+		if splunkKeyFinal != "" && splunkUrlFinal != "" && splunkindexFinal != "" {
+			log.Printf("Splunk minimum configuration available, continuing ... \n")
+			break
+		}
+		// wait for min configuration
+		time.Sleep(time.Minute)
+	}
 	handleGroups(groupsIn)
 }
