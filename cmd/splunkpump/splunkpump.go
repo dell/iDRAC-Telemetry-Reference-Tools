@@ -190,6 +190,7 @@ func main() {
 	// Desired config precedence:  CLI > ENV > configfile > defaults
 	//   (but: configfile can be specified by CLI)
 
+	// Get CLI arguments
 	configStringsMu.Lock()
 	configName := flag.String("config", "config.ini", "The configuration ini file")
 	mbhost := flag.String("mbhost", "", fmt.Sprintf("Message Bus hostname. Overrides default (%s). Overrides environment: MESSAGEBUS_HOST", configStrings["mbhost"]))
@@ -255,8 +256,12 @@ func main() {
 
 	dbClient := new(databus.DataBusClient)
 	dbClient.Bus = mb
+
+	// Queue to get config data set by configui.go - /splunkpump/config
 	configService := config.NewConfigService(mb, "/splunkpump/config", configItems)
 	groupsIn := make(chan *databus.DataGroup, 10)
+
+	// Queue used to send metric data by redfishread.go - /splunk
 	dbClient.Subscribe("/spunk")
 	dbClient.Get("/spunk")
 
@@ -284,7 +289,7 @@ func main() {
 
 		configStringsMu.RUnlock()
 
-		// minimum config available
+		// condition to check if minimum config is available
 		if splunkKeyFinal != "" && splunkUrlFinal != "" && splunkindexFinal != "" {
 			log.Printf("Splunk minimum configuration available, continuing ... \n")
 			break
