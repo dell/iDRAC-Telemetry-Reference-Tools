@@ -35,9 +35,7 @@ type SplunkEvent struct {
 	Fields SplunkEventFields `json:"fields"`
 }
 
-//
 // MEB: comment -> this appears to be racy?
-//
 var configStringsMu sync.RWMutex
 var configStrings = map[string]string{
 	"mbhost":    "activemq",
@@ -192,6 +190,7 @@ func main() {
 	// Desired config precedence:  CLI > ENV > configfile > defaults
 	//   (but: configfile can be specified by CLI)
 
+	// Get CLI arguments
 	configStringsMu.Lock()
 	configName := flag.String("config", "config.ini", "The configuration ini file")
 	mbhost := flag.String("mbhost", "", fmt.Sprintf("Message Bus hostname. Overrides default (%s). Overrides environment: MESSAGEBUS_HOST", configStrings["mbhost"]))
@@ -257,8 +256,12 @@ func main() {
 
 	dbClient := new(databus.DataBusClient)
 	dbClient.Bus = mb
+
+	// Queue to get config data set by configui.go - /splunkpump/config
 	configService := config.NewConfigService(mb, "/splunkpump/config", configItems)
 	groupsIn := make(chan *databus.DataGroup, 10)
+
+	// Queue used to send metric data by redfishread.go - /splunk
 	dbClient.Subscribe("/spunk")
 	dbClient.Get("/spunk")
 
@@ -266,5 +269,33 @@ func main() {
 
 	go dbClient.GetGroup(groupsIn, "/spunk")
 	go configService.Run()
+
+	var splunkKeyFinal, splunkindexFinal, splunkUrlFinal string
+
+	// wait for configuration
+	for {
+		configStringsMu.RLock()
+		if configStrings["splunkIndex"] != "" {
+			splunkindexFinal = configStrings["splunkIndex"]
+		}
+		if configStrings["splunkKey"] != "" {
+			splunkKeyFinal = configStrings["splunkKey"]
+		}
+		if configStrings["splunkURL"] != "" {
+			splunkUrlFinal = configStrings["splunkURL"]
+		}
+
+		log.Println("configStrings : ", configStrings)
+
+		configStringsMu.RUnlock()
+
+		// condition to check if minimum config is available
+		if splunkKeyFinal != "" && splunkUrlFinal != "" && splunkindexFinal != "" {
+			log.Printf("Splunk minimum configuration available, continuing ... \n")
+			break
+		}
+		// wait for min configuration
+		time.Sleep(time.Minute)
+	}
 	handleGroups(groupsIn)
 }
