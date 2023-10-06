@@ -1,5 +1,5 @@
 #!/bin/bash
-set -x
+#set -x
 
 scriptdir=$(cd $(dirname $0); pwd)
 topdir=$(cd $scriptdir/../; pwd)
