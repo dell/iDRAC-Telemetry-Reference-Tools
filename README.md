@@ -111,6 +111,15 @@ List of Metric Reports with Metrics:
       • SecondaryTemperature
       • ThermalAlertState
 
+- MemoryMetrics
+  
+      • AddressParityError
+      • UncorrectableECCError
+      • CorrectableECCError
+      • DataLossDetected
+      • MemorySpareBlock
+      • PredictedMediaLifeLeftPercent
+      • TemperatureThresholdAlarm
 - ThermalSensor
   
       • TemperatureReading
@@ -154,6 +163,8 @@ List of Metric Reports with Metrics:
 
       • TemperatureReading
 - FanSensor
+
+      • RPMReading
 - PowerMetrics
   
       • SystemHeadRoomInstantaneous
@@ -165,6 +176,7 @@ List of Metric Reports with Metrics:
       • TotalMemoryPower
       • TotalPciePower
       • TotalStoragePower
+      • TotalFPGAPower
 - NICStatistics
 
       • DiscardedPkts
@@ -224,6 +236,27 @@ List of Metric Reports with Metrics:
       • CUPSIIOBandwidthPort3
       • NonC0ResidencyHigh
       • NonC0ResidencyLow
+      • AvgFrequencyAcrossCores
+      • CPUPkgEnergy
+      • DRAMPkgEnergy
+      • LimitingEvents
+      • EnergyTimestamp
+      • PkgPwr
+      • DRAMPwr
+      • PkgThermalStatus
+      • ThermalCrtlCircuitActivation
+      • DRAMThrottling
+      • TJMax
+      • CPUEpi
+      • CPUViolationCounter
+      • CPULimitingCounter
+      • DDRLimitingCounter
+      • TCtrl
+      • CPUAvgPbmRatioCounterLow
+      • AccCoreCyclesLow
+      • AccCoreCyclesHigh
+      • UncoreClocksLow
+      • UncoreClocksHigh
 - PowerStatistics
 
       • LastDayAvgPower
@@ -249,16 +282,27 @@ List of Metric Reports with Metrics:
 - FPGASensor
 
       • TemperatureReading
-      • TotalFPGAPower
 - CPUSensor
 
       • TemperatureReading
 - PSUMetrics
   
-      • FanSpeed
-      • Temperature
-  
+      • PSURPMReading
+      • PSUTemperatureReading
 - FCPortStatistics
+  
+      • FCInvalidCRCs
+      • FCLinkFailures
+      • FCLossOfSignals
+      • FCRxKBCount
+      • FCRxSequences
+      • FCRxTotalFrames
+      • FCTxKBCount
+      • FCTxSequences
+      • FCTxTotalFrames
+      • FCStatOSDriverState
+      • PortSpeed
+      • PortStatus
 - NVMeSMARTData
 
       • AvailableSpare
@@ -289,7 +333,18 @@ List of Metric Reports with Metrics:
 - FCSensor
 
       • TemperatureReading
-
+- SFPTransceiver
+  
+      • SFPTemperature
+      • TemperatureStatus
+      • SFPVoltage
+      • VoltageStatus
+      • TxBiasCurrent
+      • TxBiasCurrentStatus
+      • TxOutputPower
+      • TxOutputPowerStatus
+      • RxInputPower
+      • RxInputPowerStatus
 - SystemUsage
 
       • CPUUsage
