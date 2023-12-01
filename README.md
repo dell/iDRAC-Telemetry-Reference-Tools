@@ -56,7 +56,45 @@ You can also see their [developer resources](https://redfish.dmtf.org/redfish/mo
 ask, "What is in telemetry?"
 
 Telemetry is presented by what are called reports. There are currently 24 report types available with their Metrics. You can obtain a 
-list by browsing to your iDRAC at `https://<iDRAC>/redfish/v1/TelemetryService/MetricReports`:
+list by browsing to your iDRAC at `https://<iDRAC>/redfish/v1/TelemetryService/MetricReports`.
+
+Following are the currently available metrics (MetricIDs) and the associated pre-canned reports. 
+Detail of each metric (MetricDefinition), like description, type, units, and sensing interval etc., can be obtained using
+the following command:
+
+curl -s -k -u : -X GET https://redfish/v1/TelemetryService/MetricDefinitions/
+
+Output:
+
+SystemMaxPowerConsumption
+
+{
+
+"@odata.type": "#MetricDefinition.v1_1_1.MetricDefinition",
+
+"@odata.context": "/redfish/v1/$metadata#MetricDefinition.MetricDefinition",
+
+"@odata.id":
+
+"/redfish/v1/TelemetryService/MetricDefinitions/SystemMaxPowerConsumption",
+
+"Id": "SystemMaxPowerConsumption",
+
+"Name": "System Max Power Consumption Metric Definition",
+
+"Description": "Peak system power consumption",
+
+"MetricType": "Numeric",
+
+"MetricDataType": "Decimal",
+
+"Units": "W",
+
+"Accuracy": 1,
+
+"SensingInterval": "PT60S",
+
+}
 
 List of Metric Reports with Metrics:
 - StorageDiskSMARTData
