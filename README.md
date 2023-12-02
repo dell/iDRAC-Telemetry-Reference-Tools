@@ -62,15 +62,13 @@ Following are the currently available metrics (MetricIDs) and the associated pre
 Detail of each metric (MetricDefinition), like description, type, units, and sensing interval etc., can be obtained using
 the following command:
 
-curl -s -k -u : -X GET https://redfish/v1/TelemetryService/MetricDefinitions/
+curl -s -k -u : -X GET https://redfish/v1/TelemetryService/MetricDefinitions/SystemMaxPowerConsumption
 
 Output:
 
-SystemMaxPowerConsumption
-
 {
 
-"@odata.type": "#MetricDefinition.v1_1_1.MetricDefinition",
+"@odata.type": "#MetricDefinitio.v1_1_1.MetricDefinition",
 
 "@odata.context": "/redfish/v1/$metadata#MetricDefinition.MetricDefinition",
 
