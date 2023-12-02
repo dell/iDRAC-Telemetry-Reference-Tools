@@ -72,9 +72,7 @@ Output:
 
 "@odata.context": "/redfish/v1/$metadata#MetricDefinition.MetricDefinition",
 
-"@odata.id":
-
-"/redfish/v1/TelemetryService/MetricDefinitions/SystemMaxPowerConsumption",
+"@odata.id": "/redfish/v1/TelemetryService/MetricDefinitions/SystemMaxPowerConsumption",
 
 "Id": "SystemMaxPowerConsumption",
 
