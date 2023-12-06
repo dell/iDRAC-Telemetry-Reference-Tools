@@ -390,6 +390,7 @@ func main() {
 	router := gin.Default()
 	router.StaticFile("/", "index.html")
 	router.StaticFile("/index.html", "index.html")
+	router.StaticFile("/index.bundle.js", "index.bundle.js")
 	router.GET("/api/v1/Systems", func(c *gin.Context) {
 		getSystemList(c, systemHandler)
 	})
