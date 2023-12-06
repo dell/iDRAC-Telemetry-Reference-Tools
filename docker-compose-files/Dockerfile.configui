@@ -37,6 +37,8 @@ COPY cmd/frontend /build/cmd/frontend/
 
 WORKDIR /build/cmd/frontend
 
+RUN npm install
+
 RUN npm run build
 
 FROM scratch
