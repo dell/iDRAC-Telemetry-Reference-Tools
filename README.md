@@ -55,33 +55,336 @@ Redfish standard see DMTF's [white paper](https://www.dmtf.org/sites/default/fil
 You can also see their [developer resources](https://redfish.dmtf.org/redfish/mockups/v1/1155). Many people first
 ask, "What is in telemetry?"
 
-Telemetry is presented by what are called reports. There are currently 24 report types available. You can obtain a 
-list by browsing to your iDRAC at `https://<iDRAC>/redfish/v1/TelemetryService/MetricReports`:
+Telemetry is presented by what are called reports. There are currently 24 report types available with their Metrics. You can obtain a 
+list by browsing to your iDRAC at `https://<iDRAC>/redfish/v1/TelemetryService/MetricReports`.
 
+Following are the currently available metrics (MetricIDs) and the associated pre-canned reports. 
+Detail of each metric (MetricDefinition), like description, type, units, and sensing interval etc., can be obtained using
+the following command:
+
+curl -s -k -u : -X GET https://redfish/v1/TelemetryService/MetricDefinitions/SystemMaxPowerConsumption
+
+Output:
+
+{
+
+"@odata.type": "#MetricDefinitio.v1_1_1.MetricDefinition",
+
+"@odata.context": "/redfish/v1/$metadata#MetricDefinition.MetricDefinition",
+
+"@odata.id": "/redfish/v1/TelemetryService/MetricDefinitions/SystemMaxPowerConsumption",
+
+"Id": "SystemMaxPowerConsumption",
+
+"Name": "System Max Power Consumption Metric Definition",
+
+"Description": "Peak system power consumption",
+
+"MetricType": "Numeric",
+
+"MetricDataType": "Decimal",
+
+"Units": "W",
+
+"Accuracy": 1,
+
+"SensingInterval": "PT60S",
+
+}
+
+List of Metric Reports with Metrics:
 - StorageDiskSMARTData
+  
+      • CommandTimeout
+      • CRCErrorCount
+      • CurrentPendingSectorCount
+      • DriveTemperature
+      • ECCERate
+      • EraseFailCount
+      • ExceptionModeStatus
+      • MediaWriteCount
+      • PercentDriveLifeRemaining
+      • PowerCycleCount
+      • PowerOnHours
+      • ProgramFailCount
+      • ReadErrorRate
+      • ReallocatedBlockCount
+      • UncorrectableErrorCount
+      • UncorrectableLBACount
+      • UnusedReservedBlockCount
+      • UsedReservedBlockCount
+      • VolatileMemoryBackupSourceFailures 
 - SerialLog
 - ThermalMetrics
+
+      • ComputePower
+      • ITUE
+      • PowerToCoolRatio
+      • PSUEfficiency
+      • SysAirFlowEfficiency
+      • SysAirflowPerFanPower
+      • SysAirflowPerSysInputPower
+      • SysAirflowUtilization
+      • SysNetAirflow
+      • SysRackTempDelta
+      • TotalPSUHeatDissipation
 - MemorySensor
+
+      • TemperatureReading
 - GPUMetrics
+
+      • BoardPowerSupplyStatus
+      • BoardTemperature
+      • GPUHealth
+      • GPUStatus
+      • MemoryTemperature
+      • PowerBrakeState
+      • PowerConsumption
+      • PowerSupplyStatus
+      • PrimaryTemperature
+      • SecondaryTemperature
+      • ThermalAlertState
+
+- MemoryMetrics
+  
+      • AddressParityError
+      • UncorrectableECCError
+      • CorrectableECCError
+      • DataLossDetected
+      • MemorySpareBlock
+      • PredictedMediaLifeLeftPercent
+      • TemperatureThresholdAlarm
 - ThermalSensor
+  
+      • TemperatureReading
 - CPURegisters
 - AggregationMetrics
+  
+      • SystemAvgInletTempHour
+      • SystemMaxInletTempHour
+      • SystemMaxPowerConsumption
 - GPUStatistics
+
+      • CumulativeDBECounterFB
+      • CumulativeDBECounterGR
+      • CumulativeSBECounterFB
+      • CumulativeSBECounterGR
+      • DBECounterFB
+      • DBECounterFBL2Cache
+      • DBECounterGRL1Cache
+      • DBECounterGRRF
+      • DBECounterGRTex
+      • DBERetiredPages
+      • SBECounterFB
+      • SBECounterFBL2Cache
+      • SBECounterGRL1Cache
+      • SBECounterGRRF
+      • SBECounterGRTex
+      • SBERetiredPages    
 - Sensor
+  
+      • AmpsReading
+      • CPUUsagePctReading
+      • IOUsagePctReading
+      • MemoryUsagePctReading
+      • RPMReading
+      • SystemUsagePctReading
+      • TemperatureReading
+      • VoltageReading
+      • WattsReading
+
 - NICSensor
+
+      • TemperatureReading
 - FanSensor
+
+      • RPMReading
 - PowerMetrics
+  
+      • SystemHeadRoomInstantaneous
+      • SystemInputPower
+      • SystemOutputPower
+      • SystemPowerConsumption
+      • TotalCPUPower
+      • TotalFanPower
+      • TotalMemoryPower
+      • TotalPciePower
+      • TotalStoragePower
+      • TotalFPGAPower
 - NICStatistics
+
+      • DiscardedPkts
+      • FCCRCErrorCount
+      • FCOELinkFailures
+      • FCOEPktRxCount
+      • FCOEPktTxCount
+      • FCOERxPktDroppedCount
+      • LanFCSRxErrors
+      • LanUnicastPktRxCount
+      • LanUnicastPktTxCount
+      • LinkStatus
+      • OSDriverState
+      • PartitionLinkStatus
+      • PartitionOSDriverState
+      • RDMARxTotalBytes
+      • RDMARxTotalPackets
+      • RDMATotalProtectionErrors
+      • RDMATotalProtocolErrors
+      • RDMATxTotalBytes
+      • RDMATxTotalPackets
+      • RDMATxTotalReadReqPkts
+      • RDMATxTotalSendPkts
+      • RDMATxTotalWritePkts
+      • RxBroadcast
+      • RxBytes
+      • RxErrorPktAlignmentErrors
+      • RxErrorPktFCSErrors
+      • RxFalseCarrierDetection
+      • RxJabberPkt
+      • RxMutlicast
+      • RxPauseXOFFFrames
+      • RxPauseXONFrames
+      • RxRuntPkt
+      • RxUnicast
+      • TxBroadcast
+      • TxBytes
+      • TxErrorPktExcessiveCollision
+      • TxErrorPktLateCollision
+      • TxErrorPktMultipleCollision
+      • TxErrorPktSingleCollision
+      • TxMutlicast
+      • TxPauseXOFFFrames
+      • TxPauseXONFrames
+      • TxUnicast
 - StorageSensor
+
+      • TemperatureReading
 - CPUMemMetrics
+
+      • CPUC0ResidencyHigh
+      • CPUC0ResidencyLow
+      • CUPSIIOBandwidthDMI
+      • CUPSIIOBandwidthPort0
+      • CUPSIIOBandwidthPort1
+      • CUPSIIOBandwidthPort2
+      • CUPSIIOBandwidthPort3
+      • NonC0ResidencyHigh
+      • NonC0ResidencyLow
+      • AvgFrequencyAcrossCores
+      • CPUPkgEnergy
+      • DRAMPkgEnergy
+      • LimitingEvents
+      • EnergyTimestamp
+      • PkgPwr
+      • DRAMPwr
+      • PkgThermalStatus
+      • ThermalCrtlCircuitActivation
+      • DRAMThrottling
+      • TJMax
+      • CPUEpi
+      • CPUViolationCounter
+      • CPULimitingCounter
+      • DDRLimitingCounter
+      • TCtrl
+      • CPUAvgPbmRatioCounterLow
+      • AccCoreCyclesLow
+      • AccCoreCyclesHigh
+      • UncoreClocksLow
+      • UncoreClocksHigh
 - PowerStatistics
+
+      • LastDayAvgPower
+      • LastDayMaxPower
+      • LastDayMaxPowerTime
+      • LastDayMinPower
+      • LastDayMinPowerTime
+      • LastHourAvgPower
+      • LastHourMaxPower
+      • LastHourMaxPowerTime
+      • LastHourMinPower
+      • LastHourMinPowerTime
+      • LastMinuteAvgPower
+      • LastMinuteMaxPower
+      • LastMinuteMaxPowerTime
+      • LastMinuteMinPower
+      • LastMinuteMinPowerTime
+      • LastWeekAvgPower
+      • LastWeekMaxPower
+      • LastWeekMaxPowerTime
+      • LastWeekMinPower
+      • LastWeekMinPowerTime
 - FPGASensor
+
+      • TemperatureReading
 - CPUSensor
+
+      • TemperatureReading
 - PSUMetrics
+  
+      • PSURPMReading
+      • PSUTemperatureReading
 - FCPortStatistics
+  
+      • FCInvalidCRCs
+      • FCLinkFailures
+      • FCLossOfSignals
+      • FCRxKBCount
+      • FCRxSequences
+      • FCRxTotalFrames
+      • FCTxKBCount
+      • FCTxSequences
+      • FCTxTotalFrames
+      • FCStatOSDriverState
+      • PortSpeed
+      • PortStatus
 - NVMeSMARTData
+
+      • AvailableSpare
+      • AvailableSpareThreshold
+      • CompositeTemparature
+      • ControllerBusyTimeLower
+      • ControllerBusyTimeUpper
+      • CriticalWarning
+      • DataUnitsReadLower
+      • DataUnitsReadUpper
+      • DataUnitsWrittenLower
+      • DataUnitsWrittenUpper
+      • HostReadCommandsLower
+      • HostReadCommandsUpper
+      • HostWriteCommandsLower
+      • HostWriteCommandsUpper
+      • MediaDataIntegrityErrorsLower
+      • MediaDataIntegrityErrorsUpper
+      • NumOfErrorInfoLogEntriesLower
+      • NumOfErrorInfoLogEntriesUpper
+      • PercentageUsed
+      • PowerCyclesLower
+      • PowerCyclesUpper
+      • PowerOnHoursLower
+      • PowerOnHoursUpper
+      • UnsafeShutdownsLower
+      • UnsafeShutdownsUpper
 - FCSensor
+
+      • TemperatureReading
+- SFPTransceiver
+  
+      • SFPTemperature
+      • TemperatureStatus
+      • SFPVoltage
+      • VoltageStatus
+      • TxBiasCurrent
+      • TxBiasCurrentStatus
+      • TxOutputPower
+      • TxOutputPowerStatus
+      • RxInputPower
+      • RxInputPowerStatus
 - SystemUsage
+
+      • CPUUsage
+      • IOUsage
+      • MemoryUsage
+      • AggregateUsage
 
 If you want to see what a report looks like check out this [sample report](scripts/GetSensorThresholds/reports.json) 
 of the StorageDiskSMARTData report.
