@@ -98,11 +98,6 @@ document.getElementById('configKafkaButton').addEventListener('click', function 
 })
 
 
-
-
-
-
-
 function updateColumnsDisplay() {
     if (tls.checked && clientAuth.checked) {
         column1.style.display = 'block';
@@ -111,16 +106,19 @@ function updateColumnsDisplay() {
 }
 // Event listener for modal open
 let serviceData;
-$.getJSON("/api/v1/Systems", gotServiceList);
-$.getJSON("/api/v1/HttpEventCollector", gotConfigList);
-$.getJSON("/api/v1/KafkaBrokerConnection", gotKafkaConfigList);
 
-$(function () {
-    $('[data-toggle="tooltip"]').tooltip()
+window.addEventListener('load', function () {
+    $.getJSON("/api/v1/Systems", gotServiceList);
+    $.getJSON("/api/v1/HttpEventCollector", gotConfigList);
+    $.getJSON("/api/v1/KafkaBrokerConnection", gotKafkaConfigList);    
 })
 
+
+// $(function () {
+//     $('[data-toggle="tooltip"]').tooltip()
+// })
+
 function gotServiceList(data) {
-    // var tbody = $('#services');
     var tbody = document.getElementById('services');
     serviceData = data;
     var classStr;
@@ -161,9 +159,7 @@ function gotServiceList(data) {
         checkbox.classList.add('check');
         checkbox.type = 'checkbox';
         checkbox.id = "checkboxservice-" + i;
-        // checkbox.onclick = checkboxClick(checkbox);
         checkbox.addEventListener('click', checkboxClick);
-        // console.log(checkbox)
         checkBoxService.appendChild(checkbox);
 
         // tbody.append('<tr><td>' + data[i].Hostname + '</td><td>' + data[i].Username + '</td><td class="' + classStr + '">' + data[i].State + '</td><td>' + new Date(data[i].LastEvent) + "</td><td><input type='checkbox' id='checkboxservice-" + i + "'' class='check' onclick='checkboxClick(this);' ></td></tr>")
@@ -189,7 +185,6 @@ function checkboxClick(evt) {
         serviceData[checkboxIndex].toDelete = true
     }
     else {
-        console.log("False")
         serviceData[checkboxIndex].toDelete = false
     }
     if ($(".check:checked").length) $("#deleteServiceButton").show();
@@ -296,8 +291,8 @@ function addService() {
     })
 }
 function deleteService() {
-    hostnames = []
-    h = 0
+    var hostnames = []
+    var h = 0
     for (var i = 0; i < serviceData.length; i++) {
         if (serviceData[i].toDelete == true) {
             hostnames[h++] = serviceData[i].Hostname
@@ -404,11 +399,12 @@ function kafkaConfig() {
     })();
 }
 function addDone(jqXHR) {
+    
     if (jqXHR.status != 200) {
         alert("Failed to add new service!");
     }
     else {
-        location.reload();
+        window.location.reload(true);
     }
 }
 
@@ -417,7 +413,7 @@ function addhec(jqXHR) {
         alert("Failed to config hec!");
     }
     else {
-        location.reload();
+        window.location.reload();
     }
 }
 function deleteDone(jqXHR) {
@@ -425,7 +421,7 @@ function deleteDone(jqXHR) {
         alert("Failed to delete new service!");
     }
     else {
-        location.reload();
+        window.location.reload();
     }
 }
 
@@ -434,7 +430,7 @@ function kafkaDone(jqXHR) {
         alert("Failed to add kafka config!");
     }
     else {
-        location.reload();
+        window.location.reload();
         form = document.getElementById('newKafka');
         form.reset();
     }
