@@ -29,6 +29,18 @@ COPY go.* /build/
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o app ./cmd/${CMD}
 
+FROM node as frontendbuilder
+
+WORKDIR /build
+
+COPY cmd/frontend /build/cmd/frontend/
+
+WORKDIR /build/cmd/frontend
+
+RUN npm install
+
+RUN npm run build
+
 FROM scratch
 
 ARG CMD
@@ -36,7 +48,9 @@ ARG CMD
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /etc/passwd /etc/group /etc/
 COPY --from=builder /build/app /app
-COPY cmd/configui/index.html /
+COPY --from=frontendbuilder /build/cmd/frontend/dist/index.html /
+COPY --from=frontendbuilder /build/cmd/frontend/dist/index.bundle.js /
+COPY --from=frontendbuilder /build/cmd/frontend/dist/index.bundle.js.LICENSE.txt /
 
 USER ${USERNAME}
 ENTRYPOINT ["/app"]

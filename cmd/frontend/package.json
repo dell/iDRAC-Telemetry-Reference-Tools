@@ -1,0 +1,29 @@
+{
+  "name": "webpack-demo-2",
+  "version": "1.0.0",
+  "description": "",
+  "private": "true",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "webpack"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "postcss": "^8.4.32",
+    "postcss-loader": "^7.3.3",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "@popperjs/core": "^2.11.8",
+    "bootstrap": "^5.3.2",
+    "css-loader": "^6.8.1",
+    "expose-loader": "^4.1.0",
+    "feather-icons": "^4.29.1",
+    "jquery": "^3.7.1",
+    "lodash": "^4.17.21",
+    "style-loader": "^3.3.3"
+  }
+}
