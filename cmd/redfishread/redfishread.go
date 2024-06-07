@@ -252,7 +252,7 @@ func (r *RedfishDevice) StartEventListener(dataBusService *databus.DataBusServic
 		}
 		if event.Err != nil { // SSE connect failure , retry connection
 			log.Printf("%s: Got SSE error %s\n", r.SystemID, event.Err)
-			if strings.Contains(event.Err.Error(), "iDRAC poweroff or reboot") {
+			if strings.Contains(event.Err.Error(), "connection error") {
 				// Wait for 5 minutes before restarting, so that the iDRAC can be rebooted
 				// and SSE connection can be re-established
 

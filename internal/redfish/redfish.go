@@ -258,13 +258,12 @@ func (r *RedfishClient) GetMetricReportsSSE(Ctx context.Context, event chan<- *R
 				redfishEvent.Err = err
 				if strings.Contains(err.Error(), "EOF") {
 					// EOF denotes a terminated SSE connection.
-					if lastTS.Before(time.Now().Add(-time.Minute * 45)) {
+					if lastTS.Before(time.Now().Add(-time.Minute * 60)) {
 						// SSE connection times out if no events have been sent in around 60 minutes.
-						// Above if condition has an additional buffer of 15 minutes.
-						err = errors.New("SSE Idle Timeout")
+						err = errors.New("sse idle timeout")
 						redfishEvent.Err = err
 					} else {
-						err = errors.New("iDRAC poweroff or reboot")
+						err = errors.New("connection error")
 						redfishEvent.Err = err
 					}
 				}
