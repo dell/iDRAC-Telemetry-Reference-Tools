@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/sse"
 )
@@ -200,34 +201,35 @@ func (r *RedfishClient) ListenForEvents(Ctx context.Context, event chan<- *Redfi
 }
 
 func (r *RedfishClient) ListenForLceEvents(Ctx context.Context, event chan<- *RedfishEvent) {
-        ret := new(RedfishEvent)
-        serviceRoot, err := r.GetUri("/redfish/v1")
-        if err == nil {
-                eventService, err := serviceRoot.GetPropertyByName("EventService")
-                sseUri := "https://" + r.Hostname + eventService.Object["ServerSentEventUri"].(string)
-                if err == nil {
-                        if eventService.Object["ServerSentEventUri"] != nil {
-                                ret.Err = r.GetLceSSE(Ctx, event, sseUri)
+	ret := new(RedfishEvent)
+	serviceRoot, err := r.GetUri("/redfish/v1")
+	if err == nil {
+		eventService, err := serviceRoot.GetPropertyByName("EventService")
+		sseUri := "https://" + r.Hostname + eventService.Object["ServerSentEventUri"].(string)
+		if err == nil {
+			if eventService.Object["ServerSentEventUri"] != nil {
+				ret.Err = r.GetLceSSE(Ctx, event, sseUri)
 
-                        } else {
-                                log.Println("Don't support POST back yet!")
-                                ret.Err = errors.New("Don't support POST back yet!")
-                        }
-                } else {
-                        ret.Err = err
-                }
-        } else {
-                log.Println("Unable to get service root!", err)
-                ret.Err = err
-        }
-        if ret.Err != nil {
-                event <- ret
-        }
+			} else {
+				log.Println("Don't support POST back yet!")
+				ret.Err = errors.New("Don't support POST back yet!")
+			}
+		} else {
+			ret.Err = err
+		}
+	} else {
+		log.Println("Unable to get service root!", err)
+		ret.Err = err
+	}
+	if ret.Err != nil {
+		event <- ret
+	}
 }
 
 func (r *RedfishClient) GetMetricReportsSSE(Ctx context.Context, event chan<- *RedfishEvent, sseURI string) error {
 	sseConfig := new(sse.Config)
 	sseConfig.Client = r.HttpClient
+	lastTS := time.Now() // Variable to hold the latest event timestamp
 	sseConfig.RequestCreator = func() *http.Request {
 		req, err := http.NewRequest("GET", sseURI+"?$filter=EventFormatType%20eq%20MetricReport", nil)
 		if err != nil {
@@ -250,12 +252,30 @@ func (r *RedfishClient) GetMetricReportsSSE(Ctx context.Context, event chan<- *R
 			return nil
 		default:
 			sseEvent, err := sseSource.Next()
-			if err != nil {
-				log.Println("Error reading! ", err)
-				break
-			}
 			redfishEvent := new(RedfishEvent)
 			redfishEvent.ID = sseEvent.ID
+			if err != nil {
+				redfishEvent.Err = err
+				if strings.Contains(err.Error(), "EOF") {
+					// EOF denotes a terminated SSE connection.
+					if lastTS.Before(time.Now().Add(-time.Minute * 60)) {
+						// SSE connection times out if no events have been sent in around 60 minutes.
+						err = errors.New("sse idle timeout")
+						redfishEvent.Err = err
+					} else {
+						err = errors.New("connection error")
+						redfishEvent.Err = err
+					}
+				}
+				redfishEvent.Payload = nil
+				event <- redfishEvent
+				// Sending an error event triggers a reconnect to the SSE source (RestartEventListener).
+				// Hence, closing the SSE source here gracefully.
+				sseSource.Close()
+				return nil
+			}
+
+			lastTS = time.Now() // Update the latest event timestamp
 			ret := new(RedfishPayload)
 			err = json.Unmarshal(sseEvent.Data, &ret.Object)
 			if err != nil {
@@ -264,6 +284,7 @@ func (r *RedfishClient) GetMetricReportsSSE(Ctx context.Context, event chan<- *R
 			}
 			ret.Client = r
 			redfishEvent.Payload = ret
+			redfishEvent.Err = nil
 			event <- redfishEvent
 		}
 	}
@@ -396,37 +417,37 @@ func (r *RedfishClient) GetSSEByUri(event chan<- *RedfishEvent, sseURI string) {
 
 }
 
-func (r *RedfishClient) GetInventoryByUri(sseURI string) (*RedfishPayload, error){
-        sseConfig := new(sse.Config)
-        sseConfig.Client = r.HttpClient
-        sseConfig.RequestCreator = func() *http.Request {
-                req, err := http.NewRequest("GET", "https://"+r.Hostname+sseURI, nil)
-                if err != nil {
-                        return nil
-                }
-                r.addAuthToRequest(req)
-                //req.Header.Add("Accept", "text/event-stream")
-                req.Header.Add("Accept", "*/*")
-                return req
-        }
-        sseSource, err := sseConfig.Connect()
-        if err != nil {
-                log.Printf("Error %s while seconfigConnect while GetInventoryByUri\n", err)
-                return nil, err
-        }
-        sseEvent, err := sseSource.Next()
-        if err != nil {
-                log.Printf("Error %s while sseSourceNext while GetInventoryByUri\n", err)
-                log.Printf("^^^^^^%s^^^^^^^^^^^^^\n", sseEvent)
-        }
-        ret := new(RedfishPayload)
-        err = json.Unmarshal(sseEvent.Data, &ret.Object)
-        if err != nil {
-                log.Printf("Failed to parse message %v", err)
-                return nil, err
-        }
-        ret.Client = r
-        return ret, nil
+func (r *RedfishClient) GetInventoryByUri(sseURI string) (*RedfishPayload, error) {
+	sseConfig := new(sse.Config)
+	sseConfig.Client = r.HttpClient
+	sseConfig.RequestCreator = func() *http.Request {
+		req, err := http.NewRequest("GET", "https://"+r.Hostname+sseURI, nil)
+		if err != nil {
+			return nil
+		}
+		r.addAuthToRequest(req)
+		//req.Header.Add("Accept", "text/event-stream")
+		req.Header.Add("Accept", "*/*")
+		return req
+	}
+	sseSource, err := sseConfig.Connect()
+	if err != nil {
+		log.Printf("Error %s while seconfigConnect while GetInventoryByUri\n", err)
+		return nil, err
+	}
+	sseEvent, err := sseSource.Next()
+	if err != nil {
+		log.Printf("Error %s while sseSourceNext while GetInventoryByUri\n", err)
+		log.Printf("^^^^^^%s^^^^^^^^^^^^^\n", sseEvent)
+	}
+	ret := new(RedfishPayload)
+	err = json.Unmarshal(sseEvent.Data, &ret.Object)
+	if err != nil {
+		log.Printf("Failed to parse message %v", err)
+		return nil, err
+	}
+	ret.Client = r
+	return ret, nil
 }
 
 func (r *RedfishClient) GetSSE(Ctx context.Context, event chan<- *RedfishEvent, eventService *RedfishPayload) error {
