@@ -136,7 +136,7 @@ List of Metric Reports with Metrics:
       • BoardPowerSupplyStatus
       • BoardTemperature
       • GPUHealth
-      • GPUMemoryUSage
+      • GPUMemoryUsage
       • GPUUsage
       • GPUMemoryClockFrequency
       • GPUClockFrequency
