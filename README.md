@@ -141,8 +141,6 @@ List of Metric Reports with Metrics:
       • GPUMemoryClockFrequency
       • GPUClockFrequency
       • GPUStatus
-      • GPUArbitratedPowerLimit
-      • GPUEnforcedPowerLimit
       • MemoryTemperature
       • PowerBrakeState
       • PowerConsumption
