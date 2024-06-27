@@ -136,6 +136,10 @@ List of Metric Reports with Metrics:
       • BoardPowerSupplyStatus
       • BoardTemperature
       • GPUHealth
+      • GPUMemoryUsage
+      • GPUUsage
+      • GPUMemoryClockFrequency
+      • GPUClockFrequency
       • GPUStatus
       • MemoryTemperature
       • PowerBrakeState
@@ -206,11 +210,13 @@ List of Metric Reports with Metrics:
       • SystemOutputPower
       • SystemPowerConsumption
       • TotalCPUPower
+      • CPUPower
       • TotalFanPower
       • TotalMemoryPower
       • TotalPciePower
       • TotalStoragePower
       • TotalFPGAPower
+      • FPGAPower
 - NICStatistics
 
       • DiscardedPkts
@@ -385,6 +391,10 @@ List of Metric Reports with Metrics:
       • IOUsage
       • MemoryUsage
       • AggregateUsage
+- DPU Metrics (No pre-canned report for these metrics. Custom Metric Report should be created to get reports of these DPU metrics)
+  
+      • DPUTemperature
+      • DPUPowerConsumption
 
 If you want to see what a report looks like check out this [sample report](scripts/GetSensorThresholds/reports.json) 
 of the StorageDiskSMARTData report.
