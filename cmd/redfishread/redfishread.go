@@ -370,6 +370,7 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 		go getTelemetry(r, telemetryService, dataBusService)
 	}
 
+	/*
 	//Checking for EventService support
 	eventService, err := serviceRoot.GetPropertyByName("EventService")
 	if err != nil {
@@ -379,6 +380,7 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 		log.Printf("%s: Event Service consumption loading...\n", r.Redfish.Hostname)
 		go getRedfishLce(r, eventService, dataBusService)
 	}
+	*/
 }
 
 // handleAuthServiceChannel Authenticates to the iDRAC and then launches the telemetry monitoring process via
