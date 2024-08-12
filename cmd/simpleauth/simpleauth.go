@@ -128,7 +128,7 @@ func main() {
 
 	flag.Parse()
 
-	config, err := ini.Load(*configName)
+	config, err := ini.Load("/extrabin/"+*configName)
 	if err != nil {
 		log.Fatalf("Fail to read file: %v", err)
 	}
