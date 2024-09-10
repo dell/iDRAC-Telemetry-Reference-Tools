@@ -128,6 +128,18 @@ func (r *RedfishClient) walkUri(uri string, res *map[string]*RedfishPayload) {
 	payload.walk(res)
 }
 
+func (r *RedfishClient) GetHostName() (string, error) {
+	serviceRoot, err := r.GetUri("/redfish/v1/Systems/System.Embedded.1?$select=HostName")
+	if err != nil {
+		return "", err
+	}
+	//iDRAC
+	if serviceRoot.Object["HostName"] != nil {
+		return serviceRoot.Object["HostName"].(string), nil
+	}
+	return "", err
+}
+
 func (r *RedfishClient) GetSystemId() (string, error) {
 	serviceRoot, err := r.GetUri("/redfish/v1")
 	if err != nil {

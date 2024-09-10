@@ -21,6 +21,8 @@ var configStrings = map[string]string{
 	"mbhost": "activemq",
 	"mbport": "61613",
 }
+ 
+var sysIdType string
 
 var collectors map[string]map[string]*prometheus.GaugeVec
 
@@ -35,7 +37,8 @@ func doFQDDGuage(value databus.DataValue, registry *prometheus.Registry) {
 				Name:      value.ID,
 			},
 			[]string{
-				"ServiceTag",
+				//"ServiceTag",
+				sysIdType,
 				"FQDD",
 			})
 		registry.MustRegister(guage)
@@ -72,7 +75,8 @@ func doNonFQDDGuage(value databus.DataValue, registry *prometheus.Registry) {
 				Name:      value.ID,
 			},
 			[]string{
-				"ServiceTag",
+				//"ServiceTag",
+				sysIdType,
 			})
 		registry.MustRegister(guage)
 		floatVal, _ := strconv.ParseFloat(value.Value, 64)
@@ -109,6 +113,12 @@ func getEnvSettings() {
 	if len(mbPort) > 0 {
 		configStrings["mbport"] = mbPort
 	}
+
+	sysIdType = os.Getenv("SYSTEM_ID")
+	if sysIdType != "HostName" {
+		sysIdType = "ServiceTag"
+	}
+	log.Println("Using SystemId : ",  sysIdType)
 }
 
 func main() {
