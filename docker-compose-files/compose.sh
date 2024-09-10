@@ -245,6 +245,9 @@ chmod 700 $topdir/.certs
   fi
 #fi
 
+  if [ -z $SYSTEM_ID ]; then
+    export SYSTEM_ID=
+  fi
  # remove dependency on setup influx-test-db
 touch $topdir/docker-compose-files/container-info-influx-pump.txt 
 touch $topdir/docker-compose-files/container-info-grafana.txt

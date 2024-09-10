@@ -344,8 +344,15 @@ func getRedfishLce(r *RedfishDevice, eventService *redfish.RedfishPayload, dataB
 // listening for SSE events. NOTE: This expects that someone has enabled Telemetry reports and started the telemetry
 // service externally.
 func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusService) {
-	systemID, err := r.Redfish.GetSystemId()
-	if err != nil {
+	sidType := os.Getenv("SYSTEM_ID")
+	var systemID string
+	var err error
+	if sidType == "HostName" {
+		systemID, err = r.Redfish.GetHostName()
+	}  else {
+		systemID, err = r.Redfish.GetSystemId()
+	}
+	if err != nil || systemID == "" {
 		log.Printf("%s: Failed to get system id! %v\n", r.Redfish.Hostname, err)
 		return
 	}

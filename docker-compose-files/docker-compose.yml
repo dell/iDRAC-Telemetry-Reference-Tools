@@ -199,6 +199,8 @@ services:
   redfishread:
     <<: *refdaemon
     image: idrac-telemetry-reference-tools/redfishread:latest
+    environment:
+      SYSTEM_ID: ${SYSTEM_ID}
     build:
       <<: *base-build
       args:
@@ -434,7 +436,7 @@ services:
       - '--config.file=/config/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
     ports:
-      - "9090:9090"  
+      - "9090:9090"
     networks:
       - host-bridge-net
 
@@ -463,6 +465,7 @@ services:
     environment:
       <<: *messagebus-env
       PROMETHEUSDB_SERVER: prometheus
+      SYSTEM_ID: ${SYSTEM_ID}
     build:
       <<: *base-build
       args:
