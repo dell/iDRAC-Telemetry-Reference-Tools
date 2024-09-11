@@ -349,7 +349,9 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 	var err error
 	if sidType == "HostName" {
 		systemID, err = r.Redfish.GetHostName()
-	}  else {
+	}
+	// fallback to svctag if hostname not found
+	if err != nil || systemID == "" {
 		systemID, err = r.Redfish.GetSystemId()
 	}
 	if err != nil || systemID == "" {
