@@ -3,6 +3,9 @@
 - [Debugging](#debugging)
   - [Navigation](#navigation)
   - [Docker](#docker)
+    - [Verify docker compose version](#verify-docker-compose-version)
+    - [remove stale docker containers and cleanup environment](#remove-stale-docker-containers-and-cleanup-environment)
+    - [--build flag](#--build-flag)
     - [Rebuild a Single Container with Docker Compose](#rebuild-a-single-container-with-docker-compose)
     - [Keep Container Open for Debugging](#keep-container-open-for-debugging)
     - [Run a Stopped Container with a Command](#run-a-stopped-container-with-a-command)
@@ -22,6 +25,32 @@
 [Install](INSTALL.md)
 
 ## Docker
+
+### Verify docker compose version
+
+With **docker compose v2.20.0 and above**, you may get the below error when you run `./docker-compose-files/compose.sh start`
+
+```bash
+$ ./docker-compose-files/compose.sh start --timescale-test-db
+Pass: Docker compose version is 2.20.3.
+prometheus variable is: 
+Set up environment file in /home/krishna_darsipudi/projects/iDRAC-Telemetry-Reference-Tools/.env
+To run manually, run the following command line:
+docker-compose --project-directory /home/krishna_darsipudi/projects/iDRAC-Telemetry-Reference-Tools -f /home/krishna_darsipudi/projects/iDRAC-Telemetry-Reference-Tools/docker-compose-files/docker-compose.yml --profile core --profile timescale-test-db up  -d
+
+no such service: influx
+```
+To mitigate the issue, make the following change to `docker-compose-files/docker-compose.yml`.
+
+Delete `- influx` on [line 363](https://github.com/dell/iDRAC-Telemetry-Reference-Tools/blob/c295fe01849d67445f79945f5c1db61933b60276/docker-compose-files/docker-compose.yml#L363) and replace it with the following lines
+```yml
+     depends_on:
+        # Paste the below lines starting at line 363 in docker-compose.yml
+        influx:
+         condition: service_started
+         required: false
+```
+Run `./docker-compose-files/compose.sh start` again with the required database/pump to create the docker containers
 
 ### remove stale docker containers and cleanup environment
 
