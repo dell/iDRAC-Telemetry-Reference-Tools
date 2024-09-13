@@ -28,15 +28,15 @@
 
 ### Verify docker compose version
 
-With **docker compose v2.20.0 and above**, you may get the below error when you run `./docker-compose-files/compose.sh start`
+With **docker compose v2.20.0 and above**, you may get the below error when you run `./docker-compose-files/compose.sh start`. (You will see the actual path to your repository instead of \<path-to-respository\>)
 
 ```bash
 $ ./docker-compose-files/compose.sh start --timescale-test-db
 Pass: Docker compose version is 2.20.3.
 prometheus variable is: 
-Set up environment file in /home/krishna_darsipudi/projects/iDRAC-Telemetry-Reference-Tools/.env
+Set up environment file in <path-to-repository>/.env
 To run manually, run the following command line:
-docker-compose --project-directory /home/krishna_darsipudi/projects/iDRAC-Telemetry-Reference-Tools -f /home/krishna_darsipudi/projects/iDRAC-Telemetry-Reference-Tools/docker-compose-files/docker-compose.yml --profile core --profile timescale-test-db up  -d
+docker-compose --project-directory <path-to-repository> -f <path-to-repository>/docker-compose-files/docker-compose.yml --profile core --profile timescale-test-db up  -d
 
 no such service: influx
 ```
