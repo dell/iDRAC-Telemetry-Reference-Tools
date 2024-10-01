@@ -199,8 +199,6 @@ services:
   redfishread:
     <<: *refdaemon
     image: idrac-telemetry-reference-tools/redfishread:latest
-    environment:
-      SYSTEM_ID: ${SYSTEM_ID}
     build:
       <<: *base-build
       args:
@@ -360,7 +358,9 @@ services:
       - prometheus-test-db
       - timescale-test-db
     depends_on:
-      - influx
+      influx:
+        condition: service_started
+        required: false
     environment:
       <<: [*influx-env, *prometheus-env, *grafana-env]
       GF_INSTALL_PLUGINS: grafana-polystat-panel
@@ -465,7 +465,6 @@ services:
     environment:
       <<: *messagebus-env
       PROMETHEUSDB_SERVER: prometheus
-      SYSTEM_ID: ${SYSTEM_ID}
     build:
       <<: *base-build
       args:
@@ -806,30 +805,30 @@ services:
 
 # using dbdiscauth for now. dont need simple*
 #
-  simpleauth:
-    <<: *refdaemon
-    image: idrac-telemetry-reference-tools/simpleauth:latest
-    build:
-      <<: *base-build
-      args:
-        <<: *base-args
-        CMD: simpleauth
-    volumes:
-      - type: bind
-        source: ${PWD}/config.ini
-        target: /extrabin/config.ini
-        read_only: true
+  # simpleauth:
+  #   <<: *refdaemon
+  #   image: idrac-telemetry-reference-tools/simpleauth:latest
+  #   build:
+  #     <<: *base-build
+  #     args:
+  #       <<: *base-args
+  #       CMD: simpleauth
+  #   volumes:
+  #     - type: bind
+  #       source: ${PWD}/config.ini
+  #       target: /extrabin/config.ini
+  #       read_only: true
 
-  simpledisc:
-    <<: *refdaemon
-    image: idrac-telemetry-reference-tools/simpledisc:latest
-    build:
-      <<: *base-build
-      args:
-        <<: *base-args
-        CMD: simpledisc
-    volumes:
-      - type: bind
-        source: ${PWD}/config.ini
-        target: /extrabin/config.ini
-        read_only: true
+  # simpledisc:
+  #   <<: *refdaemon
+  #   image: idrac-telemetry-reference-tools/simpledisc:latest
+  #   build:
+  #     <<: *base-build
+  #     args:
+  #       <<: *base-args
+  #       CMD: simpledisc
+  #   volumes:
+  #     - type: bind
+  #       source: ${PWD}/config.ini
+  #       target: /extrabin/config.ini
+  #       read_only: true

@@ -21,8 +21,6 @@ var configStrings = map[string]string{
 	"mbhost": "activemq",
 	"mbport": "61613",
 }
- 
-var sysIdType string
 
 var collectors map[string]map[string]*prometheus.GaugeVec
 
@@ -37,8 +35,8 @@ func doFQDDGuage(value databus.DataValue, registry *prometheus.Registry) {
 				Name:      value.ID,
 			},
 			[]string{
-				//"ServiceTag",
-				sysIdType,
+				"ServiceTag",
+				"HostName",
 				"FQDD",
 			})
 		registry.MustRegister(guage)
@@ -48,7 +46,7 @@ func doFQDDGuage(value databus.DataValue, registry *prometheus.Registry) {
 				floatVal = 1
 			}
 		}
-		guage.WithLabelValues(value.System, value.Context).Set(floatVal)
+		guage.WithLabelValues(value.System, value.HostName, value.Context).Set(floatVal)
 		collectors["FQDD"][value.ID] = guage
 	} else {
 		guage := collectors["FQDD"][value.ID]
@@ -58,7 +56,7 @@ func doFQDDGuage(value databus.DataValue, registry *prometheus.Registry) {
 				floatVal = 1
 			}
 		}
-		guage.WithLabelValues(value.System, value.Context).Set(floatVal)
+		guage.WithLabelValues(value.System, value.HostName, value.Context).Set(floatVal)
 	}
 }
 
@@ -75,17 +73,17 @@ func doNonFQDDGuage(value databus.DataValue, registry *prometheus.Registry) {
 				Name:      value.ID,
 			},
 			[]string{
-				//"ServiceTag",
-				sysIdType,
+				"ServiceTag",
+				"HostName",
 			})
 		registry.MustRegister(guage)
 		floatVal, _ := strconv.ParseFloat(value.Value, 64)
-		guage.WithLabelValues(value.System).Set(floatVal)
+		guage.WithLabelValues(value.System, value.HostName).Set(floatVal)
 		collectors[value.Context][value.ID] = guage
 	} else {
 		guage := collectors[value.Context][value.ID]
 		floatVal, _ := strconv.ParseFloat(value.Value, 64)
-		guage.WithLabelValues(value.System).Set(floatVal)
+		guage.WithLabelValues(value.System, value.HostName).Set(floatVal)
 	}
 }
 
@@ -113,12 +111,6 @@ func getEnvSettings() {
 	if len(mbPort) > 0 {
 		configStrings["mbport"] = mbPort
 	}
-
-	sysIdType = os.Getenv("SYSTEM_ID")
-	if sysIdType != "HostName" {
-		sysIdType = "ServiceTag"
-	}
-	log.Println("Using SystemId : ",  sysIdType)
 }
 
 func main() {

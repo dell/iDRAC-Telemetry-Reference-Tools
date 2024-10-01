@@ -30,6 +30,7 @@ type RedfishDevice struct {
 	HasChildren  bool
 	Redfish      *redfish.RedfishClient
 	SystemID     string
+	HostName     string
 	ChildDevices map[int]string
 	Events       chan *redfish.RedfishEvent
 	State        string
@@ -88,7 +89,7 @@ func getValueIdContextAndLabel(value *redfish.RedfishPayload, i int) (string, st
 
 // Responsible for taking the report received from SSE, getting its component parts, and then sending it along the
 // data bus
-func parseReport(metricReport *redfish.RedfishPayload, systemid string, dataBusService *databus.DataBusService) {
+func parseReport(metricReport *redfish.RedfishPayload, systemid string, hostname string, dataBusService *databus.DataBusService) {
 	metricValues, err := metricReport.GetPropertyByName("MetricValues")
 	if err != nil {
 		log.Printf("%s: Unable to get metric report's MetricValues: %v %v", systemid, err, metricReport)
@@ -116,6 +117,7 @@ func parseReport(metricReport *redfish.RedfishPayload, systemid string, dataBusS
 				data.Timestamp = metricValue.Object["Timestamp"].(string)
 			}
 			data.System = systemid
+			data.HostName = hostname
 			group.Values = append(group.Values, *data)
 		}
 	}
@@ -266,7 +268,7 @@ func (r *RedfishDevice) StartEventListener(dataBusService *databus.DataBusServic
 		if event != nil && event.Payload != nil &&
 			event.Payload.Object["@odata.id"] != nil {
 			log.Printf("%s: Got new report for %s\n", r.SystemID, event.Payload.Object["@odata.id"].(string))
-			parseReport(event.Payload, r.SystemID, dataBusService)
+			parseReport(event.Payload, r.SystemID, r.HostName, dataBusService)
 		} else {
 			//log.Printf("%s: Got unknown SSE event %v\n", r.SystemID, event.Payload)
 			log.Printf("%s: Got unknown SSE event \n", r.SystemID)
@@ -314,7 +316,7 @@ func getTelemetry(r *RedfishDevice, telemetryService *redfish.RedfishPayload, da
 			log.Printf("Unable to get metric report %d: %v", i, err)
 			continue
 		}
-		parseReport(metricReport, r.SystemID, dataBusService)
+		parseReport(metricReport, r.SystemID, r.HostName, dataBusService)
 	}
 	r.State = databus.RUNNING
 	r.StartEventListener(dataBusService)
@@ -344,22 +346,21 @@ func getRedfishLce(r *RedfishDevice, eventService *redfish.RedfishPayload, dataB
 // listening for SSE events. NOTE: This expects that someone has enabled Telemetry reports and started the telemetry
 // service externally.
 func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusService) {
-	sidType := os.Getenv("SYSTEM_ID")
-	var systemID string
-	var err error
-	if sidType == "HostName" {
-		systemID, err = r.Redfish.GetHostName()
-	}
-	// fallback to svctag if hostname not found
-	if err != nil || systemID == "" {
-		systemID, err = r.Redfish.GetSystemId()
-	}
+	systemID, err := r.Redfish.GetSystemId()
 	if err != nil || systemID == "" {
 		log.Printf("%s: Failed to get system id! %v\n", r.Redfish.Hostname, err)
 		return
 	}
-	log.Printf("%s: Got System ID %s\n", r.Redfish.Hostname, systemID)
+	hostName, err := r.Redfish.GetHostName()
+	if err != nil || hostName == "" {
+		log.Printf("%s: Failed to get hostName id! %v\n", r.Redfish.Hostname, err)
+		// assume same as system id, host name cannot be empty if used as key
+		hostName = systemID
+	}
+	log.Printf("%s: Got System ID %s, Hostname %s\n", r.Redfish.Hostname, systemID, hostName)
 	r.SystemID = systemID
+	r.HostName = hostName
+
 	serviceRoot, err := r.Redfish.GetUri("/redfish/v1")
 	if err != nil {
 		log.Println(err)
@@ -380,15 +381,15 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 	}
 
 	/*
-	//Checking for EventService support
-	eventService, err := serviceRoot.GetPropertyByName("EventService")
-	if err != nil {
-		log.Println("EventService not supported...")
-		r.State = databus.TELNOTFOUND
-	} else {
-		log.Printf("%s: Event Service consumption loading...\n", r.Redfish.Hostname)
-		go getRedfishLce(r, eventService, dataBusService)
-	}
+		//Checking for EventService support
+		eventService, err := serviceRoot.GetPropertyByName("EventService")
+		if err != nil {
+			log.Println("EventService not supported...")
+			r.State = databus.TELNOTFOUND
+		} else {
+			log.Printf("%s: Event Service consumption loading...\n", r.Redfish.Hostname)
+			go getRedfishLce(r, eventService, dataBusService)
+		}
 	*/
 }
 
