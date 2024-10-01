@@ -201,7 +201,7 @@ function readFileContents(file, callback) {
 }
 function isValidIP(ip) {
     // Boolean function to check whether argument is a valid IP using regex
-    matches = ip.match('^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$')
+    var matches = ip.match('^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$')
     if (matches == null) {
         console.log("IP not valid")
         return false

@@ -20,6 +20,7 @@ type DataValue struct {
 	Label                     string
 	Value                     string
 	System                    string
+	HostName                  string
 	Timestamp                 string
 	MessageId                 string
 	EventType                 string
