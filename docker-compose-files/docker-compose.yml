@@ -358,9 +358,7 @@ services:
       - prometheus-test-db
       - timescale-test-db
     depends_on:
-      influx:
-        condition: service_started
-        required: false
+      - influx
     environment:
       <<: [*influx-env, *prometheus-env, *grafana-env]
       GF_INSTALL_PLUGINS: grafana-polystat-panel
