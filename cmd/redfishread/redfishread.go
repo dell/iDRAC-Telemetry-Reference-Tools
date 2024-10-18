@@ -26,11 +26,20 @@ var configStrings = map[string]string{
 	"inventoryurl": "/redfish/v1/Chassis/System.Embedded.1",
 }
 
+type SystemDetail struct {
+	SystemID string
+	HostName string
+	Model    string
+	SKU      string
+	FwVer    string
+	FQDN     string
+	ImgID    string
+}
+
 type RedfishDevice struct {
-	HasChildren  bool
-	Redfish      *redfish.RedfishClient
-	SystemID     string
-	HostName     string
+	HasChildren bool
+	Redfish     *redfish.RedfishClient
+	SystemDetail
 	ChildDevices map[int]string
 	Events       chan *redfish.RedfishEvent
 	State        string
@@ -89,14 +98,21 @@ func getValueIdContextAndLabel(value *redfish.RedfishPayload, i int) (string, st
 
 // Responsible for taking the report received from SSE, getting its component parts, and then sending it along the
 // data bus
-func parseReport(metricReport *redfish.RedfishPayload, systemid string, hostname string, dataBusService *databus.DataBusService) {
+func parseReport(metricReport *redfish.RedfishPayload, r *RedfishDevice, dataBusService *databus.DataBusService) {
 	metricValues, err := metricReport.GetPropertyByName("MetricValues")
 	if err != nil {
-		log.Printf("%s: Unable to get metric report's MetricValues: %v %v", systemid, err, metricReport)
+		log.Printf("%s: Unable to get metric report's MetricValues: %v %v", r.SystemID, err, metricReport)
 		return
 	}
 	group := new(databus.DataGroup)
 
+	group.HostName = r.HostName
+	group.FQDN = r.FQDN
+	group.System = r.SystemID
+	group.Model = r.Model
+	group.SKU = r.SKU
+	group.FwVer = r.FwVer
+	group.ImgID = r.ImgID
 	group.ID = metricReport.Object["Id"].(string)
 	group.Label = metricReport.Object["Name"].(string)
 	valuesSize := metricValues.GetArraySize()
@@ -116,18 +132,18 @@ func parseReport(metricReport *redfish.RedfishPayload, systemid string, hostname
 			} else {
 				data.Timestamp = metricValue.Object["Timestamp"].(string)
 			}
-			data.System = systemid
-			data.HostName = hostname
+			data.System = r.SystemID
+			data.HostName = r.HostName
 			group.Values = append(group.Values, *data)
 		}
 	}
 	dataBusService.SendGroup(*group)
 
 	dataGroupsMu.Lock()
-	if dataGroups[systemid] == nil {
-		dataGroups[systemid] = make(map[string]*databus.DataGroup)
+	if dataGroups[r.SystemID] == nil {
+		dataGroups[r.SystemID] = make(map[string]*databus.DataGroup)
 	}
-	dataGroups[systemid][group.ID] = group
+	dataGroups[r.SystemID][group.ID] = group
 	dataGroupsMu.Unlock()
 }
 
@@ -268,7 +284,7 @@ func (r *RedfishDevice) StartEventListener(dataBusService *databus.DataBusServic
 		if event != nil && event.Payload != nil &&
 			event.Payload.Object["@odata.id"] != nil {
 			log.Printf("%s: Got new report for %s\n", r.SystemID, event.Payload.Object["@odata.id"].(string))
-			parseReport(event.Payload, r.SystemID, r.HostName, dataBusService)
+			parseReport(event.Payload, r, dataBusService)
 		} else {
 			//log.Printf("%s: Got unknown SSE event %v\n", r.SystemID, event.Payload)
 			log.Printf("%s: Got unknown SSE event \n", r.SystemID)
@@ -316,7 +332,7 @@ func getTelemetry(r *RedfishDevice, telemetryService *redfish.RedfishPayload, da
 			log.Printf("Unable to get metric report %d: %v", i, err)
 			continue
 		}
-		parseReport(metricReport, r.SystemID, r.HostName, dataBusService)
+		parseReport(metricReport, r, dataBusService)
 	}
 	r.State = databus.RUNNING
 	r.StartEventListener(dataBusService)
@@ -351,7 +367,7 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 		log.Printf("%s: Failed to get system id! %v\n", r.Redfish.Hostname, err)
 		return
 	}
-	hostName, err := r.Redfish.GetHostName()
+	hostName, sku, model, fwver, fqdn, imgid, err := r.Redfish.GetSysInfo()
 	if err != nil || hostName == "" {
 		log.Printf("%s: Failed to get hostName id! %v\n", r.Redfish.Hostname, err)
 		// assume same as system id, host name cannot be empty if used as key
@@ -360,6 +376,11 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 	log.Printf("%s: Got System ID %s, Hostname %s\n", r.Redfish.Hostname, systemID, hostName)
 	r.SystemID = systemID
 	r.HostName = hostName
+	r.SKU = sku
+	r.Model = model
+	r.FwVer = fwver
+	r.FQDN = fqdn
+	r.ImgID = imgid
 
 	serviceRoot, err := r.Redfish.GetUri("/redfish/v1")
 	if err != nil {

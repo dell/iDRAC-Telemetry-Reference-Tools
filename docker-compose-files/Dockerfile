@@ -4,7 +4,7 @@ ARG USERNAME=telemetry
 ARG GROUPNAME=telemetry
 ARG CMD
 
-FROM golang:1.17 as builder
+FROM golang:1.19 as builder
 
 ARG USER_ID
 ARG GROUP_ID

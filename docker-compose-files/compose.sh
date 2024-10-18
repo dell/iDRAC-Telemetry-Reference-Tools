@@ -80,6 +80,7 @@ opts=$(getopt \
   --longoptions "prometheus-pump" \
   --longoptions "splunk-pump" \
   --longoptions "kafka-pump" \
+--longoptions "otel-pump" \
   --longoptions "elk-pump" \
   --longoptions "timescale-pump" \
   --longoptions "influx-test-db" \
@@ -117,6 +118,7 @@ while [[ $# -gt 0 ]]; do
       echo "    --kafka-pump"
       echo "    --elk-pump"
       echo "    --timescale-pump"
+echo "    --otel-pump"
       echo
       echo "  demonstration test databases:"
       echo "    --influx-test-db"
@@ -144,6 +146,10 @@ while [[ $# -gt 0 ]]; do
     --kafka-pump)
       PROFILE_ARG="$PROFILE_ARG --profile kafka-pump"
       KAFKA=1     
+      ;;
+--otel-pump)
+      PROFILE_ARG="$PROFILE_ARG --profile otel-pump"
+      OTEL=1     
       ;;
     --elk-pump)
       PROFILE_ARG="$PROFILE_ARG --profile elk-pump"
@@ -245,6 +251,24 @@ chmod 700 $topdir/.certs
   fi
 #fi
 
+if [ -z $OTEL_COLLECTOR ]; then
+    export OTEL_COLLECTOR=
+fi
+if [ -z $OTEL_TOPIC ]; then
+  export OTEL_TOPIC=
+fi
+if [ -z $OTEL_CACERT ]; then
+  export OTEL_CACERT=
+fi
+if [ -z $OTEL_CLIENT_CERT ]; then
+  export OTEL_CLIENT_CERT=
+fi
+if [ -z $OTEL_CLIENT_KEY ]; then
+  export OTEL_CLIENT_KEY=
+fi
+if [ -z $OTEL_SKIP_VERIFY]; then
+  export OTEL_SKIP_VERIFY=
+fi
  # remove dependency on setup influx-test-db
 touch $topdir/docker-compose-files/container-info-influx-pump.txt 
 touch $topdir/docker-compose-files/container-info-grafana.txt

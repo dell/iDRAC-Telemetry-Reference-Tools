@@ -128,16 +128,50 @@ func (r *RedfishClient) walkUri(uri string, res *map[string]*RedfishPayload) {
 	payload.walk(res)
 }
 
-func (r *RedfishClient) GetHostName() (string, error) {
-	serviceRoot, err := r.GetUri("/redfish/v1/Systems/System.Embedded.1?$select=HostName")
+func (r *RedfishClient) GetSysInfo() (hostname, sku, model, fwver, fqdn, imgid string, err error) {
+	serviceRoot, err := r.GetUri("/redfish/v1/Systems/System.Embedded.1?$select=HostName,SKU,Model")
 	if err != nil {
-		return "", err
+		return
 	}
 	//iDRAC
 	if serviceRoot.Object["HostName"] != nil {
-		return serviceRoot.Object["HostName"].(string), nil
+		hostname = serviceRoot.Object["HostName"].(string)
 	}
-	return "", err
+	if serviceRoot.Object["SKU"] != nil {
+		sku = serviceRoot.Object["SKU"].(string)
+	}
+	if serviceRoot.Object["Model"] != nil {
+		model = serviceRoot.Object["Model"].(string)
+	}
+
+	serviceRoot, err = r.GetUri("/redfish/v1/Managers/iDRAC.Embedded.1/EthernetInterfaces/NIC.1?$select=FQDN")
+	if err != nil {
+		return
+	}
+	//iDRAC
+	if serviceRoot.Object["FQDN"] != nil {
+		fqdn = serviceRoot.Object["FQDN"].(string)
+	}
+
+	serviceRoot, err = r.GetUri("/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion,Links")
+	if err != nil {
+		return
+	}
+	//iDRAC
+	if serviceRoot.Object["FirmwareVersion"] != nil {
+		fwver = serviceRoot.Object["FirmwareVersion"].(string)
+	}
+
+	if serviceRoot.Object["Links"] != nil {
+		act, ok := serviceRoot.Object["Links"].(map[string]interface{})["ActiveSoftwareImage"]
+		if ok {
+			imgid = act.(map[string]interface{})["@odata.id"].(string)
+			if imgid != "" {
+				imgid = imgid[strings.LastIndex(imgid, "/")+1:]
+			}
+		}
+	}
+	return
 }
 
 func (r *RedfishClient) GetSystemId() (string, error) {
@@ -356,7 +390,6 @@ func (r *RedfishClient) GetLceSSE(Ctx context.Context, event chan<- *RedfishEven
 	if err != nil {
 		return err
 	}
-	fmt.Println("GSR: GetLceSSE connection made. Ctx = ", Ctx)
 	// waiting for context to be cancelled by listening to Ctx.Done() channel
 	// if someone cancelled it, it will close the connection
 	for {
