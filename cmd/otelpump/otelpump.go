@@ -57,7 +57,7 @@ var client = &http.Client{Transport: tr}
 var clientRich = &http.Client{}
 
 var (
-	jsonStart  = []byte(`{"resourceMetrics": [{ "resource": {"attributes": [{"key":"`)
+	jsonStart  = []byte(`{"resource_metrics": [{ "resource": {"attributes": [{"key":"`)
 	jsonKey    = []byte(`"}},{"key": "`)
 	jsonInBtwn = []byte(`","value": {"stringValue":"`)
 	jsonEnd    = []byte(`"}}]},`)
@@ -203,37 +203,56 @@ func getEnvSettings() {
 }
 
 func (o *otelMeta) MarshalJSON() ([]byte, error) {
+	type metricvalue struct {
+		AsDouble *float64 `json:"asDouble,omitempty"`
+		AsInt    *int64   `json:"asInt,omitempty"`
+	}
 	type format struct {
-		Attributes    []attrMeta  `json:"attributes"`
-		STimeUnixNano string      `json:"startTimeUnixNano"`
-		TimeUnixNano  string      `json:"timeUnixNano"`
-		AsDouble      interface{} `json:"asDouble,omitempty"`
-		AsInt         interface{} `json:"asInt,omitempty"`
-		// AsString      interface{} `json:"asString,omitempty"`
+		TimeUnixNano int64    `json:"timeUnixNano"`
+		AsDouble     *float64 `json:"asDouble,omitempty"`
+		AsInt        *int64   `json:"asInt,omitempty"`
+		//Value metricvalue `json:"value"`
 	}
 
 	target := format{}
-	for attr, val := range o.attributes {
-		target.Attributes = append(target.Attributes, attrMeta{Key: attr, Value: value{StringValue: val}})
-	}
+	//for attr, val := range o.attributes {
+	//	target.Attributes = append(target.Attributes, attrMeta{Key: attr, Value: value{StringValue: val}})
+	//}
+	val := o.Value.(string)
 	switch o.valueType {
 	case "int", "int64":
-		target.AsInt = o.Value
+		asInt, err := strconv.ParseInt(val, 10, 64)
+		if err == nil {
+			//target.Value.AsInt = &asInt
+			target.AsInt = &asInt
+		}
 	case "double":
-		target.AsDouble = o.Value
+		asDouble, err := strconv.ParseFloat(val, 64)
+		if err == nil {
+			//target.Value.AsDouble = &asDouble
+			target.AsDouble = &asDouble
+		}
 	case "string":
 		// All the metrics are Gauge type, enum string to int
-		target.AsInt = "-1"
+		asInt := int64(-1)
 		enumStr := strings.ToLower(o.Value.(string))
 		logTrace(DEBUG, "enumStr ", enumStr, o.attributes)
 		if ival, ok := o.attributes["enum."+enumStr]; ok {
-			target.AsInt = ival
+			ai, err := strconv.ParseInt(ival, 10, 64)
+			if err == nil {
+				asInt = ai
+			}
 		}
+		//target.Value.AsInt = &asInt
+		target.AsInt = &asInt
 	}
 
-	target.TimeUnixNano = strconv.FormatInt(o.Time, 10) + "000000"
-	target.STimeUnixNano = strconv.FormatInt(o.Time, 10) + "000000"
-	return json.Marshal(&target)
+	//target.TimeUnixNano = strconv.FormatInt(o.Time, 10) + "000000"
+	target.TimeUnixNano = o.Time
+	//target.STimeUnixNano = strconv.FormatInt(o.Time, 10) + "000000"
+	jstr, err := json.Marshal(&target)
+	//logTrace(DEBUG, "GSR valtype target, jstr, err ", o.valueType, target, string(jstr), err)
+	return jstr, err
 }
 
 type rf2Otel struct {
@@ -266,13 +285,34 @@ func readOtelMeta() {
 		os.Exit(-1)
 	}
 
-	subcfg := cfg.Sub("MetricReport")
+	subcfg := cfg.Sub("ScopeAttrDefault")
+	if subcfg == nil {
+		logTrace(ERROR, " error, ScopeAttrDefault not found in redfishToOtel.yaml ")
+		os.Exit(-1)
+	}
+	var scopeDef = map[string]string{}
+	err = subcfg.Unmarshal(&scopeDef)
+	if err != nil {
+		logTrace(ERROR, " Unmarshal error ", err)
+		os.Exit(-1)
+	}
+	// replace _ with . in keys
+	for sa, v := range scopeDef {
+		if strings.Contains(sa, "_") {
+			delete(scopeDef, sa)
+			scopeDef[strings.Replace(sa, "_", ".", -1)] = v
+		}
+	}
+
+	subcfg = cfg.Sub("MetricReport")
 	if subcfg == nil {
 		logTrace(ERROR, " error, MetricReport not found in redfishToOtel.yaml ")
 		os.Exit(-1)
 	}
 
 	for k := range subcfg.AllSettings() {
+		metricReport := k
+		//logTrace(DEBUG, " Process metricReport ", metricReport)
 		subcfg2 := subcfg.Sub(k)
 		if subcfg2 == nil {
 			logTrace(WARN, " nil subcfg for ", k)
@@ -287,9 +327,9 @@ func readOtelMeta() {
 		}
 
 		for sa, v := range r2o.ScopeAttr {
-			if strings.Contains(sa, "_dot_") {
+			if strings.Contains(sa, "_") {
 				delete(r2o.ScopeAttr, sa)
-				r2o.ScopeAttr[strings.Replace(sa, "_dot_", ".", 1)] = v
+				r2o.ScopeAttr[strings.Replace(sa, "_", ".", -1)] = v
 			}
 		}
 		logTrace(DEBUG, " r2o: scopeattr ", r2o.ScopeAttr)
@@ -322,6 +362,11 @@ func readOtelMeta() {
 				continue
 			}
 			om.attributes = make(map[string]string)
+			// default scope
+			for k, v := range scopeDef {
+				om.attributes[k] = v
+			}
+			// override local scope
 			for k, v := range r2o.ScopeAttr {
 				om.attributes[k] = v
 			}
@@ -332,6 +377,11 @@ func readOtelMeta() {
 				for k, v := range am {
 					om.attributes[k] = v.(string)
 				}
+			}
+
+			// TemperatureReading common metric across some metric reports
+			if rnm == "TemperatureReading" {
+				rnm = metricReport + ":" + rnm
 			}
 			idrac2Otel[rnm] = om
 			// logTrace(DEBUG, "otelMeta ", om)
@@ -357,6 +407,14 @@ func PostOtelMetrics(url string, reader io.Reader) (io.ReadCloser, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		//
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading response body: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(string(body))
+		//
 		return nil, fmt.Errorf("http POST request failed for %s with Error code %d", // do not chnage the message format
 			url, resp.StatusCode)
 	}
@@ -382,11 +440,11 @@ func writeotel(otelM otelMeta, tele telemetryMetric, w io.Writer) {
 	if otelM.attributes == nil {
 		return
 	}
-	otelM.attributes["name"] = tele.Oem.Dell.FQDD
-	otelM.attributes["id"] = tele.Oem.Dell.FQDD
+	//otelM.attributes["name"] = tele.Oem.Dell.FQDD
+	//otelM.attributes["id"] = tele.Oem.Dell.FQDD
 	otelM.Value = tele.MetricValue
 	thetime, _ := time.Parse(time.RFC3339, tele.Timestamp)
-	otelM.Time = thetime.UnixMilli()
+	otelM.Time = thetime.UnixNano()
 	err := json.NewEncoder(w).Encode(&otelM)
 	if err != nil {
 		if err != io.ErrClosedPipe {
@@ -397,6 +455,44 @@ func writeotel(otelM otelMeta, tele telemetryMetric, w io.Writer) {
 	}
 }
 
+type scope struct {
+	Attributes []attrMeta `json:"attributes"`
+}
+
+func writeBytes(s string, w io.Writer) {
+	_, err := w.Write([]byte(s))
+	if err != nil {
+		logTrace(ERROR, "writeBytes ", err)
+	}
+}
+func addScopeMetric(otelM otelMeta, m telemetryMetric, w io.Writer) error {
+	var s scope
+
+	for attr, val := range otelM.attributes {
+		switch val {
+		case "var-FQDD":
+			val = m.Oem.Dell.FQDD
+		case "var-Timestamp":
+			thetime, _ := time.Parse(time.RFC3339, m.Timestamp)
+			val = strconv.FormatInt(thetime.UnixMilli(), 10) + "000000"
+		}
+		s.Attributes = append(s.Attributes, attrMeta{Key: attr, Value: value{StringValue: val}})
+	}
+	writeBytes("\"scope\": ", w)
+
+	a, err := json.Marshal(&s)
+	if err != nil {
+		logTrace(ERROR, "addScopeMetric(): ", err)
+		return err
+	}
+	_, err = w.Write(a)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func InsertMetricReportData(group *databus.DataGroup, w io.Writer) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -404,7 +500,8 @@ func InsertMetricReportData(group *databus.DataGroup, w io.Writer) {
 		}
 	}()
 	var m telemetryMetric
-	metricNameLast := ""
+	lastMetric := ""
+	lastFQDD := ""
 	btwn := "\","
 
 	for _, value := range group.Values {
@@ -413,6 +510,9 @@ func InsertMetricReportData(group *databus.DataGroup, w io.Writer) {
 			continue
 		}
 		// map iDRAC metric to Otel meta
+		if m.MetricId == "TemperatureReading" {
+			m.MetricId = strings.ToLower(group.ID) + ":" + m.MetricId
+		}
 		otelM, ok := idrac2Otel[m.MetricId]
 		if !ok || otelM.name == "" {
 			logTrace(WARN, "OtelMeta not found for the redfish MetricId ", m.MetricId)
@@ -425,35 +525,50 @@ func InsertMetricReportData(group *databus.DataGroup, w io.Writer) {
 		// m.Oem.Dell.Source = dell["Source"].(string)   // TODO: add source
 		m.Oem.Dell.ContextId = value.Context
 
-		// metric object separator
-		if metricNameLast != "" {
-			_, err := w.Write([]byte(","))
+		// Generate Scope attributes
+		if lastFQDD != m.Oem.Dell.FQDD {
+			if lastFQDD != "" {
+				// end data_point object
+				writeBytes("]}}", w)
+
+				// close metric-array and scope_metric and start new
+				writeBytes("]},{", w)
+
+			} else {
+				// start first scope_metric
+				writeBytes("{", w)
+			}
+			lastFQDD = m.Oem.Dell.FQDD
+			err := addScopeMetric(otelM, m, w)
 			if err != nil {
-				//logTrace(ERROR, "InsertMetricReportData(): ", err)
 				return
 			}
+			// start metric-array
+			writeBytes(",\"metrics\":[", w)
+			lastMetric = ""
 		}
-		// start metric object
-		_, err := w.Write([]byte("{\"name\":\"" + otelM.name + btwn +
-			"\"description\": \"" + otelM.description + btwn +
-			"\"unit\": \"" + otelM.unit + btwn +
-			"\"gauge\":{\"dataPoints\": ["))
-		if err != nil {
-			//logTrace(ERROR, "InsertMetricReportData(): ", err)
-			return
+		if lastMetric != otelM.name {
+			// end data_point object
+			if lastMetric != "" {
+				writeBytes("]}},", w)
+			}
+			// start metric object
+			writeBytes("{\"name\":\""+otelM.name+btwn+
+				"\"description\": \""+otelM.description+btwn+
+				"\"unit\": \""+otelM.unit+btwn+
+				"\"gauge\":{\"data_points\": [", w)
+		}
+		// metric or data_point object separator
+		if lastMetric == otelM.name {
+			writeBytes(",", w)
 		}
 
 		// data points
 		writeotel(otelM, m, w)
 
-		// end metric object
-		_, err = w.Write([]byte("]}}"))
-		if err != nil {
-			//logTrace(ERROR, "InsertMetricReportData(): ", err)
-			return
-		}
-		metricNameLast = m.MetricId
+		lastMetric = otelM.name
 	}
+	writeBytes("]}}", w)
 }
 
 func initOtelCollectorTransport(caCert, clientCert, clientKey string, skipVerify bool) {
@@ -503,15 +618,18 @@ func convertAndSendOtelMetrics(groupsChan chan *databus.DataGroup, ocUrl string)
 	logTrace(DEBUG, "convertMetricsToOtel ")
 	for {
 		group := <-groupsChan
+		if group.ID == "MemoryMetrics" {
+			continue
+		}
 		reader, writer := io.Pipe()
 		go func() {
 			logTrace(INFO, "parsing report ", group.ID)
 			hostInfo := map[string]string{
-				"host.image.id":      group.ImgID, // TODO: Id ?
-				"host.image.version": group.FwVer,
-				"host.id":            group.SKU,
-				"host.name":          group.FQDN,
-				"host.type":          group.Model,
+				"host.type": "PowerEdge",
+				//"collection.time": strconv.FormatInt(time.Now().UnixMilli(), 10) + "000000",
+				"host.id":    group.SKU,
+				"host.name":  group.FQDN,
+				"host.model": group.Model,
 			}
 			defer writer.Close()
 			fmt.Fprint(writer, string(jsonStart))
@@ -527,18 +645,11 @@ func convertAndSendOtelMetrics(groupsChan chan *databus.DataGroup, ocUrl string)
 				fmt.Fprint(writer, value)
 			}
 			fmt.Fprint(writer, string(jsonEnd))
-			_, err := writer.Write(
-				[]byte("\"scopeMetrics\": [{ \"scope\":{\"name\":\"otelcol/redfishreceiver\",\"version\":\"1.0.0\"},\"metrics\":["))
-			if err != nil {
-				//logTrace(ERROR, "convertAndSendOtelMetrics(): ", err)
-				return
-			}
+			writeBytes("\"scope_metrics\": [", writer)
+
 			InsertMetricReportData(group, writer)
-			// close metric array
-			_, err = writer.Write([]byte("]}]}]}"))
-			if err != nil {
-				//logTrace(ERROR, "convertAndSendOtelMetrics(): ", err)
-			}
+			// close scope_metrics array and resource array
+			writeBytes("]}]}]}", writer)
 		}()
 
 		// send to OTEL Collector

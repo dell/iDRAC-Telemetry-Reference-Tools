@@ -382,6 +382,8 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 	r.FQDN = fqdn
 	r.ImgID = imgid
 
+	r.Redfish.FwVer = fwver
+
 	serviceRoot, err := r.Redfish.GetUri("/redfish/v1")
 	if err != nil {
 		log.Println(err)

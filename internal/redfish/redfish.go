@@ -17,6 +17,11 @@ import (
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/sse"
 )
 
+const (
+	mrSSEFilter    = "?$filter=EventFormatType%20eq%20MetricReport"
+	mrSSEFilter17G = "?$filter=EventFormatType%20eq%20%27MetricReport%27"
+)
+
 type RedfishClient struct {
 	Hostname    string
 	Username    string
@@ -24,6 +29,7 @@ type RedfishClient struct {
 	BearerToken string
 	HttpClient  *http.Client
 	IsIPv6      int
+	FwVer       string
 }
 
 type RedfishEvent struct {
@@ -277,7 +283,11 @@ func (r *RedfishClient) GetMetricReportsSSE(Ctx context.Context, event chan<- *R
 	sseConfig.Client = r.HttpClient
 	lastTS := time.Now() // Variable to hold the latest event timestamp
 	sseConfig.RequestCreator = func() *http.Request {
-		req, err := http.NewRequest("GET", sseURI+"?$filter=EventFormatType%20eq%20MetricReport", nil)
+		filter := mrSSEFilter
+		if strings.Compare(r.FwVer, "4.00.00.00") < 0 {
+			filter = mrSSEFilter17G
+		}
+		req, err := http.NewRequest("GET", sseURI+filter, nil)
 		if err != nil {
 			return nil
 		}

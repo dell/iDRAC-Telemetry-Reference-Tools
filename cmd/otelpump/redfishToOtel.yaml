@@ -1,1689 +1,1433 @@
 redfishMetricToOtel:
-  
+
+ScopeAttrDefault:
+    collection_object_type: "ComputerSystem"
+    collection_object_id: "var-FQDD"
+    collection_metric_type: "PERFORMANCE"
+    collection_time: "var-Timestamp"
+    collection_version: "1.0.7"
+
 MetricReport:
   AggregationMetrics:
-    scopeAttr:
-      hw_DOT_type: "aggregate"
-      id: "FQDD"
-      name: "FQDD"
-      parent: "optional"
 
     metric:
       - redfishName: "SystemAvgInletTempHour"
-        otelMetricName: "hw.host.avg_inlet_temperature"
+        otelMetricName: "system.inlet.temperature.avg"
         otelType: "double"
         description: "Average Inlet temperature for the last hour"
-        unit: "Cel"
+        units: "Cel"
 
       - redfishName: "SystemMaxInletTempHour"
-        otelMetricName: "hw.host.max_inlet_temperature"
+        otelMetricName: "system.inlet.temperature.max"
         otelType: "double"
         description: "Peak Inlet temperature for the last hour"
-        unit: "Cel"
+        units: "Cel"
 
       - redfishName: "SystemMaxPowerConsumption"
-        otelMetricName: "hw.host.max_power_consumption"
+        otelMetricName: "system.power.consumption.max"
         otelType: "double"
         description: "Peak system power consumption"
-        unit: "W"
+        units: "W"
 
   CPUMemMetrics:
     scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      hw_DOT_type: "cpu" 
-      parent: "chassis"
-      model: "Model"
-      vendor: "Manufacturer"
-      
+      collection_object_type: "Processor"
+
     metric:
       - redfishName: "CPUC0ResidencyLow"
-        otelMetricName: "hw.cpu.c0.residencylow" 
+        otelMetricName: "hw.cpu.c0.residencylow"
         otelType: "int"
         description: "32 LSBs of the 64-bit counter containing the aggregate C0 residency count from all the cores"
-        unit: ""
 
       - redfishName: "CPUC0ResidencyHigh"
-        otelMetricName: "hw.cpu.c0.residencyhigh" 
+        otelMetricName: "hw.cpu.c0.residencyhigh"
         otelType: "int"
         description: "32 MSBs of the 64-bit counter containing the aggregate C0 residency count from all the cores"
-        unit: ""
 
-      - redfishName: "CUPSIIOBandwidthDMI" 
+      - redfishName: "CUPSIIOBandwidthDMI"
         otelMetricName: "hw.cpu.iiobandwidth.dmi"
         otelType: "double"
         description: "Utilization counter of the DMI Port"
-        unit: "%"
+        units: "%"
 
       - redfishName: "CUPSIIOBandwidthPort0"
         otelMetricName: "hw.cpu.iiobandwidth.port0"
         otelType: "double"
         description: "Utilization counter of the integrated IO Port on a per x16 port granularity"
-        unit: "%"
+        units: "%"
 
       - redfishName: "CUPSIIOBandwidthPort1"
         otelMetricName: "hw.cpu.iiobandwidth.port1"
         otelType: "double"
         description: "Utilization counter of the integrated IO Port on a per x16 port granularity"
-        unit: "%"
+        units: "%"
 
       - redfishName: "CUPSIIOBandwidthPort2"
         otelMetricName: "hw.cpu.iiobandwidth.port2"
         otelType: "double"
         description: "Utilization counter of the integrated IO Port on a per x16 port granularity"
-        unit: "%"
+        units: "%"
 
       - redfishName: "CUPSIIOBandwidthPort3"
         otelMetricName: "hw.cpu.iiobandwidth.port3"
         otelType: "double"
         description: "Utilization counter of the integrated IO Port on a per x16 port granularity"
-        unit: "%"
+        units: "%"
 
       - redfishName: "NonC0ResidencyLow"
         otelMetricName: "hw.cpu.nonc0.residencylow"
         otelType: "int"
         description: "32 LSBs of the 64-bit counter containing number of Package C2 and C6 cycles"
-        unit: ""
+
 
       - redfishName: "NonC0ResidencyHigh"
         otelMetricName: "hw.cpu.nonc0.residencyhigh"
         otelType: "int"
         description: "32 MSBs of the 64-bit counter containing number of Package C2 and C6 cycles"
-        unit: ""
+
 
       - redfishName: "AvgFrequencyAcrossCores"
         otelMetricName: "hw.cpu.avg.frequency_across_cores"
         otelType: "double"
         description: "Average CPU frequency across all the cores"
-        unit: "MHz"
+        units: "MHz"
 
       - redfishName: "CPUPkgEnergy"
         otelMetricName: "hw.cpu.pkg.energy"
         otelType: "double"
         description: "Accumulated energy consumed by the CPU Package"
-        unit: uJ
+        units: uJ
 
       - redfishName: "DRAMPkgEnergy"
         otelMetricName: "hw.cpu.dram.pkg.energy"
         otelType: "double"
         description: "Accumulated DRAM energy consumed by all the DIMMs in all the channels."
-        unit: uJ
+        units: uJ
 
       - redfishName: "LimitingEvents"
         otelMetricName: "hw.cpu.limiting.events"
         otelType: "int"
         description: "Provides indications of reasons for performance being limited, 0 - IA32_PERF_LIMIT_REASONS; 1 - IA32_CLM_PERF_LIMIT_REASONS"
-        unit: ""
+
 
       - redfishName: "EnergyTimestamp"
         otelMetricName: "hw.cpu.energy.timestamp"
         otelType: "int64"
         description: "Timestamp reported with the most recently acquired Energy reading as taken from UNCORE Time Stamp counter."
-        unit: "msec"
+        units: "msec"
 
       - redfishName: "PkgPwr"
         otelMetricName: "hw.cpu.pkg.pwr"
         otelType: "double"
         description: "CPU package power."
-        unit: "W"
+        units: "W"
 
       - redfishName: "DRAMPwr"
         otelMetricName: "hw.cpu.dram.pwr"
         otelType: "double"
         description: "DRAM power used by all the DIMMs on all the channels."
-        unit: "W"
+        units: "W"
 
       - redfishName: "PkgThermalStatus"
         otelMetricName: "hw.cpu.thermal.status"
         otelType: "int"
         description: "The register includes status and log bits for TCC activation PROCHOT_N assertion and Critical Temperature."
-        unit: ""
-
 
       - redfishName: "ThermalCrtlCircuitActivation"
         otelMetricName: "hw.cpu.thermal.ctrl_circuit.activation"
         otelType: "int64"
         description: "Read the time for which the processor has been operating in a lowered power state due to internal TCC activation."
-        unit: "mS"
+        units: "mS"
 
       - redfishName: "DRAMThrottling"
         otelMetricName: "hw.cpu.dram.throttling"
         otelType: "int64"
         description: "Read sum of all time durations for which each DIMM has been throttled."
-        unit: "mS"
+        units: "mS"
 
       - redfishName: "TJMax"
         otelMetricName: "hw.cpu.tjmax"
         otelType: "int"
         description: "Prochot temperature where the Thermal Monitor is activated. Alternatively named Throttle Temperature or maximum junction temperature."
-        unit: "Cel"
+        units: "Cel"
 
       - redfishName: "CPUEpi"
         otelMetricName: "hw.cpu.cpu_epi"
         otelType: "int"
         description: "Provides an approximation of the total instructions retired per time unit (i.e. not idle or not stalled for memory etc). It is used by the platform to distribute power across the sockets."
-        unit: "mS"
+        units: "mS"
 
       - redfishName: "CPUViolationCounter"
         otelMetricName: "hw.cpu.cpu_violation.counter"
         otelType: "int64"
         description: "Accumulated CPU throttle time. Duration for which processor was throttled below PERF_CTL (Host OS) request due to power limit."
-        unit: "mS"
+        units: "mS"
 
       - redfishName: "CPULimitingCounter"
         otelMetricName: "hw.cpu.cpu_limiting.counter"
         otelType: "int64"
         description: "Duration for which RAPL power limit determined the socket operating condition."
-        unit: "mS"
+        units: "mS"
 
       - redfishName: "DDRLimitingCounter"
         otelMetricName: "hw.cpu.ddr_limiting.counter"
         otelType: "int64"
         description: "Accumulated DRAM throttle time. Read sum of all time durations for which each DIMM has been throttled."
-        unit: "mS"
+        units: "mS"
 
       - redfishName: "TCtrl"
         otelMetricName: "hw.cpu.tctrl"
         otelType: "int"
         description: "Value that indicates the relative offset below Prochot temperature at which fans should be engaged."
-        unit: "Cel"
+        units: "Cel"
 
       - redfishName: "CPUAvgPbmRatioCounterLow"
         otelMetricName: "hw.cpu.pbm.ration.counterlow"
         otelType: "int64"
         description: "CPU Average PBM ratio counter"
-        unit: ""
+
 
       - redfishName: "AccCoreCyclesLow"
         otelMetricName: "hw.cpu.acc.cycleslow"
         otelType: "int64"
         description: "32 LSBs of the 64-bit counter containing accumulated Cx cycles of all enabled cores."
-        unit: ""
+
 
       - redfishName: "AccCoreCyclesHigh"
         otelMetricName: "hw.cpu.acc.cyclehigh"
         otelType: "int64"
         description: "32 MSBs of the 64-bit counter containing accumulated Cx cycles of all enabled cores."
-        unit: ""
+
 
       - redfishName: "UncoreClocksLow"
         otelMetricName: "hw.cpu.uncore.clockslow"
         otelType: "int64"
         description: "32 LSBs of the 64-bit counter with Uncore (Mesh) clocks."
-        unit: ""
+
 
       - redfishName: "UncoreClocksHigh"
         otelMetricName: "hw.cpu.uncore.clockshigh"
         otelType: "int64"
         description: "32 MSBs of the 64-bit counter with Uncore (Mesh) clocks."
-        unit: ""
+
 
       - redfishName: "OperatingSpeedMHz"
         otelMetricName: "hw.cpu.speed"
         otelType: "int"
         description: "CPU operating speed in MHz"
-        unit: "MHz"
+        units: "MHz"
 
       - redfishName: "MaxSpeedMHz"
         otelMetricName: "hw.cpu.speed.limit"
         otelType: "int"
         description: "Maximum CPU speed in MHz"
-        unit: "MHz"
+        units: "MHz"
 
       - redfishName: "Status"
         otelMetricName: "hw.status"
         otelType: "int"
         description: "CPU status"
-        unit: ""
+
 
   CPUSensor:
     scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "temperature"
-      
+      collection_object_type: "Processor"
+
     metric:
       - redfishName: "TemperatureReading"
-        otelMetricName: "hw.temperature" 
+        otelMetricName: "hw.cpu.temperature"
         otelType: "double"
         description: "Temperature sensor reading in Celsius"
-        unit: "Cel"
+        units: "Cel"
 
       - redfishName: "LowerThresholdCritical"
-        otelMetricName: "hw.temperature.limit"
+        otelMetricName: "hw.cpu.temperature.lower_threshold.critical"
         otelType: "int"
-        attr: { "limit.type":"LowerThresholdCritical"}
-        unit: ""
 
       - redfishName: "LowerThresholdNonCritical"
-        otelMetricName: "hw.temperature.limit"
+        otelMetricName: "hw.cputemperature.lower_threshold.noncritical"
         otelType: "int"
-        attr: { "limit.type":"LowerThresholdNonCritical"}
-        unit: ""
 
       - redfishName: "UpperThresholdNonCritical"
-        otelMetricName: "hw.temperature.limit"
+        otelMetricName: "hw.cpu.temperature.upper_threshold.noncritical"
         otelType: "int"
-        attr: { "limit.type":"UpperThresholdNonCritical"}
-        unit: ""
 
       - redfishName: "UpperThresholdCritical"
-        otelMetricName: "hw.temperature.limit"
+        otelMetricName: "hw.cpu.temperature.upper_threshold.critical"
         otelType: "int"
-        attr: { "limit.type":"UpperThresholdCritical"}
-        unit: ""
 
       - redfishName: "PrimaryStatus"
-        otelMetricName: "hw.status"
+        otelMetricName: "hw.cpu.primarystatus"
         otelType: "int"
-        unit: ""
+
 
   FanSensor:
     scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "fan"
+      collection_object_type: "Fan"
 
     metric:
       - redfishName: "RPMReading"
-        otelMetricName: "hw.fan.speed" 
+        otelMetricName: "hw.fan.speed"
         otelType: "double"
         description: "Current reading specific to the sensor"
-        unit: "RPM"
+        units: "RPM"
 
       - redfishName: "LowerThresholdCritical"
-        otelMetricName: "hw.fan.speed.limit"
+        otelMetricName: "hw.fan.speed.lower_threshold_critical"
         otelType: "int"
-        attr: { "limit.type":"LowerGPUThresholdCritical"}
-        unit: ""
 
       - redfishName: "LowerThresholdNonCritical"
-        otelMetricName: "hw.fan.speed.limit"
+        otelMetricName: "hw.fan.speed.lower_threshold_non_critical"
         otelType: "int"
-        attr: { "limit.type":"LowerThresholdNonCritical"}
-        unit: ""
 
       - redfishName: "UpperThresholdNonCritical"
-        otelMetricName: "hw.fan.speed.limit"
+        otelMetricName: "hw.fan.speed.upper_threshold_non_critical"
         otelType: "int"
-        attr: { "limit.type":"UpperThresholdNonCritical"}
-        unit: ""
 
       - redfishName: "UpperThresholdCritical"
-        otelMetricName: "hw.fan.speed.limit"
+        otelMetricName: "hw.fan.speed.upper_threshold_critical"
         otelType: "int"
-        attr: { "limit.type":"UpperThresholdCritical"}
-        unit: ""
 
       - redfishName: "PrimaryStatus"
-        otelMetricName: "hw.status"
+        otelMetricName: "hw.fan.primarystatus"
         otelType: "int"
-        unit: ""
+
 
   FCPortStatistics:
-    scopeAttr: 
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "fc"
+    scopeAttr:
+      collection_object_type: "DellFC"
 
     metric:
       - redfishName: "FCInvalidCRCs"
-        otelMetricName: "hw.errors"
+        otelMetricName: "network.fc.invalidcrcs"
         otelType: "int"
         description: "This property represents the count of invalid CRCs"
-        attr: {"hw.error.type":"invalid_crc", "hw.type":"fc"}
-        unit: ""
 
       - redfishName: "FCLinkFailures"
-        otelMetricName: "hw.errors"
+        otelMetricName: "network.fc.link.failures"
         otelType: "int"
         description: "This property represents the number of link failures"
-        attr: {" hw.error.type":"link_failure", "hw.type":"fc"}
-        unit: ""
+
 
       - redfishName: "FCLossOfSignals"
-        otelMetricName: "hw.errors"
+        otelMetricName: "network.fc.signal.loss"
         otelType: "int"
         description: "This property represents the lost signals count"
-        attr: {"hw.error.type":"loss_of_signal", "hw.type":"fc"}
-        unit: ""
-        
+
       - redfishName: "FCRxKBCount"
-        otelMetricName: "hw.fc.io"
+        otelMetricName: "network.fc.rx.bytes.kb"
         otelType: "int"
         description: "This property represents the total KBs received"
-        unit: "KB"
-        attr: {"direction":"receive"}
+        units: "KB"
 
       - redfishName: "FCRxSequences"
-        otelMetricName: "hw.fc.sequences"
+        otelMetricName: "network.fc.rx.sequences"
         otelType: "int"
         description: "This property represents the FC sequences received"
-        attr: {"direction":"receive"}
-        unit: ""
 
       - redfishName: "FCRxTotalFrames"
-        otelMetricName: "hw.fc.frames"
+        otelMetricName: "network.fc.rx.frames.total"
         otelType: "int"
         description: "Specifies the total FC frames received"
-        attr: {"direction":"receive"}
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "FCTxKBCount"
-        otelMetricName: "hw.fc.io"
+        otelMetricName: "network.fc.tx.bytes.kb"
         otelType: "int"
         description: "This property represents the total KBs transmitted"
-        attr: {"direction":"transmit"}
-        unit: "KB"
+        units: "KB"
 
       - redfishName: "FCTxSequences"
-        otelMetricName: "hw.fc.sequences"
+        otelMetricName: "network.fc.tx.sequences"
         otelType: "int"
         description: "This property represents the FC sequences transmitted"
-        attr: {"direction":"transmit"}
-        unit: ""
 
       - redfishName: "FCTxTotalFrames"
-        otelMetricName: "hw.fc.frames"
+        otelMetricName: "network.fc.tx.frames.total"
         otelType: "int"
         description: "Specifies the total FC frames transmitted"
-        attr: {"direction":"transmit"}
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "FCStatOSDriverState"
-        otelMetricName: "hw.fc.os.state" 
+        otelMetricName: "network.fc.os.driverstate"
         otelType: "string"
         description: "This property indicates the OS driver state"
         attr: {"enum.Other": "0", "enum.Not Applicable": "1", "enum.Non-operational": "2", "enum.Operational": "3", "enum.Unknown": "4"}
-        unit: ""
 
       - redfishName: "PortSpeed"
-        otelMetricName: "hw.fc.port.speed"
+        otelMetricName: "network.fc.port.speed"
         otelType: "string"
         description: "Specifies the port speed"
         attr: {"enum.No Link": "0", "enum.2 Gbps": "1", "enum.4 Gbps": "2", "enum.8 Gbps": "3", "enum.16 Gbps": "4", "enum.32 Gbps": "5", "enum.64 Gbps": "6", "enum.128 Gbps": "7", "enum.256 Gbps": "8", "enum.Unknown": "9"}
-        unit: ""
 
       - redfishName: "PortStatus"
-        otelMetricName: "hw.fc.port.speed"
+        otelMetricName: "network.fc.port.status"
         otelType: "string"
         description: "FC port status"
         attr: {"enum.Down": "0", "enum.Up": "1", "enum.Unknown": "2"}
-        unit: ""
+
 
   FCSensor:
     scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "temperature"
+      collection_object_type: "DellFC"
 
     metric:
       - redfishName: "TemperatureReading"
-        otelMetricName: "hw.temperature"
+        otelMetricName: "hw.fc.temperature"
         otelType: "double"
         description: "Temperature sensor reading in Celsius"
-        unit: "Cel"
+        units: "Cel"
 
   FPGASensor:
     scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "temperature"
+      collection_object_type: "DellFPGA"
 
     metric:
       - redfishName: "TemperatureReading"
-        otelMetricName: "hw.temperature"
+        otelMetricName: "hw.fpga.temperature"
         otelType: "double"
         description: "Temperature sensor reading in Celsius"
-        unit: "Cel"
+        units: "Cel"
 
   GPUMetrics:
     scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "temperature"
+      collection_object_type: "DellVideo"
 
     metric:
       - redfishName: "BoardPowerSupplyStatus"
-        otelMetricName: "hw.gpu.board.power_supply.status" 
+        otelMetricName: "hw.gpu.board.powersupply.status"
         otelType: "string"
         description: "GPU board power supply status"
         attr: {"enum.UnderPowered": "0", "enum.SufficientPower": "1", "enum.Not Applicable": "2"}
-        unit: ""
+
 
       - redfishName: "BoardTemperature"
         otelMetricName: "hw.gpu.board.temperature"
         otelType: "double"
         description: "Temperature (degrees C) on GPU board, if supported"
-        unit: "Cel"
+        units: "Cel"
 
       - redfishName: "GPUHealth"
         otelMetricName: "hw.gpu.health"
         otelType: "string"
         description: "GPU health status"
         attr: {"enum.Unknown":"0", "enum.OK":"1", "enum.Degraded":"2", "enum.Critical":"3"}
-        unit: ""
+
 
       - redfishName: "GPUMemoryUsage"
         otelMetricName: "hw.gpu.memory.usage"
         otelType: "double"
         description: "GPU Memory Usage Percent"
-        unit: "%"
+        units: "%"
 
       - redfishName: "GPUUsage"
         otelMetricName: "hw.gpu.usage"
         otelType: "double"
         description: "GPU Usage Percent"
-        unit: "%"
+        units: "%"
 
       - redfishName: "GPUMemoryClockFrequency"
-        otelMetricName: "hw.gpu.memory.clock_frequency"
+        otelMetricName: "hw.gpu.memory.clock.frequency"
         otelType: "double"
         description: "GPU Memory Clock Frequency"
-        unit: "MHz"
-        
+        units: "MHz"
+
       - redfishName: "GPUClockFrequency"
-        otelMetricName: "hw.gpu.clock_frequency"
+        otelMetricName: "hw.gpu.clock.frequency"
         otelType: "double"
         description: "GPU Clock Frequency"
-        unit: "MHz"
+        units: "MHz"
 
       - redfishName: "GPUStatus"
         otelMetricName: "hw.gpu.status"
-        otelType: "string"      
+        otelType: "string"
         description: "GPU Availability Status"
         attr: {"enum.Available": "0", "enum.Unavailable": "1", "enum.Not Applicable": "2"}
-        unit: ""
+
 
       - redfishName: "MemoryTemperature"
         otelMetricName: "hw.gpu.memory.temperature"
         otelType: "double"
         description: "Temperature (degrees C)  on GPU memory , if supported"
-        unit: "Cel"
+        units: "Cel"
 
       - redfishName: "PowerBrakeState"
-        otelMetricName: "hw.gpu.power_brake.state" 
+        otelMetricName: "hw.gpu.powerbrake.state"
         otelType: "string"
         description: "Power brake state"
         attr: {"enum.Released": "0", "enum.Set": "1", "enum.Not Applicable": "2"}
-        unit: ""
+
 
       - redfishName: "PowerConsumption"
         otelMetricName: "hw.gpu.power.consumption"
         otelType: "double"
         description: "Total GPU board power consumption in mWatts (100mW resolution)"
-        unit: "mW"
-
+        units: "mW"
       - redfishName: "PowerSupplyStatus"
-        otelMetricName: "hw.gpu.power_supply.status"
+        otelMetricName: "hw.gpu.powersupply.status"
         otelType: "string"
         description: "Specifies Power supply status"
         attr: {"enum.Disabled": "0", "enum.Enabled": "1", "enum.Not Applicable": "2"}
-        unit: ""
+
 
       - redfishName: "PrimaryTemperature"
         otelMetricName: "hw.gpu.primary.temperature"
         otelType: "double"
         description: "Temperature (degrees C)  on primary GPU"
-        unit: "Cel"
+        units: "Cel"
 
       - redfishName: "SecondaryTemperature"
         otelMetricName: "hw.gpu.secondary.temperature"
         otelType: "double"
         description: "Temperature (degrees C)  on secondary GPU in dual GPU boards"
-        unit: "Cel"
+        units: "Cel"
 
       - redfishName: "ThermalAlertState"
-        otelMetricName: "hw.gpu.thermal_alert.state"
+        otelMetricName: "hw.gpu.thermal.alert.state"
         otelType: "string"
         description: "Thermal alert state"
         attr: {"enum.NotPending": "0", "enum.Pending": "1", "enum.Not Applicable": "2"}
-        unit: ""
+
 
   MemorySensor:
     scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "temperature"
+      collection_object_type: "Memory"
 
     metric:
       - redfishName: "TemperatureReading"
-        otelMetricName: "hw.temperature"
+        otelMetricName: "hw.memory.temperature"
         otelType: "double"
         description: "Temperature sensor reading in Celsius"
-        unit: "Cel"
+        units: "Cel"
 
   NICSensor:
     scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "temperature"
+      collection_object_type: "DellNIC"
 
     metric:
       - redfishName: "TemperatureReading"
-        otelMetricName: "hw.temperature"
+        otelMetricName: "hw.nic.temperature"
         otelType: "double"
         description: "Temperature sensor reading in Celsius"
-        unit: "Cel"
+        units: "Cel"
 
   NICStatistics:
     scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "network"
-      model: "model"
-      serial_number: "sn"
-      vendor: "vendor"
-      physical_address: "pa"
+      collection_object_type: "DellNIC"
 
     metric:
       - redfishName: "OSDriverState"
-        otelMetricName: "hw.network.os.state"
+        otelMetricName: "network.eth.os.state"
         otelType: "string"
         attr: {"enum.Non-operational":"0", "enum.Operational":"1", "enum.Unknown":"2"}
         description: "Indicates operating system driver states (Unknown, Operational, Non-operational)"
-        unit: ""
 
       - redfishName: "LinkStatus"
-        otelMetricName: "hw.network.up"
+        otelMetricName: "network.eth.link.status"
         otelType: "string"
         attr: {"enum.Down":"0", "enum.Up":"1", "enum.Unknown":"2"}
         description: "Indicates whether the link is up or down"
-        unit: ""
 
       - redfishName: "PartitionLinkStatus"
-        otelMetricName: "hw.network.partition.up"
+        otelMetricName: "network.eth.partition.link.status"
         otelType: "string"
         attr: {"enum.Down":"0", "enum.Up":"1", "enum.Unknown":"2"}
         description: "Indicates whether the partition link is up or down"
-        unit: ""
 
       - redfishName: "PartitionOSDriverState"
-        otelMetricName: "hw.network.partition.os.state"
+        otelMetricName: "network.eth.partition.os.driver.state"
         otelType: "string"
         attr: {"enum.Non-operational":"0", "enum.Operational":"1", "enum.Unknown":"2"}
         description: "Indicates partitions operating system driver states"
-        unit: ""
 
       - redfishName: "TxBytes"
-        otelMetricName: "hw.network.io"
+        otelMetricName: "network.eth.tx.bytes"
         otelType: "int64"
-        attr: {"protocol":"", "direction":"transmit"}
         description: "Total number of bytes transmitted, including host and remote management pass through traffic"
-        unit: "By"
+        units: "By"
 
       - redfishName: "RxBytes"
-        otelMetricName: "hw.network.io"
+        otelMetricName: "network.eth.rx.bytes"
         otelType: "int64"
-        attr: {"protocol":"","direction":"receive"}
         description: "Total number of bytes received, including host and remote management pass through traffic (remote management pass through traffic is applicable to LOMs only)"
-        unit: "By"
+        units: "By"
 
       - redfishName: "LanUnicastPktTXCount"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.tx.lan.unicast.packets"
         otelType: "int64"
-        attr: {"packet_type":"lan_unicast","direction":"transmit"}
         description: "Total number of Unicast LAN Packets Transmitted"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "TxUnicast"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.tx.unicast.packets"
         otelType: "int64"
-        attr: {"packet_type":"unicast","direction":"transmit"}
         description: "Total number of good unicast packets transmitted"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "TxBroadcast"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.tx.broadcast.packets"
         otelType: "int64"
-        attr: {"packet_type":"broadcast","direction":"transmit"}
         description: "Total number of good broadcast packets transmitted"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "TxMutlicast"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.tx.multicast.packets"
         otelType: "int64"
-        attr: {"packet_type":"multicast","direction":"transmit"}
         description: "Total number of good multicast packets transmitted"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "LanUnicastPktRXCount"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.rx.lan.unicast.packets"
         otelType: "int64"
-        attr: {"packet_type":"lan_unicast","direction":"receive"}
         description: "Total number of LAN Unicast Packets Received"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "RxUnicast"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.rx.unicast.packets"
         otelType: "int64"
-        attr: {"packet_type":"unicast","direction":"receive"}
         description: "Total number of good unicast packets received"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "RxBroadcast"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.rx.broadcast.packets"
         otelType: "int64"
-        attr: {"packet_type":"broadcast","direction":"receive"}
         description: "Total number of good broadcast packets received"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "RxMutlicast"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.rx.multicast.packets"
         otelType: "int64"
-        attr: {"packet_type":"multicast","direction":"receive"}
         description: "Total number of good multicast packets received"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "RxJabberPkt"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.rx.jabber.pkt"
         otelType: "int64"
-        attr: {"packet_type":"jabber","direction":"receive"}
         description: "Total number of frames that are too long"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "RxRuntPkt"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.rx.run.pkt"
         otelType: "int64"
-        attr: {"packet_type":"run","direction":"receive"}
         description: "Total number of frames that are too short (< 64 bytes)"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "RxErrorPktAlignmentErrors"
-        otelMetricName: "hw.errors"
+        otelMetricName: "network.eth.rx.pkt.alignment.errors"
         otelType: "int64"
-        attr: {"network.error.type":"packet_alignment","direction":"receive"}
         description: "Total number of packets received with alignment errors"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "RxErrorPktFCSErrors"
-        otelMetricName: "hw.errors"
+        otelMetricName: "network.eth.rx.pkt.fcs.errors"
         otelType: "int64"
-        attr: {"network.error.type":"packet_fcs","direction":"receive"}
         description: "Total number of packets received with FCS(Frame Check Sequence) errors"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "RxFalseCarrierDetection"
-        otelMetricName: "hw.errors"
+        otelMetricName: "network.eth.rx.falsecarrierdetection"
         otelType: "int64"
-        attr: {"network.error.type":"false_carrier_detection","direction":"receive"}
-        description: "Total number of false carrier errors received from PHY"
-        unit: "Pkt"
+        description: "Total number of false carrier detection received from PHY"
 
       - redfishName: "TxErrorPktSingleCollision"
-        otelMetricName: "hw.errors"
+        otelMetricName: "network.eth.tx.error.pkt.singlecollision"
         otelType: "int64"
-        attr: {"network.error.type":"packet_single_collision","direction":"transmit"}
         description: "Number of times that a successfully transmitted packet encountered a single collision"
-        unit: ""
 
       - redfishName: "TxErrorPktMultipleCollision"
-        otelMetricName: "hw.errors"
+        otelMetricName: "network.eth.tx.error.pkt.multiplecollision"
         otelType: "int64"
-        attr: {"network.error.type":"packet_multiple_collision","direction":"transmit"}
         description: "Number of times that a transmitted packet encountered more than one collision but fewer than 16"
-        unit: ""
 
       - redfishName: "TxErrorPktLateCollision"
-        otelMetricName: "hw.errors"
+        otelMetricName: "network.eth.tx.error.pkt.latecollision"
         otelType: "int64"
-        attr: {"network.error.type":"packet_late_collision","direction":"transmit"}
         description: "Number of collisions that occurred after one slot time"
-        unit: ""
 
       - redfishName: "TxErrorPktExcessiveCollision"
-        otelMetricName: "hw.errors"
+        otelMetricName: "network.eth.tx.error.pkt.excessivecollision"
         otelType: "int64"
-        attr: {"network.error.type":"packet_excessive_collision","direction":"transmit"}
         description: "Number of times that 16 or more collisions occurred on a single transmit packet"
-        unit: ""
 
       - redfishName: "DiscardedPkts"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.discarded.pkts"
         otelType: "int64"
-        attr: {"packet_type":"discarded","direction":"both"}
         description: "Total number of discarded packets"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "RxPauseXOFFFrames"
-        otelMetricName: "hw.network.frames"
+        otelMetricName: "network.eth.rx.pausexoff.frames"
         otelType: "int64"
-        attr: {"frame_type":"pause_xoff","direction":"receive"}
         description: "Flow control frames from the network to pause transmission"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "RxPauseXONFrames"
-        otelMetricName: "hw.network.frames"
+        otelMetricName: "network.eth.rx.pausexon.frames"
         otelType: "int64"
-        attr: {"frame_type":"pause_xon","direction":"receive"}
         description: "Flow control frames from the network to resume transmission"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "TxPauseXOFFFrames"
-        otelMetricName: "hw.network.frames"
+        otelMetricName: "network.eth.tx.pausexoff.frames"
         otelType: "int64"
-        attr: {"frame_type":"pause_xoff","direction":"transmit"}
         description: "Number of XOFF frames transmitted to the network"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "TxPauseXONFrames"
-        otelMetricName: "hw.network.frames"
+        otelMetricName: "network.eth.tx.pausexon.frames"
         otelType: "int64"
-        attr: {"frame_type":"pause_xon","direction":"transmit"}
         description: "Number of XON frames transmitted to the network"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "FCCRCErrorCount"
-        otelMetricName: "hw.errors"
+        otelMetricName: "network.eth.fccrc.errors"
         otelType: "int64"
-        attr: {"network.error.type":"fccrc","direction":"both"}
         description: "Number of FC frames with CRC errors"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "FCOELinkFailures"
-        otelMetricName: "hw.errors"
+        otelMetricName: "network.eth.fcoe.link.failures"
         otelType: "int64"
-        attr: {"network.error.type":"fcoe_link_failure","direction":"both"}
         description: "Number of FCoE/FIP Login failures"
-        unit: ""
+
 
       - redfishName: "FCOEPktRxCount"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.fcoe.pkt.rx.count"
         otelType: "int64"
-        attr: {"packet_type":"fcoe","direction":"receive"}
         description: "Number of good (FCS valid) packets received with the partition active FCoE(Fiber Channel over Ethernet) MAC address"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "FCOEPktTxCount"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.fcoe.pkt.tx.count"
         otelType: "int64"
-        attr: {"packet_type":"fcoe","direction":"transmit"}
         description: "Number of good (FCS valid) packets transmitted that passed L2 filtering by a specific MAC address"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "FCOERxPktDroppedCount"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.fcoe.pkt.dropped.count"
         otelType: "int64"
-        attr: {"packet_type":"fcoe_dropped","direction":"receive"}
         description: "Number of received packets with FCS errors"
-        unit: ""
+
 
       - redfishName: "LanFCSRxErrors"
-        otelMetricName: "hw.errors"
+        otelMetricName: "network.eth.lanfcs.rx.errorpkts"
         otelType: "int64"
-        attr: {"network.error.type":"lan_fcs","direction":"receive"}
         description: "Number of Rx packets with Checksum errors"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "RDMARxTotalBytes"
-        otelMetricName: "hw.network.io"
+        otelMetricName: "network.eth.rdma.rx.totalbytes"
         otelType: "int64"
-        attr: {"protocol":"rdma","direction":"receive"}
         description: "Total number of RDMA bytes received"
-        unit: "By"
+        units: "By"
 
       - redfishName: "RDMARxTotalPackets"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.rdma.rx.totalpkts"
         otelType: "int64"
-        attr: {"packet_type":"rdma","direction":"receive"}
         description: "Total number of RDMA packets received"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "RDMATotalProtectionErrors"
-        otelMetricName: "hw.errors"
+        otelMetricName: "network.eth.rdma.totalprotectionerrors"
         otelType: "int64"
-        attr: {"network.error.type":"rdma_protection","direction":"both"}
         description: "Total number of RDMA Protection errors"
-        unit: ""
 
       - redfishName: "RDMATotalProtocolErrors"
-        otelMetricName: "hw.errors"
+        otelMetricName: "network.eth.rdma.totalprotocolerrors"
         otelType: "int64"
-        attr: {"network.error.type":"rdma_protocol","direction":"transmit"}
         description: "Total number of RDMA Protocol errors"
-        unit: ""
 
       - redfishName: "RDMATxTotalBytes"
-        otelMetricName: "hw.network.io"
+        otelMetricName: "network.eth.rdma.tx.totalbytes"
         otelType: "int64"
-        attr: {"protocol":"rdma","direction":"transmit"}
         description: "Total number of RDMA bytes transmitted"
-        unit: "By"
+        units: "By"
 
       - redfishName: "RDMATxTotalPackets"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.rdma.tx.totalpkts"
         otelType: "int64"
-        attr: {"packet_type":"rdma_total","direction":"transmit"}
         description: "Total number of RDMA packets transmitted"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "RDMATxTotalReadReqPkts"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.rdma.tx.totalreadreqpkts"
         otelType: "int64"
-        attr: {"packet_type":"rdma_total_read_requests","direction":"transmit"}
         description: "Total number of RDMA Read Request packets transmitted"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "RDMATxTotalSendPkts"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.rdma.tx.totalsendpkts"
         otelType: "int64"
-        attr: {"packet_type":"rdma_total_send","direction":"transmit"}
         description: "Total number of RDMA Send packets transmitted"
-        unit: "Pkt"
+        units: "Pkt"
 
       - redfishName: "RDMATxTotalWritePkts"
-        otelMetricName: "hw.network.packets"
+        otelMetricName: "network.eth.rdma.tx.totalsendpkts"
         otelType: "int64"
-        attr: {"packet_type":"rdma_total_write","direction":"transmit"}
         description: "Total number of RDMA write packets transmitted"
-        unit: "Pkt"
+        units: "Pkt"
 
 
   NVMeSMARTData:
     scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "physical_disk"
-      type: "nvme"
+      collection_object_type: "Drive"
 
     metric:
       - redfishName: "AvailableSpare"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.available.spare"
         otelType: "int"
         description: "Specifies the remaining spare capacity available as a normalized percentage (0 to 100%)"
-        attr: {"smart_attribute":"Available Spare"}
-        unit: ""
 
       - redfishName: "AvailableSpareThreshold"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.available.spare.threshold"
         otelType: "int"
         description: "The available spare value below which an asynchronous event completion may occur.  The value is indicated as a normalized percentage (0 to 100%)"
-        attr: {"smart_attribute":"Available Spare Threshold"}
-        unit: ""
-        
+
       - redfishName: "CompositeTemperature"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.composite.temperature"
         otelType: "int"
         description: "Indicatest the current composite temperature (in Kelvin) of the controller and namespace(s) associated with that controller"
-        unit: "K"
-        attr: {"smart_attribute":"Composite Temperature"}
-        
+        units: "K"
+
       - redfishName: "ControllerBusyTimeLower"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.controller.busy.time.lower"
         otelType: "int"
         description: "Contains the lower part of the amount of time in minutes the controller is busy with I/O command"
-        unit: "min"
-        attr: {"smart_attribute":"Controller Busy Time Lower"}
-        
+        units: "min"
+
       - redfishName: "ControllerBusyTimeUpper"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.controller.busy.time.upper"
         otelType: "int"
         description: "Contains the upper part of the amount of time in minutes the controller is busy with I/O commands"
-        unit: "min"
-        attr: {"smart_attribute":"Cointroller Busy Time Upper"}
-        
+        units: "min"
+
       - redfishName: "CriticalWarning"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.critical.warning"
         otelType: "int"
         description: "Indicates critical warnings about the controller state"
-        attr: {"smart_attribute":"Critical Warning"}
-        unit: ""
-        
+
       - redfishName: "DataUnitsReadLower"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.data.units.read.lower"
         otelType: "int"
         description: "Specifies the lower part of the count of 512 byte data units the host has read from the controller. This value is reported in thousands and is rounded up"
-        unit: "Blocks"
-        attr: {"smart_attribute":"Data Units Read Lower"}
-        
+        units: "Blocks"
+
       - redfishName: "DataUnitsReadUpper"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.data.units.read.upper"
         otelType: "int"
         description: "Specifies the upper part of the count of 512 byte data units the host has read from the controller. This value is reported in thousands and is rounded up"
-        unit: "Blocks"
-        attr: {"smart_attribute":"Data units read upper"}
-        
+        units: "Blocks"
+
       - redfishName: "DataUnitsWrittenLower"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.data.units.written.lower"
         otelType: "int"
         description: "Specifies the lower part of the count of 512 byte data units the host has written to the controller. This value is reported in thousands and is rounded up"
-        unit: "Blocks"
-        attr: {"smart_attribute":"Data Units Written Lower"}
-        
+        units: "Blocks"
+
       - redfishName: "DataUnitsWrittenUpper"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.data.units.written.upper"
         otelType: "int"
         description: "Specifies the upper part of the count of 512 byte data units the host has written to the controller. This value is reported in thousands and is rounded up"
-        unit: "Blocks"
-        attr: {"smart_attribute":"Data units written upper"}
-        
+        units: "Blocks"
+
       - redfishName: "HostReadCommandsLower"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.host.read.commands.lower"
         otelType: "int"
         description: "Specifies the lower part of the number of read commands completed by the controller"
-        attr: {"smart_attribute":"Host Read Commands Lower"}
-        unit: ""
-        
+
+
       - redfishName: "HostReadCommandsUpper"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.host.read.commands.upper"
         otelType: "int"
         description: "Specifies the upper part of the number of read commands completed by the controller"
-        attr: {"smart_attribute":"Host read commands upper"}
-        unit: ""
-        
+
       - redfishName: "HostWriteCommandsLower"
         otelMetricName: "hw.physical_disk.smart"
         otelType: "int"
         description: "Specifies the lower part of the number of write commands completed by the controller"
-        attr: {"smart_attribute":"Host write commands lower"}
-        unit: ""
-        
+
       - redfishName: "HostWriteCommandsUpper"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.host.write.commands.upper"
         otelType: "int"
         description: "Specifies the upper part of the number of write commands completed by the controller"
-        attr: {"smart_attribute":"Host write commands upper"}
-        unit: ""
-        
+
       - redfishName: "MediaDataIntegrityErrorsLower"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.media.dataintegrity.errors.lower"
         otelType: "int"
         description: "Contains the lower part of the count of detected unrecovered data integrity errors. Includes errors such as uncorrectable ECC, CRC checksum failure, or LBA tag mismatch"
-        attr: {"smart_attribute":"Media Data Integrity Errors Lower"}
-        unit: ""
-        
+
       - redfishName: "MediaDataIntegrityErrorsUpper"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.media.dataintegrity.errors.upper"
         otelType: "int"
         description: "Contains the upper part of the count of detected unrecovered data integrity errors. Includes errors such as uncorrectable ECC, CRC checksum failure, or LBA tag mismatch"
-        attr: {"smart_attribute":"AMedia Data Integrity Errors Upper"}
-        unit: ""
-        
+
       - redfishName: "NumOfErrorInfoLogEntriesLower"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.num.errorinfo.logentries.lower"
         otelType: "int"
         description: "Contains the lower part of the count of error information log entries over the life of the controller"
-        attr: {"smart_attribute":"Number of Error Info Log Entries Lower"}
-        unit: ""
-        
+
       - redfishName: "NumOfErrorInfoLogEntriesUpper"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.num.errorinfo.logentries.upper"
         otelType: "int"
         description: "Contains the upper part of the count of error information log entries over the life of the controller"
-        attr: {"smart_attribute":"Number of Error Info Log Entries Upper"}
-        unit: ""
-        
+
       - redfishName: "PercentageUsed"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.percentage.used"
         otelType: "double"
         description: "Specifies a vendor specific estimate of the percentage of NVM(Non Volatile Memory) subsystem life used based on the actual usage and the manufacturer prediction of NVM life"
-        unit: "%"
-        attr: {"smart_attribute":"Percentage Used"}
-        
+        units: "%"
+
       - redfishName: "PowerCyclesLower"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.powercycles.lower"
         otelType: "int"
         description: "Specifies the lower part of the number of power cycles"
-        attr: {"smart_attribute":"Power Cycles Lower"}
-        unit: ""
-        
+
       - redfishName: "PowerCyclesUpper"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.powercycles.upper"
         otelType: "int"
         description: "Specifies the upper part of the number of power cycles"
-        attr: {"smart_attribute":"Power Cycles Upper"}
-        unit: ""
-        
+
       - redfishName: "PowerOnHoursLower"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.poweron.hours.lower"
         otelType: "int"
         description: "Specifies the lower part of the number of hours powered on.  Hours may not include time that the controller was powered and in a non-operational power state"
-        unit: "h"
-        attr: {"smart_attribute":"Power On Hours Lower"}
-        
+        units: "h"
+
       - redfishName: "PowerOnHoursUpper"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.poweron.hours.upper"
         otelType: "int"
         description: "Specifies the upper part of the number of hours powered on.  Hours may not include time that the controller was powered and in a non-operational power state"
-        unit: "h"
-        attr: {"smart_attribute":"Power On Hours Upper"}
-        
+        units: "h"
+
       - redfishName: "UnsafeShutdownsLower"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.unsafeshutdowns.lower"
         otelType: "int"
         description: "Contains the upper part of the number of unsafe shutdowns.  This count is incremented when a shutdown notification (CC.SHN) is not received prior to loss of power"
-        attr: {"smart_attribute":"Unsafe Shutdowns Lower"}
-        unit: ""
-        
+
       - redfishName: "UnsafeShutdownsUpper"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.unsafeshutdowns.upper"
         otelType: "int"
         description: "Contains the lower part of the number of unsafe shutdowns.  This count is incremented when a shutdown notification (CC.SHN) is not received prior to loss of power"
-        attr: {"smart_attribute":"Unsafe Shutdowns Upper"}
-        unit: ""
 
   PowerMetrics:
-    scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "power"
 
     metric:
       - redfishName: "SystemHeadRoomInstantaneous"
-        otelMetricName: "hw.host.power.headroom"
+        otelMetricName: "hw.power.instantaneous.headroom"
         otelType: "double"
         description: "Instantaneous Headroom"
-        unit: "W"
+        units: "W"
 
       - redfishName: "SystemInputPower"
-        otelMetricName: "hw.host.power.input"
+        otelMetricName: "hw.power.input"
         otelType: "double"
         description: "Current System Input Power"
-        unit: "W"
+        units: "W"
 
       - redfishName: "SystemOutputPower"
-        otelMetricName: "hw.host.power.output"
+        otelMetricName: "hw.power.output"
         otelType: "double"
         description: "Current System Output Power"
-        unit: "W"
+        units: "W"
 
       - redfishName: "SystemPowerConsumption"
-        otelMetricName: "hw.host.power.consumption"
+        otelMetricName: "hw.power.consumption"
         otelType: "double"
         description: "Present reading in watts"
-        unit: "W"
+        units: "W"
 
       - redfishName: "TotalCPUPower"
         otelMetricName: "hw.cpu.power"
         otelType: "double"
         description: "Overall CPU power consumption"
-        unit: "W"
+        units: "W"
 
       - redfishName: "TotalFanPower"
         otelMetricName: "hw.fan.power"
         otelType: "double"
         description: "Overall Fan power consumption"
-        unit: "W"
+        units: "W"
 
       - redfishName: "TotalMemoryPower"
         otelMetricName: "hw.memory.power"
         otelType: "double"
         description: "Overall memory power consumption"
-        unit: "W"
+        units: "W"
 
       - redfishName: "TotalPciePower"
         otelMetricName: "hw.pcie.power"
         otelType: "double"
         description: "Overall PCIe power consumption"
-        unit: "W"
+        units: "W"
 
       - redfishName: "TotalStoragePower"
         otelMetricName: "hw.physical_disk.power"
         otelType: "double"
         description: "Overall Storage power consumption"
-        unit: "W"
+        units: "W"
 
       - redfishName: "TotalFPGAPower"
         otelMetricName: "hw.fpga.power"
         otelType: "double"
         description: "Overall FPGA power consumption"
-        unit: "W"
-      
+        units: "W"
+
       - redfishName: "CPUPower"
-        otelMetricName: "hw.cpu.socket.power"
+        otelMetricName: "hw.cpu.power.socket"
         otelType: "double"
         description: "Per socket CPU power consumption"
-        unit: "W"
+        units: "W"
 
   PowerStatistics:
-    scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "power"
 
     metric:
       - redfishName: "LastDayAvgPower"
-        otelMetricName: "hw.host.power.avg_day"
+        otelMetricName: "hw.power.avg_day"
         otelType: "double"
         description: "Last Day Average Power"
-        unit: "W"
+        units: "W"
 
       - redfishName: "LastDayMaxPower"
-        otelMetricName: "hw.host.power.max_day"
+        otelMetricName: "hw.power.max_day"
         otelType: "double"
         description: "Last Day Max Power"
-        unit: "W"
+        units: "W"
 
       - redfishName: "LastDayMinPower"
-        otelMetricName: "hw.host.power.min_day"
+        otelMetricName: "hw.power.min_day"
         otelType: "double"
         description: "Last Day Min Power"
-        unit: "W"
+        units: "W"
 
       - redfishName: "LastHourAvgPower"
-        otelMetricName: "hw.host.power.avg_hour"
+        otelMetricName: "hw.power.avg_hour"
         otelType: "double"
         description: "Last Hour Average Power"
-        unit: "W"
+        units: "W"
 
       - redfishName: "LastHourMaxPower"
-        otelMetricName: "hw.host.power.max_hour"
+        otelMetricName: "hw.power.max_hour"
         otelType: "double"
         description: "Last Hour Max Power"
-        unit: "W"
+        units: "W"
 
       - redfishName: "LastHourMinPower"
-        otelMetricName: "hw.host.power.min_hour"
+        otelMetricName: "hw.power.min_hour"
         otelType: "double"
         description: "Last Hour Min Power"
-        unit: "W"
+        units: "W"
 
       - redfishName: "LastMinuteAvgPower"
-        otelMetricName: "hw.host.power.avg_minute"
+        otelMetricName: "hw.power.avg_minute"
         otelType: "double"
         description: "Last Minute Average Power"
-        unit: "W"
+        units: "W"
 
       - redfishName: "LastMinuteMaxPower"
-        otelMetricName: "hw.host.power.max_minute"
+        otelMetricName: "hw.power.max_minute"
         otelType: "double"
         description: "Last Minute Max Power"
-        unit: "W"
+        units: "W"
 
       - redfishName: "LastMinuteMinPower"
-        otelMetricName: "hw.host.power.min_minute"
+        otelMetricName: "hw.power.min_minute"
         otelType: "double"
         description: "Last Minute Min Power"
-        unit: "W"
+        units: "W"
 
       - redfishName: "LastWeekAvgPower"
-        otelMetricName: "hw.host.power.avg_week"
+        otelMetricName: "hw.power.avg_week"
         otelType: "double"
         description: "Last Week Average Power"
-        unit: "W"
+        units: "W"
 
       - redfishName: "LastWeekMaxPower"
-        otelMetricName: "hw.host.power.max_week"
+        otelMetricName: "hw.power.max_week"
         otelType: "double"
         description: "Last Week Max Power"
-        unit: "W"
+        units: "W"
 
       - redfishName: "LastWeekMinPower"
-        otelMetricName: "hw.host.power.min_week"
+        otelMetricName: "hw.power.min_week"
         otelType: "double"
         description: "Last Week Min Power"
-        unit: "W"
+        units: "W"
 
   PSUMetrics:
     scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "psu"
+      collection_object_type: "PSU"
 
     metric:
       - redfishName: "PSURPMReading"
         otelMetricName: "hw.psu.fan.speed"
         otelType: "double"
         description: "PSU Fan reading in RPMs"
-        unit: "RPM"
+        units: "RPM"
 
       - redfishName: "PSUTemperatureReading"
         otelMetricName: "hw.psu.temperature"
-        otelType: "double"   
+        otelType: "double"
         description: "PSU Temperature sensor reading in Celsius"
-        unit: "Cel"   
+        units: "Cel"
 
   Sensor:
     scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "sensor"
+      collection_object_type: "Sensor"
 
     metric:
       - redfishName: "AmpsReading"
         otelMetricName: "hw.current"
         otelType: "double"
-        attr: {"hw.type":"current"}
         description: "The reading of the Sensor"
-        unit: "A"
+        units: "A"
 
       - redfishName: "CPUUsagePctReading"
-        otelMetricName: "hw.system_board.cpu_usage"
+        otelMetricName: "system.cpu.utilization"
         otelType: "double"
-        attr: {"hw.type":"systemboard"}
         description: "The reading of the Sensor"
-        unit: "%"
+        units: "%"
 
       - redfishName: "IOUsagePctReading"
-        otelMetricName: "hw.system_board.io_usage"
+        otelMetricName: "system.io.utilization"
         otelType: "double"
-        attr: {"hw.type":"systemboard"}
         description: "The reading of the Sensor"
-        unit: "%"
+        units: "%"
 
       - redfishName: "MemoryUsagePctReading"
-        otelMetricName: "hw.system_board.mem_usage"
+        otelMetricName: "system.memory.utilization"
         otelType: "double"
-        attr: {"hw.type":"systemboard"}
         description: "The reading of the Sensor"
-        unit: "%"
+        units: "%"
 
       - redfishName: "RPMReading"
         otelMetricName: "hw.fan.speed"
         otelType: "double"
-        attr: {"hw.type":"fan"}
         description: "Current reading specific to the sensor"
-        unit: "RPM"
+        units: "RPM"
 
       - redfishName: "SystemUsagePctReading"
-        otelMetricName: "hw.system_board.aggregate_usage"
+        otelMetricName: "system.utilization.aggregate"
         otelType: "double"
-        attr: {"hw.type":"systemboard"}
         description: "The reading of the Sensor"
-        unit: "%"
+        units: "%"
 
       - redfishName: "TemperatureReading"
         otelMetricName: "hw.temperature"
-        otelType: "double"   
-        attr: {"hw.type":"temperature"}
+        otelType: "double"
         description: "Temperature sensor reading in Celsius"
-        unit: "Cel"   
+        units: "Cel"
 
       - redfishName: "VoltageReading"
         otelMetricName: "hw.voltage"
-        otelType: "double"   
+        otelType: "double"
         description: "The reading of the Sensor"
-        unit: "V"   
+        units: "V"
 
       - redfishName: "WattsReading"
         otelMetricName: "hw.power"
-        otelType: "double"   
+        otelType: "double"
         description: "The reading of the Sensor"
-        unit: "W"   
+        units: "W"
 
   SFPTransceiver:
-    scopeAttr: 
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "sfp"
+    scopeAttr:
+      collection_object_type: "SFP"
 
     metric:
       - redfishName: "SFPTemperature"
         otelMetricName: "hw.sfp.temperature"
         otelType: "double"
         description: "Temperature sensor reading of Sfp transceiver in Celsius"
-        unit: "Cel"
+        units: "Cel"
 
       - redfishName: "TemperatureStatus"
         otelMetricName: "hw.sfp.temperature.status"
         otelType: "string"
         description: "Status of the Temperature sensor reading"
         attr: {"enum.Unknown": "0", "enum.OK": "1", "enum.Warning": "2", "enum.Critical": "3"}
-        unit: ""
 
       - redfishName: "SFPVoltage"
         otelMetricName: "hw.sfp.voltage"
         otelType: "double"
         description: "The voltage reading of the Sensor"
-        unit: "V"
+        units: "V"
 
       - redfishName: "VoltageStatus"
         otelMetricName: "hw.sfp.voltage.status"
         otelType: "string"
         description: "Status of the Voltage of Small Form Factor pluggable(SFP) Tranceiver"
         attr: {"enum.Unknown": "0", "enum.OK": "1", "enum.Warning": "2", "enum.Critical": "3"}
-        unit: ""
 
       - redfishName: "TxBiasCurrent"
         otelMetricName: "hw.sfp.bias_current"
         otelType: "double"
         description: "Tx Bias current value of Small Form Factor pluggable(SFP) in milli amps"
-        unit: "milliAmps"
+        units: "milliAmps"
 
       - redfishName: "TxBiasCurrentStatus"
         otelMetricName: "hw.sfp.bias_current.status"
         otelType: "string"
         description: "Status of Tx Bias Current value of Small Form Factor pluggable(SFP) Transceiver Metric Definition"
         attr: {"enum.Unknown": "0", "enum.OK": "1", "enum.Warning": "2", "enum.Critical": "3"}
-        unit: ""
 
       - redfishName: "TxOutputPower"
         otelMetricName: "hw.sfp.power.output"
         otelType: "double"
         description: "Tx output power value of Small Form Factor pluggable(SFP) in Watts"
-        unit: "milliWatts"
+        units: "milliWatts"
 
       - redfishName: "TxOutputPowerStatus"
         otelMetricName: "hw.sfp.power.output.status"
         otelType: "string"
         description: "Status of Tx Output Power value of Small Form Factor pluggable(SFP) Transceiver Metric Definition"
         attr: {"enum.Unknown": "0", "enum.OK": "1", "enum.Warning": "2", "enum.Critical": "3"}
-        unit: ""
 
       - redfishName: "RxInputPower"
         otelMetricName: "hw.sfp.power.input"
         otelType: "double"
         description: "Rx Input power value of Small Form Factor pluggable(SFP) in milli Watts"
-        unit: "milliWatts"
+        units: "milliWatts"
 
       - redfishName: "RxInputPowerStatus"
         otelMetricName: "hw.sfp.power.input.status"
         otelType: "string"
         description: "Status of Rx Input Power value of Small Form Factor pluggable(SFP) Transceiver Metric Definition"
         attr: {"enum.Unknown": "0", "enum.OK": "1", "enum.Warning": "2", "enum.Critical": "3"}
-        unit: ""
+
 
   StorageDiskSMARTData:
     scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "physical_disk"
+      collection_object_type: "Drive"
 
     metric:
       - redfishName: "CRCErrorCount"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.crc.error.count"
         otelType: "int"
         description: "CRC error count"
-        attr: {"smart_attribute":"CRC Error Count"}
-        unit: ""
 
       - redfishName: "CommandTimeout"
-        otelMetricName: "hw.errors"
-        otelType: "int"
+        otelMetricName: "hw.physical_disk.smart.command.timeout"
         description: "The number of aborted operations due to disk timeout"
-        attr: {"smart_attribute":"Command Timeout"}
-        unit: ""
 
       - redfishName: "CurrentPendingSectorCount"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.current.pending.sector.count"
         otelType: "int"
         description: "Current pending sector count"
-        attr: {"smart_attribute":"Current Pending Sector Count"}
-        unit: ""
 
       - redfishName: "DriveTemperature"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.drive.temperature"
         otelType: "double"
         description: "Drive temperature in celsius"
-        unit: "Cel"
-        attr: {"smart_attribute":"Drive Temperature"}
+        units: "Cel"
 
       - redfishName: "ECCERate"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.ecc.error.rate"
         otelType: "double"
         description: "Uncorrected read errors reported "
-        attr: {"smart_attribute":"ECCE Rate"}
-        unit: ""
 
       - redfishName: "EraseFailCount"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.erase.fail.count"
         otelType: "int"
         description: "Erase fail count"
-        attr: {"smart_attribute":"Erase Fail Count"}
-        unit: ""
 
       - redfishName: "ExceptionModeStatus"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.exception.mode.status"
         otelType: "int"
         description: "Exception mode status"
-        attr: {"smart_attribute":"Exception Mode Status"}
-        unit: ""
 
       - redfishName: "MediaWriteCount"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.media.write.count"
         otelType: "int"
         description: "Media (SSD) write count"
-        attr: {"smart_attribute":"Media Write Count"}
-        unit: ""
 
       - redfishName: "PercentDriveLifeRemaining"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.percent.drive.life.remaining"
         otelType: "double"
         description: "Drive Life Remaining (DLR) in percentage "
-        attr: {"smart_attribute":"Percent Drive Life Remaining"}
-        unit: "%"
+        units: "%"
 
       - redfishName: "PowerCycleCount"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.power.cycle.count"
         otelType: "int"
         description: "This attribute indicates the count of full hard disk power on/off cycles. "
-        attr: {"smart_attribute":"Power Cycle Count"}
-        unit: ""
 
       - redfishName: "PowerOnHours"
         otelMetricName: "hw.physical_disk.smart"
         otelType: "int"
         description: "The raw value of this attribute shows total count of hours (or minutes, or seconds, depending on manufacturer) in power-on state"
-        attr: {"smart_attribute":"Power On Hours"}
-        unit: ""
 
       - redfishName: "ProgramFailCount"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.program.fail.count"
         otelType: "int"
         description: "Program fail count since drive was deployed"
-        attr: {"smart_attribute":"Program Fail Count"}
-        unit: ""
 
       - redfishName: "ReadErrorRate"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.read.error.rate"
         otelType: "double"
         description: "Read error rate"
-        attr: {"smart_attribute":"Read Error Rate"}
-        unit: ""
 
       - redfishName: "ReallocatedBlockCount"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.reallocated.block.count"
         otelType: "int"
         description: "Reallocated block count"
-        attr: {"smart_attribute":"Reallocated Block Count"}
-        unit: ""
 
       - redfishName: "UncorrectableErrorCount"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.uncorrectable.error.count"
         otelType: "int"
         description: "Uncorrectable error count"
-        attr: {"smart_attribute":"Uncorrectable Error Count"}
-        unit: ""
 
       - redfishName: "UncorrectableLBACount"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.uncorrectable.lba.count"
         otelType: "int"
         description: "Uncorrectable LBA(Logical block addressing) count"
-        attr: {"smart_attribute":"Uncorrectable LBA Count"}
-        unit: ""
 
       - redfishName: "UnusedReservedBlockCount"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.unused.reserved.block.count"
         otelType: "int"
         description: "Unused reserved block count"
-        attr: {"smart_attribute":"UnusedReserved Block Count"}
-        unit: ""
 
       - redfishName: "UsedReservedBlockCount"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.used.reserved.block.count"
         otelType: "int"
         description: "Used reserved block count"
-        attr: {"smart_attribute":"UsedReserved Block Count"}
-        unit: ""
 
       - redfishName: "VolatileMemoryBackupSourceFailures"
-        otelMetricName: "hw.physical_disk.smart"
+        otelMetricName: "hw.physical_disk.smart.volatile.memory.backup.source.failures"
         otelType: "int"
         description: "Volatile memory backup source failures"
-        attr: {"smart_attribute":"Volatile Memory Backup Source Failures"}
-        unit: ""
 
   StorageSensor:
     scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "temperature"
+      collection_object_type: "Drive"
 
     metric:
       - redfishName: "TemperatureReading"
-        otelMetricName: "hw.temperature"
+        otelMetricName: "hw.physical_disk.temperature"
         otelType: "double"
         description: "Temperature sensor reading in Celsius"
-        unit: "Cel"
+        units: "Cel"
 
   SystemUsage:
-    scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "systemboard"
 
     metric:
       - redfishName: "CPUUsage"
-        otelMetricName: "hw.system_Board.cpu_usage"
+        otelMetricName: "system.cpu.utilization"
         otelType: "double"
         description: "CPU Usage Percent"
-        unit: "%"
+        units: "%"
 
       - redfishName: "IOUsage"
-        otelMetricName: "hw.system_board.io_usage"
+        otelMetricName: "system.io.utilization"
         otelType: "double"
         description: "IO Usage Percent"
-        unit: "%"
+        units: "%"
 
       - redfishName: "MemoryUsage"
-        otelMetricName: "hw.system_Board.mem_usage"
+        otelMetricName: "system.memory.utilization"
         otelType: "double"
         description: "Memory Usage Percent"
-        unit: "%"
+        units: "%"
 
       - redfishName: "AggregateUsage"
-        otelMetricName: "hw.system_board.aggregate_usage"
+        otelMetricName: "system.utilization.aggregate"
         otelType: "double"
         description: "Aggregate Usage Percent"
-        unit: "%"
+        units: "%"
 
   ThermalMetrics:
-    scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "thermal"
 
     metric:
       - redfishName: "ComputePower"
-        otelMetricName: "hw.host.thermal.compute_power"
+        otelMetricName: "system.thermal.compute_power"
         otelType: "int"
         description: "Computer power that is not wasted"
-        unit: "W"
+        units: "W"
 
       - redfishName: "ITUE"
-        otelMetricName: "hw.host.thermal.power_efficiency"
+        otelMetricName: "system.thermal.power_efficiency"
         otelType: "double"
         description: "Indicates the power utilization efficiency. It is expressed as the ratio of total system power to compute power"
-        unit: ""
+
 
       - redfishName: "PSUEfficiency"
-        otelMetricName: "hw.host.thermal.psu_efficiency"
+        otelMetricName: "system.thermal.psu_efficiency"
         otelType: "double"
         description: "PSU efficiency in percentage"
-        unit: "%"
+        units: "%"
 
       - redfishName: "PowerToCoolRatio"
-        otelMetricName: "hw.host.thermal.power_to_cool"
+        otelMetricName: "system.thermal.power_to_cool"
         otelType: "double"
         description: "Fan Power over system power ratio (PCTR)"
-        unit: ""
+
 
       - redfishName: "SysAirFlowEfficiency"
-        otelMetricName: "hw.host.thermal.airflow_efficiency"
+        otelMetricName: "system.thermal.airflow_efficiency"
         otelType: "double"
         description: "System airflow efficiency metric (SAFE)"
-        unit: "%"
+        units: "%"
 
       - redfishName: "SysAirflowPerFanPower"
-        otelMetricName: "hw.host.thermal.airflow_per_fan"
+        otelMetricName: "system.thermal.airflow_per_fan"
         otelType: "double"
         description: "System airflow per unit of system fan power consumption "
-        unit: "CFM"
+        units: "CFM"
 
       - redfishName: "SysAirflowPerSysInputPower"
-        otelMetricName: "hw.host.thermal.airflow_per_power"
+        otelMetricName: "system.thermal.airflow_per_power"
         otelType: "double"
         description: "System airflow per unit of system input [DC] power consumption "
-        unit: "CFM"
+        units: "CFM"
 
       - redfishName: "SysAirflowUtilization"
-        otelMetricName: "hw.host.thermal.airflow_utilization"
+        otelMetricName: "system.thermal.airflow_utilization"
         otelType: "double"
         description: "Specifies the system airflow utilization (CFM / Max CFM). CFM (cubic feet per min)"
-        unit: "CFM"
+        units: "CFM"
 
       - redfishName: "SysNetAirflow"
-        otelMetricName: "hw.host.thermal.airflow"
+        otelMetricName: "system.thermal.airflow"
         otelType: "double"
         description: "System net airflow"
-        unit: "CFM"
+        units: "CFM"
 
       - redfishName: "SysRackTempDelta"
-        otelMetricName: "hw.host.thermal.temp_delta"
+        otelMetricName: "system.thermal.temp_delta"
         otelType: "int"
         description: "Temperature difference between exhaust air and inlet air temperature of the server"
-        unit: "Cel"
+        units: "Cel"
 
       - redfishName: "TotalPSUHeatDissipation"
-        otelMetricName: "hw.host.thermal.psu_heat_dissipation"
+        otelMetricName: "system.thermal.psu_heat_dissipation"
         otelType: "int"
         description: "Heat dissipated from the PSU as a result of its inefficiency"
-        unit: "BTU"
+        units: "BTU"
 
   ThermalSensor:
-    scopeAttr:
-      id: "FQDD"
-      name: "FQDD"
-      parent: "chassis"
-      hw_DOT_type: "temperature"
 
     metric:
       - redfishName: "TemperatureReading"
-        otelMetricName: "hw.temperature"
+        otelMetricName: "system.temperature"
         otelType: "double"
         description: "Temperature sensor reading in Celsius"
-        unit: "Cel"
+        units: "Cel"
 
       - redfishName: "LowerThresholdCritical"
-        otelMetricName: "hw.temperature.limit"
+        otelMetricName: "system.temperature.lower_threshold_critical"
         otelType: "int"
-        attr: { "limit.type":"LowerThresholdCritical"}
 
       - redfishName: "LowerThresholdNonCritical"
-        otelMetricName: "hw.temperature.limit"
+        otelMetricName: "system.temperature.lower_threshold_non_critical"
         otelType: "int"
-        attr: { "limit.type":"LowerThresholdNonCritical"}
 
       - redfishName: "UpperThresholdNonCritical"
-        otelMetricName: "hw.temperature.limit"
+        otelMetricName: "system.temperature.upper_threshold_non_critical"
         otelType: "int"
-        attr: { "limit.type":"UpperThresholdNonCritical"}
 
       - redfishName: "UpperThresholdCritical"
-        otelMetricName: "hw.temperature.limit"
+        otelMetricName: "system.temperature.upper_threshold_critical"
         otelType: "int"
-        attr: { "limit.type":"UpperThresholdCritical"}
 
       - redfishName: "PrimaryStatus"
-        otelMetricName: "hw.status"
+        otelMetricName: "system.status"
         otelType: "int"
-        unit: ""
