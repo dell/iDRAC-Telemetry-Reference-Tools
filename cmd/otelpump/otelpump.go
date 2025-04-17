@@ -455,7 +455,7 @@ func writeotel(otelM otelMeta, tele telemetryMetric, w io.Writer) {
 	}
 }
 
-type scope struct {
+type attrList struct {
 	Attributes []attrMeta `json:"attributes"`
 }
 
@@ -465,8 +465,28 @@ func writeBytes(s string, w io.Writer) {
 		logTrace(ERROR, "writeBytes ", err)
 	}
 }
-func addScopeMetric(otelM otelMeta, m telemetryMetric, w io.Writer) error {
-	var s scope
+
+func addResource(hostInfo map[string]string, w io.Writer) error {
+	var s attrList
+
+	for key, val := range hostInfo {
+		s.Attributes = append(s.Attributes, attrMeta{Key: key, Value: value{StringValue: val}})
+	}
+	writeBytes("{\"resource_metrics\": [{\"resource\": ", w)
+	a, err := json.Marshal(&s)
+	if err != nil {
+		logTrace(ERROR, "addResource(): ", err)
+		return err
+	}
+	writeBytes(string(a), w)
+	// end resource
+	writeBytes(",", w)
+
+	return nil
+}
+
+func addMetricScope(otelM otelMeta, m telemetryMetric, w io.Writer) error {
+	var s attrList
 
 	for attr, val := range otelM.attributes {
 		switch val {
@@ -478,19 +498,94 @@ func addScopeMetric(otelM otelMeta, m telemetryMetric, w io.Writer) error {
 		}
 		s.Attributes = append(s.Attributes, attrMeta{Key: attr, Value: value{StringValue: val}})
 	}
-	writeBytes("\"scope\": ", w)
+	writeBytes("{\"scope\": ", w)
 
 	a, err := json.Marshal(&s)
 	if err != nil {
-		logTrace(ERROR, "addScopeMetric(): ", err)
+		logTrace(ERROR, "addMetricScope(): ", err)
 		return err
 	}
-	_, err = w.Write(a)
-	if err != nil {
-		return err
-	}
+	writeBytes(string(a), w)
+	//end scope
+	writeBytes("},", w)
 
 	return nil
+}
+
+func addLogScope(attrs map[string]string, w io.Writer) error {
+	var s attrList
+
+	// TODO: Name and Version ?
+	writeBytes("\"scope\": {\"name\": \"Lifecycle Logs\", \"version\": 1.0.0", w)
+
+	if attrs == nil {
+		for attr, val := range attrs {
+			s.Attributes = append(s.Attributes, attrMeta{Key: attr, Value: value{StringValue: val}})
+		}
+		a, err := json.Marshal(&s)
+		if err != nil {
+			logTrace(ERROR, "addLogScope(): ", err)
+			return err
+		}
+		writeBytes(string(a), w)
+	}
+
+	writeBytes("}", w)
+
+	return nil
+}
+
+type logRecord struct {
+	TimeUnixNano         int64  `json:"timeUnixNano"`
+	ObservedTimeUnixNano int64  `json:"observedTimeUnixNano"`
+	SeverityNumber       int    `json:"severityNumber"`
+	SeverityText         string `json:"severityText"`
+	Body                 string `json:"body"`
+}
+
+func InsertLogData(group *databus.DataGroup, w io.Writer) {
+	//defer func() {
+	//	if r := recover(); r != nil {
+	//		logTrace(WARN, "error parsing the log data", r)
+	//	}
+	//}()
+
+	var logRecords []logRecord
+
+	for _, event := range group.Events {
+		var lr logRecord
+		thetime, _ := time.Parse(time.RFC3339, event.EventTimestamp)
+		lr.TimeUnixNano = thetime.UnixNano()
+		lr.ObservedTimeUnixNano = thetime.UnixNano()
+		sev := 0
+		sevText := "Unknown"
+		switch event.MessageSeverity {
+		case "OK":
+			sev = 10
+			sevText = "Information"
+		case "Warning":
+			sev = 11
+			sevText = "Warning"
+		case "Critical":
+			sev = 12
+			sevText = "Critical"
+		}
+		lr.SeverityNumber = sev
+		lr.SeverityText = sevText
+		// TODO
+		lr.Body = event.Message
+
+		logRecords = append(logRecords, lr)
+	}
+
+	js, err := json.Marshal(&logRecords)
+	if err != nil {
+		logTrace(ERROR, "InsertLogData(): ", err)
+		return
+	}
+	writeBytes(string(js), w)
+	// close resource logs
+	writeBytes("}]}", w)
 }
 
 func InsertMetricReportData(group *databus.DataGroup, w io.Writer) {
@@ -539,7 +634,7 @@ func InsertMetricReportData(group *databus.DataGroup, w io.Writer) {
 				writeBytes("{", w)
 			}
 			lastFQDD = m.Oem.Dell.FQDD
-			err := addScopeMetric(otelM, m, w)
+			err := addMetricScope(otelM, m, w)
 			if err != nil {
 				return
 			}
@@ -632,24 +727,24 @@ func convertAndSendOtelMetrics(groupsChan chan *databus.DataGroup, ocUrl string)
 				"host.model": group.Model,
 			}
 			defer writer.Close()
-			fmt.Fprint(writer, string(jsonStart))
-			start := true
-			for key, value := range hostInfo {
-				if start {
-					start = false
-				} else {
-					fmt.Fprint(writer, string(jsonKey))
-				}
-				fmt.Fprint(writer, key)
-				fmt.Fprint(writer, string(jsonInBtwn))
-				fmt.Fprint(writer, value)
-			}
-			fmt.Fprint(writer, string(jsonEnd))
-			writeBytes("\"scope_metrics\": [", writer)
 
-			InsertMetricReportData(group, writer)
-			// close scope_metrics array and resource array
-			writeBytes("]}]}]}", writer)
+			addResource(hostInfo, writer)
+
+			if len(group.Events) == 0 {
+				fmt.Println("GSR report ", group.ID)
+				writeBytes("\"scope_metrics\": [", writer)
+				InsertMetricReportData(group, writer)
+				// close scope_metrics array and resource array
+				writeBytes("]}]}]}", writer)
+			} else {
+				fmt.Println("GSR events ", group.Events)
+				writeBytes("\"scope_logs\": [{", writer)
+				addLogScope(nil, writer)
+				InsertLogData(group, writer)
+				// close scopeLogs array and resource array
+				writeBytes("}]", writer)
+			}
+
 		}()
 
 		// send to OTEL Collector

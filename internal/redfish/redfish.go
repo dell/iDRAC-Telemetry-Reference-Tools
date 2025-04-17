@@ -18,8 +18,10 @@ import (
 )
 
 const (
-	mrSSEFilter    = "?$filter=EventFormatType%20eq%20MetricReport"
-	mrSSEFilter17G = "?$filter=EventFormatType%20eq%20%27MetricReport%27"
+	mrSSEFilter     = "?$filter=EventFormatType%20eq%20MetricReport"
+	mrSSEFilter17G  = "?$filter=EventFormatType%20eq%20%27MetricReport%27"
+	evtSSEFilter    = "?$filter=EventFormatType%20eq%20Event"
+	evtSSEFilter17G = "?$filter=EventType%20eq%20%27Alert%27"
 )
 
 type RedfishClient struct {
@@ -234,8 +236,33 @@ func (r *RedfishClient) ListenForEvents(Ctx context.Context, event chan<- *Redfi
 		eventService, err := serviceRoot.GetPropertyByName("EventService")
 		if err == nil {
 			if eventService.Object["ServerSentEventUri"] != nil {
-				ret.Err = r.GetSSE(Ctx, event, eventService)
+				sseUri := "https://" + r.Hostname + eventService.Object["ServerSentEventUri"].(string)
+				ret.Err = r.GetEventsSSE(Ctx, event, sseUri)
 
+			} else {
+				log.Println("Don't support POST back yet!")
+				ret.Err = errors.New("Don't support POST back yet!")
+			}
+		} else {
+			ret.Err = err
+		}
+	} else {
+		log.Println("Unable to get service root!", err)
+		ret.Err = err
+	}
+	if ret.Err != nil {
+		event <- ret
+	}
+}
+func (r *RedfishClient) ListenForMetricReports(Ctx context.Context, event chan<- *RedfishEvent) {
+	ret := new(RedfishEvent)
+	serviceRoot, err := r.GetUri("/redfish/v1")
+	if err == nil {
+		eventService, err := serviceRoot.GetPropertyByName("EventService")
+		if err == nil {
+			if eventService.Object["ServerSentEventUri"] != nil {
+				sseUri := "https://" + r.Hostname + eventService.Object["ServerSentEventUri"].(string)
+				ret.Err = r.GetMetricReportsSSE(Ctx, event, sseUri)
 			} else {
 				log.Println("Don't support POST back yet!")
 				ret.Err = errors.New("Don't support POST back yet!")
@@ -346,11 +373,16 @@ func (r *RedfishClient) GetMetricReportsSSE(Ctx context.Context, event chan<- *R
 	}
 }
 
-func (r *RedfishClient) GetEventsSSE(event chan<- *RedfishEvent, sseURI string) error {
+func (r *RedfishClient) GetEventsSSE(Ctx context.Context, event chan<- *RedfishEvent, sseURI string) error {
 	sseConfig := new(sse.Config)
 	sseConfig.Client = r.HttpClient
 	sseConfig.RequestCreator = func() *http.Request {
-		req, err := http.NewRequest("GET", sseURI+"?$filter=EventFormatType%20eq%Event", nil)
+		filter := evtSSEFilter
+		if strings.Compare(r.FwVer, "4.00.00.00") < 0 {
+			filter = evtSSEFilter17G
+		}
+		fmt.Println("GSR, sse uri ", sseURI+filter)
+		req, err := http.NewRequest("GET", sseURI+filter, nil)
 		if err != nil {
 			return nil
 		}
@@ -364,23 +396,28 @@ func (r *RedfishClient) GetEventsSSE(event chan<- *RedfishEvent, sseURI string) 
 		return err
 	}
 	for {
-		sseEvent, err := sseSource.Next()
-		if err != nil {
-			break
+		select {
+		case <-Ctx.Done():
+			sseSource.Close()
+			return nil
+		default:
+			sseEvent, err := sseSource.Next()
+			if err != nil {
+				break
+			}
+			redfishEvent := new(RedfishEvent)
+			redfishEvent.ID = sseEvent.ID
+			ret := new(RedfishPayload)
+			err = json.Unmarshal(sseEvent.Data, &ret.Object)
+			if err != nil {
+				log.Printf("Failed to parse message %v", err)
+				continue
+			}
+			ret.Client = r
+			redfishEvent.Payload = ret
+			event <- redfishEvent
 		}
-		redfishEvent := new(RedfishEvent)
-		redfishEvent.ID = sseEvent.ID
-		ret := new(RedfishPayload)
-		err = json.Unmarshal(sseEvent.Data, &ret.Object)
-		if err != nil {
-			log.Printf("Failed to parse message %v", err)
-			continue
-		}
-		ret.Client = r
-		redfishEvent.Payload = ret
-		event <- redfishEvent
 	}
-	return nil
 }
 
 func (r *RedfishClient) GetLceSSE(Ctx context.Context, event chan<- *RedfishEvent, sseURI string) error {
