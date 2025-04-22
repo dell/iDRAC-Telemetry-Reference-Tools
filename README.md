@@ -148,6 +148,20 @@ List of Metric Reports with Metrics:
       • PrimaryTemperature
       • SecondaryTemperature
       • ThermalAlertState
+      • GPUPCIeLinkSpeed
+      • GPUPCIeLinkSpeedMax
+      • GPUPCIeRxThroughput
+      • GPUPCIeTxThroughput
+      • GPUPCIeCorrectableErrorCount
+      • GPUMemBandwidthUsage
+      • GPUClockEventReason
+      • GPUTotalSMUsageTime
+      • GPUSMActivity
+      • GPUSMOccupancy
+      • GPUTensorCoreUsage
+      • GPUHmmaUsage
+
+      
 
 - MemoryMetrics
   
