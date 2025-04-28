@@ -199,6 +199,8 @@ services:
   redfishread:
     <<: *refdaemon
     image: idrac-telemetry-reference-tools/redfishread:latest
+    environment:
+      INCLUDE_ALERTS: ${INCLUDE_ALERTS}
     build:
       <<: *base-build
       args:
@@ -469,7 +471,7 @@ services:
         <<: *base-args
         CMD: prometheuspump
     ports:
-      - "2112:2112"    
+      - "2112:2112"
 
   prometheus-pump-withtestserver:
     container_name: prometheus-ingester
@@ -644,7 +646,7 @@ services:
     depends_on:
       - es01
       - activemq
-    
+
 
   es01:
     ############################################################################

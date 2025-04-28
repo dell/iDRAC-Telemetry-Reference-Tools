@@ -43,6 +43,7 @@ type RedfishDevice struct {
 	SystemDetail
 	ChildDevices map[int]string
 	Events       chan *redfish.RedfishEvent
+	Metrics      chan *redfish.RedfishEvent
 	State        string
 	LastEvent    time.Time
 	CtxCancel    context.CancelFunc
@@ -158,6 +159,13 @@ func parseRedfishEvents(events *redfish.RedfishPayload, r *RedfishDevice, dataBu
 	log.Printf("RedFish Events Found for parsing: %v\n", eventData)
 
 	group := new(databus.DataGroup)
+	group.HostName = r.HostName
+	group.FQDN = r.FQDN
+	group.System = r.SystemID
+	group.Model = r.Model
+	group.SKU = r.SKU
+	group.FwVer = r.FwVer
+	group.ImgID = r.ImgID
 
 	group.ID = events.Object["Id"].(string)
 	//group.Label = events.Object["Name"].(string)
@@ -184,25 +192,11 @@ func parseRedfishEvents(events *redfish.RedfishPayload, r *RedfishDevice, dataBu
 			data.MessageSeverity = eventData.Object["MessageSeverity"].(string)
 			data.Message = eventData.Object["Message"].(string)
 			data.MessageId = eventData.Object["MessageId"].(string)
-			for _, a := range eventData.Object["MessageArgs"].([]interface{}) {
-				data.MessageArgs = append(data.MessageArgs, a.(string))
+			if args, ok := eventData.Object["MessageArgs"]; ok {
+				for _, a := range args.([]interface{}) {
+					data.MessageArgs = append(data.MessageArgs, a.(string))
+				}
 			}
-
-			/*
-				jstr, err := json.Marshal(&eventData.Object)
-				if err != nil {
-					log.Printf("Unable to marshal eventData.Object %v\n", err)
-					continue
-				}
-				err = json.Unmarshal(jstr, data)
-				if err != nil {
-					log.Printf("Unable to unmarshal %v\n", err)
-					continue
-				}
-			*/
-
-			fmt.Println("GSR event data: ", data)
-
 			group.Events = append(group.Events, *data)
 		}
 	}
@@ -219,126 +213,167 @@ func parseRedfishEvents(events *redfish.RedfishPayload, r *RedfishDevice, dataBu
 /*
 // Responsible for taking the lifecycle events received from SSE, getting its events, and then sending it along the
 // data bus
+func parseRedfishLce(lceevents *redfish.RedfishPayload, r *RedfishDevice, dataBusService *databus.DataBusService) {
+	id := r.SystemID
+	eventData, err := lceevents.GetPropertyByName("Events")
+	if err != nil {
+		log.Printf("%s: Unable to get eventData: %v %v", id, err, lceevents)
+		return
+	}
+	log.Printf("RedFish LifeCycle Events Found for parsing: %v\n", eventData)
 
-	func parseRedfishLce(lceevents *redfish.RedfishPayload, r *RedfishDevice, dataBusService *databus.DataBusService) {
-		id := r.SystemID
-		eventData, err := lceevents.GetPropertyByName("Events")
+	group := new(databus.DataGroup)
+
+	group.ID = lceevents.Object["Id"].(string)
+	group.Label = lceevents.Object["Name"].(string)
+	size := lceevents.GetEventSize()
+	for j := 0; j < size; j++ {
+		eventData, err := lceevents.GetEventByIndex(j)
 		if err != nil {
-			log.Printf("%s: Unable to get eventData: %v %v", id, err, lceevents)
+			log.Printf("Unable to retrieve the redfish lifecycle events\n")
 			return
 		}
-		log.Printf("RedFish LifeCycle Events Found for parsing: %v\n", eventData)
-
-		group := new(databus.DataGroup)
-
-		group.ID = lceevents.Object["Id"].(string)
-		group.Label = lceevents.Object["Name"].(string)
-		size := lceevents.GetEventSize()
-		for j := 0; j < size; j++ {
-			eventData, err := lceevents.GetEventByIndex(j)
+		if eventData.Object["EventId"] != nil {
+			data := new(databus.DataValue)
+			originCondition, err := eventData.GetPropertyByName("OriginOfCondition")
 			if err != nil {
-				log.Printf("Unable to retrieve the redfish lifecycle events\n")
-				return
+				log.Printf("Unable to get property %v\n", err)
 			}
-			if eventData.Object["EventId"] != nil {
-				data := new(databus.DataValue)
-				originCondition, err := eventData.GetPropertyByName("OriginOfCondition")
-				if err != nil {
-					log.Printf("Unable to get property %v\n", err)
-				}
-				data.Value = fmt.Sprint(originCondition)
-				data.MessageId = eventData.Object["MessageId"].(string)
-				data.EventType = eventData.Object["EventType"].(string)
-				if eventData.Object["EventTimestamp"] == nil {
-					t := time.Now()
-					data.Timestamp = t.Format("2006-01-02T15:04:05-0700")
-				} else {
-					data.Timestamp = eventData.Object["EventTimestamp"].(string)
-				}
-				if originCondition != nil {
-					if strings.Contains(originCondition.Object["@odata.id"].(string), configStrings["inventoryurl"]) {
-						map_oc, err := r.Redfish.GetUri(originCondition.Object["@odata.id"].(string))
+			data.Value = fmt.Sprint(originCondition)
+			data.MessageId = eventData.Object["MessageId"].(string)
+			data.EventType = eventData.Object["EventType"].(string)
+			if eventData.Object["EventTimestamp"] == nil {
+				t := time.Now()
+				data.Timestamp = t.Format("2006-01-02T15:04:05-0700")
+			} else {
+				data.Timestamp = eventData.Object["EventTimestamp"].(string)
+			}
+			if originCondition != nil {
+				if strings.Contains(originCondition.Object["@odata.id"].(string), configStrings["inventoryurl"]) {
+					map_oc, err := r.Redfish.GetUri(originCondition.Object["@odata.id"].(string))
+					if err != nil {
+						log.Printf("ERROR: %s\n", err)
+					}
+					inv_oem, err := map_oc.GetPropertyByName("Oem")
+					if err != nil {
+						log.Printf("Unable to get OEM %s\n", err)
+					}
+					if inv_oem != nil {
+						inv_DellOem, err := inv_oem.GetPropertyByName("Dell")
 						if err != nil {
-							log.Printf("ERROR: %s\n", err)
+							log.Printf("Unable to get DELL metrics %s\n", err)
 						}
-						inv_oem, err := map_oc.GetPropertyByName("Oem")
-						if err != nil {
-							log.Printf("Unable to get OEM %s\n", err)
-						}
-						if inv_oem != nil {
-							inv_DellOem, err := inv_oem.GetPropertyByName("Dell")
+						if inv_DellOem != nil {
+							inv_DellNIC, err := inv_DellOem.GetPropertyByName("DellNIC")
 							if err != nil {
-								log.Printf("Unable to get DELL metrics %s\n", err)
+								log.Printf("Unable to get DellNIC metrics %s\n", err)
+							} else {
+								data.MaxBandwidthPercent = inv_DellNIC.Object["MaxBandwidthPercent"].(float64)
+								data.MinBandwidthPercent = inv_DellNIC.Object["MinBandwidthPercent"].(float64)
 							}
-							if inv_DellOem != nil {
-								inv_DellNIC, err := inv_DellOem.GetPropertyByName("DellNIC")
-								if err != nil {
-									log.Printf("Unable to get DellNIC metrics %s\n", err)
-								} else {
-									data.MaxBandwidthPercent = inv_DellNIC.Object["MaxBandwidthPercent"].(float64)
-									data.MinBandwidthPercent = inv_DellNIC.Object["MinBandwidthPercent"].(float64)
-								}
-								inv_DellNICPortMetrics, err := inv_DellOem.GetPropertyByName("DellNICPortMetrics")
-								if err != nil {
-									log.Printf("Unable to get NICPortMetrics%s\n", err)
-								} else {
-									data.Context = inv_DellNICPortMetrics.Object["@odata.context"].(string)
-									data.Label = inv_DellNICPortMetrics.Object["@odata.type"].(string)
-									data.ID = inv_DellNICPortMetrics.Object["@odata.id"].(string)
-									data.DiscardedPkts = inv_DellNICPortMetrics.Object["DiscardedPkts"].(float64)
-									broadcast := inv_DellNICPortMetrics.Object["RxBroadcast"]
-									data.RxBroadcast = broadcast.(float64)
-									data.RxBytes = inv_DellNICPortMetrics.Object["RxBytes"].(float64)
-									data.RxErrorPktAlignmentErrors = inv_DellNICPortMetrics.Object["RxErrorPktAlignmentErrors"].(float64)
-									data.RxMulticastPackets = inv_DellNICPortMetrics.Object["RxMutlicastPackets"].(float64)
-									data.RxUnicastPackets = inv_DellNICPortMetrics.Object["RxUnicastPackets"].(float64)
-									data.TxBroadcast = inv_DellNICPortMetrics.Object["TxBroadcast"].(float64)
-									data.TxBytes = inv_DellNICPortMetrics.Object["TxBytes"].(float64)
-									data.TxMutlicastPackets = inv_DellNICPortMetrics.Object["TxMutlicastPackets"].(float64)
-									data.TxUnicastPackets = inv_DellNICPortMetrics.Object["TxUnicastPackets"].(float64)
-								}
+							inv_DellNICPortMetrics, err := inv_DellOem.GetPropertyByName("DellNICPortMetrics")
+							if err != nil {
+								log.Printf("Unable to get NICPortMetrics%s\n", err)
+							} else {
+								data.Context = inv_DellNICPortMetrics.Object["@odata.context"].(string)
+								data.Label = inv_DellNICPortMetrics.Object["@odata.type"].(string)
+								data.ID = inv_DellNICPortMetrics.Object["@odata.id"].(string)
+								data.DiscardedPkts = inv_DellNICPortMetrics.Object["DiscardedPkts"].(float64)
+								broadcast := inv_DellNICPortMetrics.Object["RxBroadcast"]
+								data.RxBroadcast = broadcast.(float64)
+								data.RxBytes = inv_DellNICPortMetrics.Object["RxBytes"].(float64)
+								data.RxErrorPktAlignmentErrors = inv_DellNICPortMetrics.Object["RxErrorPktAlignmentErrors"].(float64)
+								data.RxMulticastPackets = inv_DellNICPortMetrics.Object["RxMutlicastPackets"].(float64)
+								data.RxUnicastPackets = inv_DellNICPortMetrics.Object["RxUnicastPackets"].(float64)
+								data.TxBroadcast = inv_DellNICPortMetrics.Object["TxBroadcast"].(float64)
+								data.TxBytes = inv_DellNICPortMetrics.Object["TxBytes"].(float64)
+								data.TxMutlicastPackets = inv_DellNICPortMetrics.Object["TxMutlicastPackets"].(float64)
+								data.TxUnicastPackets = inv_DellNICPortMetrics.Object["TxUnicastPackets"].(float64)
 							}
 						}
 					}
 				}
-				data.System = r.SystemID
-				group.Values = append(group.Values, *data)
+			}
+			data.System = r.SystemID
+			group.Values = append(group.Values, *data)
+		}
+	}
+
+	dataBusService.SendGroup(*group)
+
+	dataGroupsMu.Lock()
+	if dataGroups[id] == nil {
+		dataGroups[id] = make(map[string]*databus.DataGroup)
+	}
+	dataGroups[id][group.ID] = group
+	dataGroupsMu.Unlock()
+}
+*/
+
+func (r *RedfishDevice) RestartMetricListener() {
+	go r.Redfish.ListenForMetricReports(r.Ctx, r.Metrics)
+}
+
+func (r *RedfishDevice) RestartAlertListener() {
+	go r.Redfish.ListenForAlerts(r.Ctx, r.Events)
+}
+
+func (r *RedfishDevice) RestartLceEventListener() {
+	go r.Redfish.ListenForLceEvents(r.Ctx, r.Events)
+}
+
+// StartMetricListener Directly responsible for receiving SSE events from iDRAC. Will parse received reports or issue a
+// message in the log indicating it received an unknown SSE event.
+func (r *RedfishDevice) StartMetricListener(dataBusService *databus.DataBusService) {
+	if r.Metrics == nil {
+		r.Metrics = make(chan *redfish.RedfishEvent, 10)
+	}
+	//timer := time.AfterFunc(time.Minute*5, r.RestartAlertListener)
+	log.Printf("%s: Starting metric listener...\n", r.SystemID)
+	go r.Redfish.ListenForMetricReports(r.Ctx, r.Metrics)
+	for {
+		event := <-r.Metrics
+		if event == nil {
+			log.Printf("%s: Got SSE nil event \n", r.SystemID)
+			continue
+		}
+		if event.Err != nil { // SSE connect failure , retry connection
+			log.Printf("%s: Got SSE error %s\n", r.SystemID, event.Err)
+			if strings.Contains(event.Err.Error(), "connection error") {
+				// Wait for 5 minutes before restarting, so that the iDRAC can be rebooted
+				// and SSE connection can be re-established
+
+				log.Printf("Sleep 5 minutes before restarting SSE connection for %s\n", r.SystemID)
+				time.Sleep(time.Minute * 5)
+			}
+			r.RestartMetricListener()
+			continue
+		}
+		r.LastEvent = time.Now()
+		if event.Payload != nil {
+			if ot, ok := event.Payload.Object["@odata.type"].(string); ok {
+				switch {
+				case strings.Contains(ot, ".MetricReport"):
+					log.Printf("%s: Got new report for %s\n", r.SystemID, event.Payload.Object["@odata.id"].(string))
+					parseReport(event.Payload, r, dataBusService)
+					continue
+				default:
+					log.Printf("%s: Got unknown event type %s\n", r.SystemID, ot)
+				}
 			}
 		}
-
-		dataBusService.SendGroup(*group)
-
-		dataGroupsMu.Lock()
-		if dataGroups[id] == nil {
-			dataGroups[id] = make(map[string]*databus.DataGroup)
-		}
-		dataGroups[id][group.ID] = group
-		dataGroupsMu.Unlock()
+		//log.Printf("%s: Got unknown SSE event %v\n", r.SystemID, event.Payload)
+		log.Printf("%s: Got bad SSE event \n", r.SystemID)
 	}
-*/
-func (r *RedfishDevice) RestartMetricReportListener() {
-	go r.Redfish.ListenForMetricReports(r.Ctx, r.Events)
-	go r.Redfish.ListenForEvents(r.Ctx, r.Events)
 }
 
-func (r *RedfishDevice) RestartEventListener() {
-	go r.Redfish.ListenForEvents(r.Ctx, r.Events)
-}
-
-//func (r *RedfishDevice) RestartLceEventListener() {
-//	go r.Redfish.ListenForLceEvents(r.Ctx, r.Events)
-//}
-
-// StartMetricReportListener Directly responsible for receiving SSE events from iDRAC. Will parse received reports or issue a
-// message in the log indicating it received an unknown SSE event.
-func (r *RedfishDevice) StartMetricReportListener(dataBusService *databus.DataBusService) {
+func (r *RedfishDevice) StartAlertListener(dataBusService *databus.DataBusService) {
 	if r.Events == nil {
 		r.Events = make(chan *redfish.RedfishEvent, 10)
 	}
-	//timer := time.AfterFunc(time.Minute*5, r.RestartMetricReportListener)
+	//timer := time.AfterFunc(time.Minute*5, r.RestartAlertListener)
 	log.Printf("%s: Starting event listener...\n", r.SystemID)
-	go r.Redfish.ListenForMetricReports(r.Ctx, r.Events)
-	go r.Redfish.ListenForEvents(r.Ctx, r.Events)
+	go r.Redfish.ListenForAlerts(r.Ctx, r.Events)
 	for {
 		event := <-r.Events
 		if event == nil {
@@ -354,17 +389,13 @@ func (r *RedfishDevice) StartMetricReportListener(dataBusService *databus.DataBu
 				log.Printf("Sleep 5 minutes before restarting SSE connection for %s\n", r.SystemID)
 				time.Sleep(time.Minute * 5)
 			}
-			r.RestartMetricReportListener()
+			r.RestartAlertListener()
 			continue
 		}
 		r.LastEvent = time.Now()
 		if event.Payload != nil {
 			if ot, ok := event.Payload.Object["@odata.type"].(string); ok {
 				switch {
-				case strings.Contains(ot, ".MetricReport"):
-					log.Printf("%s: Got new report for %s\n", r.SystemID, event.Payload.Object["@odata.id"].(string))
-					parseReport(event.Payload, r, dataBusService)
-					continue
 				case strings.Contains(ot, ".Event"):
 					log.Printf("%s: Got new event\n", r.SystemID)
 					parseRedfishEvents(event.Payload, r, dataBusService)
@@ -376,26 +407,6 @@ func (r *RedfishDevice) StartMetricReportListener(dataBusService *databus.DataBu
 		}
 		//log.Printf("%s: Got unknown SSE event %v\n", r.SystemID, event.Payload)
 		log.Printf("%s: Got bad SSE event \n", r.SystemID)
-	}
-}
-
-func (r *RedfishDevice) StartEventListener(dataBusService *databus.DataBusService) {
-	if r.Events == nil {
-		r.Events = make(chan *redfish.RedfishEvent, 10)
-	}
-	timer := time.AfterFunc(time.Minute*5, r.RestartEventListener)
-	log.Printf("%s: Starting event listener...\n", r.SystemID)
-	go r.Redfish.ListenForEvents(r.Ctx, r.Events)
-	for {
-		event := <-r.Events
-		timer.Reset(time.Minute * 5)
-		r.LastEvent = time.Now()
-		if event != nil {
-			log.Printf("%s: Got new event with id %s\n", r.SystemID, event.Payload.Object["Id"].(string))
-			parseRedfishEvents(event.Payload, r, dataBusService)
-		} else {
-			log.Printf("%s: Got bad event \n", r.SystemID)
-		}
 	}
 }
 
@@ -424,33 +435,13 @@ func (r *RedfishDevice) StartLceEventListener(dataBusService *databus.DataBusSer
 */
 // getTelemetry Starts the service which will listen for SSE reports from the iDRAC
 func getTelemetry(r *RedfishDevice, telemetryService *redfish.RedfishPayload, dataBusService *databus.DataBusService) {
-	/*
-		metricReports, err := telemetryService.GetPropertyByName("MetricReports")
-		if err != nil {
-			log.Printf("Error retrieving metric reports for %s: %v\n", r.SystemID, err)
-			return
-		}
-		size := metricReports.GetCollectionSize()
-		if size == 0 {
-			log.Printf("%s: No metric reports!\n", r.SystemID)
-		}
-		log.Printf("%s: Found %d Metric Reports\n", r.Redfish.Hostname, size)
-		for i := 0; i < size; i++ {
-			metricReport, err := metricReports.GetPropertyByIndex(i)
-			if err != nil {
-				log.Printf("Unable to get metric report %d: %v", i, err)
-				continue
-			}
-			parseReport(metricReport, r, dataBusService)
-		}
-	*/
 	r.State = databus.RUNNING
-	r.StartMetricReportListener(dataBusService)
-}
+	inclAlerts := os.Getenv("INCLUDE_ALERTS")
+	if inclAlerts == "true" {
+		go r.StartAlertListener(dataBusService)
+	}
+	go r.StartMetricListener(dataBusService)
 
-func getRedfishEvents(r *RedfishDevice, eventService *redfish.RedfishPayload, dataBusService *databus.DataBusService) {
-	r.State = databus.RUNNING
-	r.StartEventListener(dataBusService)
 }
 
 /*
@@ -471,7 +462,7 @@ func getRedfishLce(r *RedfishDevice, eventService *redfish.RedfishPayload, dataB
 		parseRedfishLce(eventSvc, r, dataBusService)
 	}
 	r.State = databus.RUNNING
-	//r.StartEventListener(dataBusService)
+	r.StartLceEventListener(dataBusService)
 }
 */
 // Take an instance of a Redfish device, get its system ID, get any child devices if it is a chassis, and then start
@@ -516,20 +507,9 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 		r.State = databus.TELNOTFOUND
 	} else {
 		log.Printf("%s: Using Telemetry Service...\n", r.Redfish.Hostname)
-		go getTelemetry(r, telemetryService, dataBusService)
+		//go getRedfishLce(r, telemetryService, dataBusService)
+		getTelemetry(r, telemetryService, dataBusService)
 	}
-	/*
-		//Checking for EventService support
-		eventService, err := serviceRoot.GetPropertyByName("EventService")
-		if err != nil {
-			log.Println("EventService not supported...")
-			r.State = databus.TELNOTFOUND
-		} else {
-			log.Printf("%s: Event Service consumption loading...\n", r.Redfish.Hostname)
-			go getRedfishEvents(r, eventService, dataBusService)
-		}
-	*/
-
 }
 
 // handleAuthServiceChannel Authenticates to the iDRAC and then launches the telemetry monitoring process via

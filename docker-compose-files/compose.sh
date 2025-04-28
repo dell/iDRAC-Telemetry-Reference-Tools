@@ -141,15 +141,15 @@ echo "    --otel-pump"
       ;;
     --splunk-pump)
       PROFILE_ARG="$PROFILE_ARG --profile splunk-pump"
-      SPLUNK=1     
+      SPLUNK=1
       ;;
     --kafka-pump)
       PROFILE_ARG="$PROFILE_ARG --profile kafka-pump"
-      KAFKA=1     
+      KAFKA=1
       ;;
 --otel-pump)
       PROFILE_ARG="$PROFILE_ARG --profile otel-pump"
-      OTEL=1     
+      OTEL=1
       ;;
     --elk-pump)
       PROFILE_ARG="$PROFILE_ARG --profile elk-pump"
@@ -160,7 +160,7 @@ echo "    --otel-pump"
     --influx-test-db)
       PROFILE_ARG="$PROFILE_ARG --profile influx-test-db"
       INFLUX=1
-      ;;    
+      ;;
 
     --prometheus-test-db)
       PROFILE_ARG="$PROFILE_ARG --profile prometheus-test-db"
@@ -269,8 +269,13 @@ fi
 if [ -z $OTEL_SKIP_VERIFY]; then
   export OTEL_SKIP_VERIFY=
 fi
+# refishread
+if [ -z $INCLUDE_ALERTS ]; then
+    export INCLUDE_ALERTS=
+fi
+
  # remove dependency on setup influx-test-db
-touch $topdir/docker-compose-files/container-info-influx-pump.txt 
+touch $topdir/docker-compose-files/container-info-influx-pump.txt
 touch $topdir/docker-compose-files/container-info-grafana.txt
 touch $topdir/docker-compose-files/container-info-promgrafana.txt
 
@@ -288,7 +293,7 @@ case $1 in
       if [[ -n $INFLUX ]]; then
         PROFILE_ARG="--profile setup-influx-test-db"
         POST_ACTION="influx_setup_finish"
-      fi  
+      fi
       if [[ -n $PROMETHEUS ]]; then
         PROFILE_ARG="--profile setup-prometheus-test-db"
         POST_ACTION="prometheus_setup_finish"
@@ -327,13 +332,13 @@ case $1 in
         docker volume rm $volume
       fi
       docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG} ${DETACH_ARG}
-      ;;  
+      ;;
 
   stop)
     docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} stop
     ;;
 
-  start)  
+  start)
     if  [[ -n $INFLUX ]] && [[ ! -s docker-compose-files/container-info-influx-pump.txt ]]; then
       echo "Influx must be set up before running. Please run setup --influx-test-db first"
       exit 1
@@ -372,7 +377,7 @@ influx_setup_finish() {
   done
 
     echo "grafana container setup done for datasource and dashboards. Shutting down."
-  
+
     docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} stop
 
 #  echo "Removing completed setup containers that are no longer needed"
@@ -387,10 +392,10 @@ prometheus_setup_finish() {
   done
 
     echo "grafana container setup done for datasource and dashboards. Shutting down."
-  
+
     docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} stop
 
-#  echo "Removing completed setup containers that are no longer needed"    
+#  echo "Removing completed setup containers that are no longer needed"
     docker container rm -v $(docker container ls -a --filter ancestor=idrac-telemetry-reference-tools/setupprometheus -q)
 }
 

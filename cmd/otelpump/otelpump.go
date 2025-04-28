@@ -466,13 +466,17 @@ func writeBytes(s string, w io.Writer) {
 	}
 }
 
-func addResource(hostInfo map[string]string, w io.Writer) error {
+func addResource(hostInfo map[string]string, metrics bool, w io.Writer) error {
 	var s attrList
 
 	for key, val := range hostInfo {
 		s.Attributes = append(s.Attributes, attrMeta{Key: key, Value: value{StringValue: val}})
 	}
-	writeBytes("{\"resource_metrics\": [{\"resource\": ", w)
+	if metrics {
+		writeBytes("{\"resourceMetrics\": [{\"resource\": ", w)
+	} else {
+		writeBytes("{\"resource_logs\": [{\"resource\": ", w)
+	}
 	a, err := json.Marshal(&s)
 	if err != nil {
 		logTrace(ERROR, "addResource(): ", err)
@@ -498,7 +502,7 @@ func addMetricScope(otelM otelMeta, m telemetryMetric, w io.Writer) error {
 		}
 		s.Attributes = append(s.Attributes, attrMeta{Key: attr, Value: value{StringValue: val}})
 	}
-	writeBytes("{\"scope\": ", w)
+	writeBytes("\"scope\": ", w)
 
 	a, err := json.Marshal(&s)
 	if err != nil {
@@ -507,7 +511,7 @@ func addMetricScope(otelM otelMeta, m telemetryMetric, w io.Writer) error {
 	}
 	writeBytes(string(a), w)
 	//end scope
-	writeBytes("},", w)
+	//writeBytes("},", w)
 
 	return nil
 }
@@ -516,9 +520,10 @@ func addLogScope(attrs map[string]string, w io.Writer) error {
 	var s attrList
 
 	// TODO: Name and Version ?
-	writeBytes("\"scope\": {\"name\": \"Lifecycle Logs\", \"version\": 1.0.0", w)
+	writeBytes("\"scope\": {\"name\": \"Lifecycle Logs\", \"version\": \"1.0.0\"", w)
 
-	if attrs == nil {
+	if attrs != nil {
+		writeBytes("}", w)
 		for attr, val := range attrs {
 			s.Attributes = append(s.Attributes, attrMeta{Key: attr, Value: value{StringValue: val}})
 		}
@@ -530,17 +535,22 @@ func addLogScope(attrs map[string]string, w io.Writer) error {
 		writeBytes(string(a), w)
 	}
 
-	writeBytes("}", w)
+	writeBytes("},", w)
 
 	return nil
 }
 
+type logBody struct {
+	StrVal string `json:"stringValue"`
+}
+
 type logRecord struct {
-	TimeUnixNano         int64  `json:"timeUnixNano"`
-	ObservedTimeUnixNano int64  `json:"observedTimeUnixNano"`
-	SeverityNumber       int    `json:"severityNumber"`
-	SeverityText         string `json:"severityText"`
-	Body                 string `json:"body"`
+	TimeUnixNano         int64      `json:"timeUnixNano"`
+	ObservedTimeUnixNano int64      `json:"observedTimeUnixNano"`
+	SeverityNumber       int        `json:"severityNumber"`
+	SeverityText         string     `json:"severityText"`
+	Body                 logBody    `json:"body"`
+	AttrList             []attrMeta `json:"attributes"`
 }
 
 func InsertLogData(group *databus.DataGroup, w io.Writer) {
@@ -554,26 +564,40 @@ func InsertLogData(group *databus.DataGroup, w io.Writer) {
 
 	for _, event := range group.Events {
 		var lr logRecord
-		thetime, _ := time.Parse(time.RFC3339, event.EventTimestamp)
+		tmFmt := "2006-01-02T15:04:05-0700"
+		//thetime, err := time.Parse(time.RFC3339, event.EventTimestamp)
+		thetime, err := time.Parse(tmFmt, event.EventTimestamp)
+		if err != nil {
+			logTrace(WARN, "Time format error ", err)
+		}
+
 		lr.TimeUnixNano = thetime.UnixNano()
 		lr.ObservedTimeUnixNano = thetime.UnixNano()
 		sev := 0
 		sevText := "Unknown"
 		switch event.MessageSeverity {
 		case "OK":
-			sev = 10
+			sev = 9
 			sevText = "Information"
 		case "Warning":
-			sev = 11
+			sev = 13
 			sevText = "Warning"
 		case "Critical":
-			sev = 12
+			sev = 17
 			sevText = "Critical"
 		}
 		lr.SeverityNumber = sev
 		lr.SeverityText = sevText
 		// TODO
-		lr.Body = event.Message
+		jstr, err := json.Marshal(event)
+		if err != nil {
+			logTrace(WARN, "Error marshaling event data ", err)
+		}
+		lr.Body.StrVal = string(jstr)
+
+		lr.AttrList = append(lr.AttrList, attrMeta{Key: "event.data.type", Value: value{StringValue: "telemetry"}})
+		lr.AttrList = append(lr.AttrList, attrMeta{Key: "event.object.type", Value: value{StringValue: event.EventType}})
+		lr.AttrList = append(lr.AttrList, attrMeta{Key: "event.object.id", Value: value{StringValue: event.EventId}})
 
 		logRecords = append(logRecords, lr)
 	}
@@ -583,9 +607,10 @@ func InsertLogData(group *databus.DataGroup, w io.Writer) {
 		logTrace(ERROR, "InsertLogData(): ", err)
 		return
 	}
+	writeBytes("\"log_records\":", w)
 	writeBytes(string(js), w)
 	// close resource logs
-	writeBytes("}]}", w)
+	//writeBytes("}", w)
 }
 
 func InsertMetricReportData(group *databus.DataGroup, w io.Writer) {
@@ -718,7 +743,7 @@ func convertAndSendOtelMetrics(groupsChan chan *databus.DataGroup, ocUrl string)
 		}
 		reader, writer := io.Pipe()
 		go func() {
-			logTrace(INFO, "parsing report ", group.ID)
+			logTrace(INFO, "parsing report / event ", group.ID)
 			hostInfo := map[string]string{
 				"host.type": "PowerEdge",
 				//"collection.time": strconv.FormatInt(time.Now().UnixMilli(), 10) + "000000",
@@ -728,21 +753,21 @@ func convertAndSendOtelMetrics(groupsChan chan *databus.DataGroup, ocUrl string)
 			}
 			defer writer.Close()
 
-			addResource(hostInfo, writer)
-
 			if len(group.Events) == 0 {
+				addResource(hostInfo, true, writer)
 				fmt.Println("GSR report ", group.ID)
 				writeBytes("\"scope_metrics\": [", writer)
 				InsertMetricReportData(group, writer)
 				// close scope_metrics array and resource array
 				writeBytes("]}]}]}", writer)
 			} else {
+				addResource(hostInfo, false, writer)
 				fmt.Println("GSR events ", group.Events)
 				writeBytes("\"scope_logs\": [{", writer)
 				addLogScope(nil, writer)
 				InsertLogData(group, writer)
 				// close scopeLogs array and resource array
-				writeBytes("}]", writer)
+				writeBytes("}]}]}", writer)
 			}
 
 		}()

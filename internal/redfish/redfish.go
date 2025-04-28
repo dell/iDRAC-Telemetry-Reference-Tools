@@ -229,7 +229,7 @@ func (r *RedfishClient) GetSystemId() (string, error) {
 	return "", errors.New("Unable to determine System ID")
 }
 
-func (r *RedfishClient) ListenForEvents(Ctx context.Context, event chan<- *RedfishEvent) {
+func (r *RedfishClient) ListenForAlerts(Ctx context.Context, event chan<- *RedfishEvent) {
 	ret := new(RedfishEvent)
 	serviceRoot, err := r.GetUri("/redfish/v1")
 	if err == nil {
@@ -237,7 +237,11 @@ func (r *RedfishClient) ListenForEvents(Ctx context.Context, event chan<- *Redfi
 		if err == nil {
 			if eventService.Object["ServerSentEventUri"] != nil {
 				sseUri := "https://" + r.Hostname + eventService.Object["ServerSentEventUri"].(string)
-				ret.Err = r.GetEventsSSE(Ctx, event, sseUri)
+				filter := evtSSEFilter
+				if strings.Compare(r.FwVer, "4.00.00.00") < 0 {
+					filter = evtSSEFilter17G
+				}
+				ret.Err = r.StartSSE(Ctx, event, sseUri+filter)
 
 			} else {
 				log.Println("Don't support POST back yet!")
@@ -262,7 +266,11 @@ func (r *RedfishClient) ListenForMetricReports(Ctx context.Context, event chan<-
 		if err == nil {
 			if eventService.Object["ServerSentEventUri"] != nil {
 				sseUri := "https://" + r.Hostname + eventService.Object["ServerSentEventUri"].(string)
-				ret.Err = r.GetMetricReportsSSE(Ctx, event, sseUri)
+				filter := mrSSEFilter
+				if strings.Compare(r.FwVer, "4.00.00.00") < 0 {
+					filter = mrSSEFilter17G
+				}
+				ret.Err = r.StartSSE(Ctx, event, sseUri+filter)
 			} else {
 				log.Println("Don't support POST back yet!")
 				ret.Err = errors.New("Don't support POST back yet!")
@@ -305,16 +313,12 @@ func (r *RedfishClient) ListenForLceEvents(Ctx context.Context, event chan<- *Re
 	}
 }
 
-func (r *RedfishClient) GetMetricReportsSSE(Ctx context.Context, event chan<- *RedfishEvent, sseURI string) error {
+func (r *RedfishClient) StartSSE(Ctx context.Context, event chan<- *RedfishEvent, sseURI string) error {
 	sseConfig := new(sse.Config)
 	sseConfig.Client = r.HttpClient
 	lastTS := time.Now() // Variable to hold the latest event timestamp
 	sseConfig.RequestCreator = func() *http.Request {
-		filter := mrSSEFilter
-		if strings.Compare(r.FwVer, "4.00.00.00") < 0 {
-			filter = mrSSEFilter17G
-		}
-		req, err := http.NewRequest("GET", sseURI+filter, nil)
+		req, err := http.NewRequest("GET", sseURI, nil)
 		if err != nil {
 			return nil
 		}
@@ -326,6 +330,7 @@ func (r *RedfishClient) GetMetricReportsSSE(Ctx context.Context, event chan<- *R
 	sseSource, err := sseConfig.Connect()
 	if err != nil {
 		log.Println("Error connecting! ", err)
+		err = errors.New("connection error")
 		return err
 	}
 	for {
@@ -381,7 +386,6 @@ func (r *RedfishClient) GetEventsSSE(Ctx context.Context, event chan<- *RedfishE
 		if strings.Compare(r.FwVer, "4.00.00.00") < 0 {
 			filter = evtSSEFilter17G
 		}
-		fmt.Println("GSR, sse uri ", sseURI+filter)
 		req, err := http.NewRequest("GET", sseURI+filter, nil)
 		if err != nil {
 			return nil
@@ -540,10 +544,4 @@ func (r *RedfishClient) GetInventoryByUri(sseURI string) (*RedfishPayload, error
 	}
 	ret.Client = r
 	return ret, nil
-}
-
-func (r *RedfishClient) GetSSE(Ctx context.Context, event chan<- *RedfishEvent, eventService *RedfishPayload) error {
-	sseUri := "https://" + r.Hostname + eventService.Object["ServerSentEventUri"].(string)
-	return r.GetMetricReportsSSE(Ctx, event, sseUri)
-	//return r.GetEventsSSE(event, sseUri)
 }
