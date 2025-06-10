@@ -17,6 +17,11 @@ import (
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/sse"
 )
 
+const (
+	mrSSEFilter    = "?$filter=EventFormatType%20eq%20MetricReport"
+	mrSSEFilter17G = "?$filter=EventFormatType%20eq%20%27MetricReport%27"
+)
+
 type RedfishClient struct {
 	Hostname    string
 	Username    string
@@ -24,6 +29,7 @@ type RedfishClient struct {
 	BearerToken string
 	HttpClient  *http.Client
 	IsIPv6      int
+	FwVer       string
 }
 
 type RedfishEvent struct {
@@ -241,9 +247,22 @@ func (r *RedfishClient) ListenForLceEvents(Ctx context.Context, event chan<- *Re
 func (r *RedfishClient) GetMetricReportsSSE(Ctx context.Context, event chan<- *RedfishEvent, sseURI string) error {
 	sseConfig := new(sse.Config)
 	sseConfig.Client = r.HttpClient
+	//iDRAC version
+	filter := mrSSEFilter
+	serviceRoot, err := r.GetUri("/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion")
+	if err == nil {
+		if serviceRoot.Object["FirmwareVersion"] != nil {
+			fwver, ok := serviceRoot.Object["FirmwareVersion"].(string)
+			if ok && strings.Compare(fwver, "4.00.00.00") < 0 {
+				filter = mrSSEFilter17G
+			}
+		}
+	}
+	log.Println("SSE Metric Report Filter: ", filter)
+
 	lastTS := time.Now() // Variable to hold the latest event timestamp
 	sseConfig.RequestCreator = func() *http.Request {
-		req, err := http.NewRequest("GET", sseURI+"?$filter=EventFormatType%20eq%20MetricReport", nil)
+		req, err := http.NewRequest("GET", sseURI+filter, nil)
 		if err != nil {
 			return nil
 		}
