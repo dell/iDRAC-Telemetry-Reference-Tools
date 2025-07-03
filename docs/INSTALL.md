@@ -13,6 +13,7 @@
     - [Deploying the Framework](#deploying-the-framework)
     - [Post Install for Elasticsearch](#post-install-for-elasticsearch)
     - [Post Install for InfluxDB, Prometheus, or TimescaleDB](#post-install-for-influxdb-prometheus-or-timescaledb)
+   - [Kafka Configuration](#kafka-configuration)
 
 ## Navigation
 
@@ -231,3 +232,48 @@ This is not required. It only demonstrates a possible Elasticsearch workflow.
 4. For TimescaleDB:
 
 ![](../images/2022-03-02-06-12-47.png)
+
+## Kafka Configuration
+
+Kafka can be configured through the UI, an HTTP request or environment variables.
+
+### Configuring through UI
+
+1. Browse to the UI  - http://localhost:8080 
+2. Click on the `Config` button in the `Kafka Broker Configuration` section.
+3. Fill the `Broker ID` and `Topic Name` in the pop-up.
+4. Check the `TLS` and/or `Client Auth` boxes if the kafka instance needs those details for a successful connection
+   - If the `TLS` option is checked, please choose the `Kafka CACert` and select `Skip Hostname Verification` if you want to skip hostname verification.
+   - If the `Client Auth` option is checked, please choose the `Kafka Client Certificate` and `Kafka Client Key` from the local filesystem.
+
+### Configuring through HTTP request
+
+1. Send a `POST` request to `http://localhost:8080/api/v1/KafkaConfig` with the following body 
+
+```json
+{
+   "kafkaBroker": "<Broker ID>", 
+   "kafkaTopic": "<Topic>",
+   "kafkaCACert": "<CA Cert>",
+   "kafkaSkipVerify": true/false,
+   "kafkaClientCert": "<Client Cert>",
+   "kafkaClientKey": "<Client Key>"
+}
+```
+   - Sample cURL request
+   ```
+   curl -N -k -X POST -H 'content-type: application/json' http://100.71.132.104:8080/api/v1/KafkaConfig  -d '{"kafkaBroker": "http://100.71.132.104:9090", "kafkaTopic": "metrics"}'
+   ```
+
+### Configuring through environment variables
+
+Define the following environment variables in your local environment 
+
+```
+export KAFKA_BROKER=<kafka-broker-ip>:9092
+export KAFKA_TOPIC=<topic>
+export KAFKA_CACERT="<CA Cert>"
+export KAFKA_CLIENT_CERT="<Client Cert>"
+export KAFKA_CLIENT_KEY="<Client Key>"
+export KAFKA_SKIP_VERIFY=true/false
+```
