@@ -262,7 +262,7 @@ Kafka can be configured through the UI, an HTTP request or environment variables
 ```
    - Sample cURL request
    ```
-   curl -N -k -X POST -H 'content-type: application/json' http://100.71.132.104:8080/api/v1/KafkaConfig  -d '{"kafkaBroker": "http://100.71.132.104:9090", "kafkaTopic": "metrics"}'
+   curl -N -k -X POST -H 'content-type: application/json' http://localhost:8080/api/v1/KafkaConfig  -d '{"kafkaBroker": "http://localhost:9090", "kafkaTopic": "metrics"}'
    ```
 
 ### Configuring through environment variables
