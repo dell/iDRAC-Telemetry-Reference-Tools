@@ -398,9 +398,15 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 func handleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *databus.DataBusService) {
 	for {
 		service := <-serviceIn
-		if service.Ip == "" || devices[service.Ip] != nil {
+		if service.Ip == "" {
+			log.Println("Service IP is empty")
 			continue
 		}
+		if devices[service.Ip] != nil {
+			log.Printf("Device with IP %s already exists", service.Ip)
+			continue
+		}
+		
 		log.Print("Got new service = ", service.Ip)
 		var r *redfish.RedfishClient
 		var err error
