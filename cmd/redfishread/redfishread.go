@@ -72,9 +72,20 @@ func getValueIdContextAndLabel(value *redfish.RedfishPayload, i int) (string, st
 	id := ""
 	if value.Object["MetricId"] != nil {
 		id = value.Object["MetricId"].(string)
-	} else {
+		if id == "" && value.Object["MetricProperty"] != nil {
+			id = value.Object["MetricProperty"].(string)
+			//get last part of MP, /abc/def#ghi => def_ghi
+			li := strings.LastIndex(id, "/")
+			if li != -1 {
+				id = id[li+1:]
+			}
+			id = strings.ReplaceAll(id, "#", "_")
+		}
+	}
+	if id == "" {
 		id = fmt.Sprintf("Metric%d", i)
 	}
+
 	if value.Object["Oem"] != nil {
 		oem := value.Object["Oem"].(map[string]interface{})
 		if oem["Dell"] != nil {
