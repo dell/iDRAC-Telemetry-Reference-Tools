@@ -38,7 +38,7 @@ type KafkaTLSConfig struct {
 	SkipVerify bool // skip hostname check
 }
 
-func NewKafkaMessageBus(host string, port int, topic string, tlsCfg *KafkaTLSConfig) (messagebus.Messagebus, error) {
+func NewKafkaMessageBus(host string, port int, topic string, partition int, tlsCfg *KafkaTLSConfig) (messagebus.Messagebus, error) {
 	ret := new(KafkaMessagebus)
 	ret.addr = fmt.Sprintf("%s:%d", host, port)
 	ret.ctx = context.Background()
@@ -92,7 +92,7 @@ func NewKafkaMessageBus(host string, port int, topic string, tlsCfg *KafkaTLSCon
 
 	ret.dialer = dialer
 	if topic != "" {
-		conn, err := dialer.DialLeader(context.Background(), "tcp", ret.addr, topic, 0)
+		conn, err := dialer.DialLeader(context.Background(), "tcp", ret.addr, topic, partition)
 		if err != nil || conn == nil {
 			log.Println("kafka.DialLeader: could not connect ", err)
 			return nil, err
