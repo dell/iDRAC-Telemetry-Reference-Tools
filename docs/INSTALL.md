@@ -254,6 +254,7 @@ Kafka can be configured through the UI, an HTTP request or environment variables
 {
    "kafkaBroker": "<Broker ID>", 
    "kafkaTopic": "<Topic>",
+   "kafkaPartition": "<Partition>",
    "kafkaCACert": "<CA Cert>",
    "kafkaSkipVerify": true/false,
    "kafkaClientCert": "<Client Cert>",
@@ -272,6 +273,7 @@ Define the following environment variables in your local environment
 ```
 export KAFKA_BROKER=<kafka-broker-ip>:9092
 export KAFKA_TOPIC=<topic>
+export KAFKA_PARTITION=<partition>
 export KAFKA_CACERT="<CA Cert>"
 export KAFKA_CLIENT_CERT="<Client Cert>"
 export KAFKA_CLIENT_KEY="<Client Key>"

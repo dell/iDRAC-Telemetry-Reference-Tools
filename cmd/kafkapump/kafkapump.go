@@ -41,6 +41,7 @@ var configStrings = map[string]string{
 	"mbport":          "61613",
 	"kafkaBroker":     "",
 	"kafkaTopic":      "",
+	"kafkaPartition":  "0",
 	"kafkaCACert":     "",
 	"kafkaClientCert": "",
 	"kafkaClientKey":  "",
@@ -57,6 +58,11 @@ var configItems = map[string]*config.ConfigEntry{
 		Set:     configSet,
 		Get:     configGet,
 		Default: "",
+	},
+	"kafkaPartition": {
+		Set:     configSet,
+		Get:     configGet,
+		Default: "0",
 	},
 	"kafkaCACert": {
 		Set:     configSet,
@@ -85,7 +91,7 @@ func configSet(name string, value interface{}) error {
 	defer configStringsMu.Unlock()
 
 	switch name {
-	case "kafkaBroker", "kafkaTopic", "kafkaCACert", "kafkaClientCert", "kafkaClientKey", "kafkaSkipVerify":
+	case "kafkaBroker", "kafkaTopic", "kafkaPartition", "kafkaCACert", "kafkaClientCert", "kafkaClientKey", "kafkaSkipVerify":
 		configStrings[name] = value.(string)
 	default:
 		return fmt.Errorf("unknown property %s", name)
@@ -95,7 +101,7 @@ func configSet(name string, value interface{}) error {
 
 func configGet(name string) (interface{}, error) {
 	switch name {
-	case "kafkaBroker", "kafkaTopic", "kafkaCACert", "kafkaClientCert", "kafkaClientKey", "kafkaSkipVerify":
+	case "kafkaBroker", "kafkaTopic", "kafkaPartition", "kafkaCACert", "kafkaClientCert", "kafkaClientKey", "kafkaSkipVerify":
 		configStringsMu.RLock()
 		ret := configStrings[name]
 		configStringsMu.RUnlock()
@@ -124,6 +130,10 @@ func getEnvSettings() {
 	kafkaTopic := os.Getenv("KAFKA_TOPIC")
 	if len(kafkaTopic) > 0 {
 		configStrings["kafkaTopic"] = kafkaTopic
+	}
+	kafkaPartition := os.Getenv("KAFKA_PARTITION")
+	if len(kafkaPartition) > 0 {
+		configStrings["kafkaPartition"] = kafkaPartition
 	}
 	kafkaCert := os.Getenv("KAFKA_CACERT")
 	if len(kafkaCert) > 0 {
@@ -222,7 +232,8 @@ func main() {
 
 	// external message bus - kafka
 	var kafkamb messagebus.Messagebus
-	var ktopic, kcert, kccert, kckey string
+	var ktopic, kpart, kcert, kccert, kckey string
+
 	var kbroker []string
 	var skipVerify bool
 
@@ -240,6 +251,7 @@ func main() {
 			kckey = "/extrabin/certs/" + configStrings["kafkaClientKey"]
 		}
 		ktopic = configStrings["kafkaTopic"]
+		kpart = configStrings["kafkaPartition"]
 
 		if configStrings["kafkaSkipVerify"] == "true" {
 			skipVerify = true
@@ -269,9 +281,9 @@ func main() {
 
 		khost := kbroker[0]
 		kport, _ := strconv.Atoi(kbroker[1])
-		log.Printf("Connecting to kafka broker (%s:%d) cert file %s\n", khost, kport, kcert)
-
-		kmb, err := kafka.NewKafkaMessageBus(khost, kport, ktopic, tlsCfg)
+		log.Printf("Connecting to kafka broker (%s:%d) with topic %s, partition %s\n", khost, kport, ktopic, kpart)
+		p, _ := strconv.Atoi(kpart)
+		kmb, err := kafka.NewKafkaMessageBus(khost, kport, ktopic, p, tlsCfg)
 		if err == nil {
 			defer kmb.Close()
 			kafkamb = kmb
