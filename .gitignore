@@ -7,3 +7,4 @@ vendor/
 .env
 
 cmd/frontend/node_modules
+victoria-metrics-data/

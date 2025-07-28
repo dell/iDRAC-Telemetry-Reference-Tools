@@ -82,12 +82,14 @@ opts=$(getopt \
   --longoptions "kafka-pump" \
   --longoptions "elk-pump" \
   --longoptions "timescale-pump" \
+  --longoptions "victoria-pump" \
   --longoptions "influx-test-db" \
   --longoptions "setup-influx-test-db" \
   --longoptions "setup-prometheus-test-db" \
   --longoptions "prometheus-test-db" \
   --longoptions "elk-test-db" \
   --longoptions "timescale-test-db" \
+  --longoption  "victoria-db"\
   --longoptions "grafana" \
   -- "$@")
 if [[ $? -ne 0 ]]; then
@@ -117,12 +119,14 @@ while [[ $# -gt 0 ]]; do
       echo "    --kafka-pump"
       echo "    --elk-pump"
       echo "    --timescale-pump"
+      echo "    --victoria-pump"
       echo
       echo "  demonstration test databases:"
       echo "    --influx-test-db"
       echo "    --prometheus-test-db"
       echo "    --elk-test-db"
       echo "    --timescale-test-db"
+      echo "    --victoria-db"
       echo
       echo "Start options:"
       echo "  --detach|--nodetach   Either detach (default) from docker compose or stay attached and view debug"
@@ -151,11 +155,14 @@ while [[ $# -gt 0 ]]; do
     --timescale-pump)
       PROFILE_ARG="$PROFILE_ARG --profile timescale-pump"
       ;;
+    --victoria-pump)
+      PROFILE_ARG="$PROFILE_ARG --profile victoria-pump"
+      ;;
     --influx-test-db)
       PROFILE_ARG="$PROFILE_ARG --profile influx-test-db"
       INFLUX=1
       ;;    
-
+      
     --prometheus-test-db)
       PROFILE_ARG="$PROFILE_ARG --profile prometheus-test-db"
       PROMETHEUS=1
@@ -165,6 +172,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     --timescale-test-db)
       PROFILE_ARG="$PROFILE_ARG --profile timescale-test-db"
+      ;;
+    --victoria-db)
+      PROFILE_ARG="$PROFILE_ARG --profile victoria-db"
       ;;
     --grafana)
       PROFILE_ARG="$PROFILE_ARG --profile grafana"
