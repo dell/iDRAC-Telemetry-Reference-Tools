@@ -23,7 +23,7 @@ version: "3.9"
 x-env-mysql: &mysql-env
   MYSQL_DATABASE: "telemetrysource_services_db"
   MYSQL_USER: "reftools"
-  MYSQL_PASSWORD: "Dell1234"
+  MYSQL_PASSWORD: ""
   MYSQL_HOST: "mysqldb"
   MYSQL_HOST_PORT: "3306"
 
@@ -228,7 +228,7 @@ services:
       MESSAGEBUS_HOST: activemq
       MESSAGEBUS_TYPE: stomp
       MESSAGEBUS_PORT: "61613"
-      VM_PUSH_URL: http://182.168.0.67:8429/api/v1/import/prometheus
+      VM_PUSH_URL: http://localhost:8429/api/v1/import/prometheus
     build:
       <<: *base-build
       args:
@@ -255,7 +255,7 @@ services:
       - setup-victoria-db
     volumes:
       - type: bind
-        source: ${PWD}/victoria-metrics-data
+        source: /home/cp/iDRAC-Telemetry-Reference-Tools/victoria-metrics-data
         target: /victoria-metrics-data
     command:
       - '--selfScrapeInterval=5s'
