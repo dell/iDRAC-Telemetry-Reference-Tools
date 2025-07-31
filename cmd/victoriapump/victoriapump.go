@@ -177,12 +177,12 @@ func main() {
 		} else {
 			dbClient.Bus = mb
 			defer mb.Close()
-			log.Printf("✅ Connected to message bus at %s:%d", configStrings["mbhost"], stompPort)
+			log.Printf(" Connected to message bus at %s:%d", configStrings["mbhost"], stompPort)
 			break
 		}
 
 		if i == maxRetries {
-			log.Fatalf("❌ Failed to connect to message bus after %d attempts", maxRetries)
+			log.Fatalf(" Failed to connect to message bus after %d attempts", maxRetries)
 		}
 	}
 
