@@ -23,7 +23,7 @@ version: "3.9"
 x-env-mysql: &mysql-env
   MYSQL_DATABASE: "telemetrysource_services_db"
   MYSQL_USER: "reftools"
-  MYSQL_PASSWORD: ""
+  MYSQL_PASSWORD: 
   MYSQL_HOST: "mysqldb"
   MYSQL_HOST_PORT: "3306"
 
@@ -100,6 +100,8 @@ volumes:
   prometheus-data:
   mysqldb-volume:
   dashboards:
+  victoria-metrics-data:
+  
 
 services:
   activemq:
@@ -228,7 +230,7 @@ services:
       MESSAGEBUS_HOST: activemq
       MESSAGEBUS_TYPE: stomp
       MESSAGEBUS_PORT: "61613"
-      VM_PUSH_URL: http://localhost:8429/api/v1/import/prometheus
+      VM_PUSH_URL: http://localhost:8428/api/v1/import/prometheus
     build:
       <<: *base-build
       args:
@@ -236,7 +238,7 @@ services:
         CMD: victoriapump
     ports:
       - "2112:2112"
-  
+
   victoriametrics:
     ############################################################################
     # VICTORIA METRICS - time-series database
@@ -254,9 +256,7 @@ services:
       - victoria-db
       - setup-victoria-db
     volumes:
-      - type: bind
-        source: /home/cp/iDRAC-Telemetry-Reference-Tools/victoria-metrics-data
-        target: /victoria-metrics-data
+      - victoria-metrics-data:/victoria-metrics-data
     command:
       - '--selfScrapeInterval=5s'
       - '-storageDataPath=/victoria-metrics-data'
@@ -264,7 +264,6 @@ services:
       - "8428:8428"
     networks:
       - host-bridge-net
-
 
   influx:
     ############################################################################
