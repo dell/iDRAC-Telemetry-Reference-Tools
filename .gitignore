@@ -1,0 +1,9 @@
+# golang build related files 
+vendor/
+
+.idea/
+
+# docker-build related files
+.env
+
+cmd/frontend/node_modules
