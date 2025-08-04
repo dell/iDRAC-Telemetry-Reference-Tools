@@ -27,6 +27,10 @@ x-env-mysql: &mysql-env
   MYSQL_HOST: "mysqldb"
   MYSQL_HOST_PORT: "3306"
 
+x-env-victoria: &victoria-env
+  VICTORIA_USERNAME: ""
+  VICTORIA_PASSWORD: ""
+ 
 x-env-messagebus: &messagebus-env
   MESSAGEBUS_HOST: activemq
   MESSAGEBUS_PORT: 61613
@@ -262,6 +266,8 @@ services:
       - '-storageDataPath=/victoria-metrics-data'
     ports:
       - "8428:8428"
+    environment:
+      <<: *victoria-env
     networks:
       - host-bridge-net
 
