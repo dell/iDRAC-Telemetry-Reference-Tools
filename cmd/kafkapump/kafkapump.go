@@ -1,300 +1,259 @@
-package main
+// Licensed to You under the Apache License, Version 2.0.
+
+package kafka
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
-	"log"
-	"os"
-	"strconv"
-	"strings"
-	"sync"
-	"syscall"
-	"time"
+        "context"
+        "crypto/tls"
+        "crypto/x509"
+        "fmt"
+        "io"
+        "log"
+        "net"
+        "os"
+        "strings"
+        "sync"
+        "time"
 
-	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/config"
-	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/databus"
-	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
+        kafka "github.com/segmentio/kafka-go"
 
-	//"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/amqp"
-	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/kafka"
-	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
+        "github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
 )
 
-type kafkaEventFields struct {
-	Value      float64 `json:"_value"`
-	MetricName string  `json:"metric_name"`
-	Source     string  `json:"source"`
+const KafkaMaxMessageBytes = 16 * 1024
+
+type KafkaMessagebus struct {
+        conns       map[string]*kafka.Conn // cache of connections made at first read/write message, mapped by topic name
+        addr        string
+        ctx         context.Context
+        dialer      *kafka.Dialer
+        topicConnMu sync.RWMutex
 }
 
-type kafkaEvent struct {
-	Time   int64            `json:"time"`
-	Event  string           `json:"event"`
-	Host   string           `json:"host"`
-	Fields kafkaEventFields `json:"fields"`
+type KafkaSubscription struct {
 }
 
-var configStringsMu sync.RWMutex
-var configStrings = map[string]string{
-	"mbhost":          "activemq",
-	"mbport":          "61613",
-	"kafkaBroker":     "",
-	"kafkaTopic":      "",
-	"kafkaPartition":  "0",
-	"kafkaCACert":     "",
-	"kafkaClientCert": "",
-	"kafkaClientKey":  "",
-	"kafkaSkipVerify": "",
+type KafkaTLSConfig struct {
+        ServerCA   string
+        ClientCert string
+        ClientKey  string
+        SkipVerify bool // skip hostname check
 }
 
-var configItems = map[string]*config.ConfigEntry{
-	"kafkaBroker": {
-		Set:     configSet,
-		Get:     configGet,
-		Default: "",
-	},
-	"kafkaTopic": {
-		Set:     configSet,
-		Get:     configGet,
-		Default: "",
-	},
-	"kafkaPartition": {
-		Set:     configSet,
-		Get:     configGet,
-		Default: "0",
-	},
-	"kafkaCACert": {
-		Set:     configSet,
-		Get:     configGet,
-		Default: "",
-	},
-	"kafkaClientCert": {
-		Set:     configSet,
-		Get:     configGet,
-		Default: "",
-	},
-	"kafkaClientKey": {
-		Set:     configSet,
-		Get:     configGet,
-		Default: "",
-	},
-	"kafkaSkipVerify": {
-		Set:     configSet,
-		Get:     configGet,
-		Default: "",
-	},
+func NewKafkaMessageBus(host string, port int, topic string, tlsCfg *KafkaTLSConfig) (messagebus.Messagebus, error) {
+        ret := new(KafkaMessagebus)
+        ret.addr = fmt.Sprintf("%s:%d", host, port)
+        ret.ctx = context.Background()
+        ret.conns = map[string]*kafka.Conn{}
+        ret.topicConnMu = sync.RWMutex{}
+
+        dialer := &kafka.Dialer{
+                Timeout:   10 * time.Second,
+                DualStack: true,
+        }
+
+        // TLS
+        if tlsCfg != nil && tlsCfg.ServerCA != "" {
+                ca, err := os.ReadFile(tlsCfg.ServerCA)
+                if err != nil {
+                        log.Println("failed to load server CA cert", err)
+                        return nil, err
+                }
+                pool := x509.NewCertPool()
+                if ok := pool.AppendCertsFromPEM(ca); !ok {
+                        log.Println("Unable to apppend cert to pool")
+                }
+
+                config := tls.Config{
+                        RootCAs:            pool,
+                        MinVersion:         tls.VersionTLS12,
+                        InsecureSkipVerify: tlsCfg.SkipVerify,
+                }
+
+                // Client Authentication - optional
+                if tlsCfg.ClientCert != "" && tlsCfg.ClientKey != "" {
+                        ccrt, err := os.ReadFile(tlsCfg.ClientCert)
+                        if err != nil {
+                                log.Println("failed to load client cert", err)
+                                return nil, err
+                        }
+                        ckey, err := os.ReadFile(tlsCfg.ClientKey)
+                        if err != nil {
+                                log.Println("failed to load client key", err)
+                                return nil, err
+                        }
+                        cert, err := tls.X509KeyPair(ccrt, ckey)
+                        if err != nil {
+                                log.Println("X509KeyPair error ", err)
+                                return nil, err
+                        }
+                        config.Certificates = []tls.Certificate{cert}
+                }
+                dialer.TLS = &config
+        }
+
+        ret.dialer = dialer
+        if topic != "" {
+                conn, err := dialer.DialLeader(context.Background(), "tcp", ret.addr, topic, 0)
+                if err != nil || conn == nil {
+                        log.Println("kafka.DialLeader: could not connect ", err)
+                        return nil, err
+                }
+
+                // ✅ Log the actual broker & partition we got connected to
+                log.Printf("Kafka pump connected to broker %s [topic=%s partition=%d]",
+                        conn.RemoteAddr().String(), topic, 0)
+
+                ret.topicConnMu.Lock()
+                ret.conns[topic] = conn
+                ret.topicConnMu.Unlock()
+        }
+
+        return messagebus.Messagebus(ret), nil
 }
 
-func configSet(name string, value interface{}) error {
-	configStringsMu.Lock()
-	defer configStringsMu.Unlock()
-
-	switch name {
-	case "kafkaBroker", "kafkaTopic", "kafkaPartition", "kafkaCACert", "kafkaClientCert", "kafkaClientKey", "kafkaSkipVerify":
-		configStrings[name] = value.(string)
-	default:
-		return fmt.Errorf("unknown property %s", name)
-	}
-	return nil
+func NewKafkaMessageBusFromConn(conn *kafka.Conn, topic string) (messagebus.Messagebus, error) {
+        ret := new(KafkaMessagebus)
+        ret.conns = map[string]*kafka.Conn{topic: conn}
+        ret.topicConnMu = sync.RWMutex{}
+        ret.ctx = context.Background()
+        intRet := messagebus.Messagebus(ret)
+        return intRet, nil
 }
 
-func configGet(name string) (interface{}, error) {
-	switch name {
-	case "kafkaBroker", "kafkaTopic", "kafkaPartition", "kafkaCACert", "kafkaClientCert", "kafkaClientKey", "kafkaSkipVerify":
-		configStringsMu.RLock()
-		ret := configStrings[name]
-		configStringsMu.RUnlock()
-		return ret, nil
-	default:
-		return nil, fmt.Errorf("unknown property %s", name)
-	}
+func (m *KafkaMessagebus) TopicConnect(queue string) (*kafka.Conn, error) {
+        topic := strings.ReplaceAll(queue, "/", "_")
+        m.topicConnMu.RLock()
+        kconn, ok := m.conns[topic]
+        m.topicConnMu.RUnlock()
+        if !ok || kconn == nil {
+                conn, err := m.dialer.DialLeader(context.Background(), "tcp", m.addr, topic, 0)
+                if err != nil || conn == nil {
+                        log.Println("kafka.DialLeader: could not connect ", err)
+                        return nil, err
+                }
+
+                // ✅ Log which broker we connected to for this topic
+                log.Printf("Kafka topic connect to broker %s [topic=%s partition=%d]",
+                        conn.RemoteAddr().String(), topic, 0)
+
+                m.topicConnMu.Lock()
+                m.conns[topic] = conn
+                m.topicConnMu.Unlock()
+                kconn = conn
+        }
+        return kconn, nil
 }
 
-// getEnvSettings grabs environment variables used to configure kafkapump from the running environment. During normal
-// operations these should be defined in a docker file and passed into the container which is running kafkapump
-func getEnvSettings() {
-	// already locked on entrance
-	mbHost := os.Getenv("MESSAGEBUS_HOST")
-	if len(mbHost) > 0 {
-		configStrings["mbhost"] = mbHost
-	}
-	mbPort := os.Getenv("MESSAGEBUS_PORT")
-	if len(mbPort) > 0 {
-		configStrings["mbport"] = mbPort
-	}
-	kafkaBroker := os.Getenv("KAFKA_BROKER")
-	if len(kafkaBroker) > 0 {
-		configStrings["kafkaBroker"] = kafkaBroker
-	}
-	kafkaTopic := os.Getenv("KAFKA_TOPIC")
-	if len(kafkaTopic) > 0 {
-		configStrings["kafkaTopic"] = kafkaTopic
-	}
-	kafkaPartition := os.Getenv("KAFKA_PARTITION")
-	if len(kafkaPartition) > 0 {
-		configStrings["kafkaPartition"] = kafkaPartition
-	}
-	kafkaCert := os.Getenv("KAFKA_CACERT")
-	if len(kafkaCert) > 0 {
-		configStrings["kafkaCACert"] = kafkaCert
-	}
-	kafkaClientCert := os.Getenv("KAFKA_CLIENT_CERT")
-	if len(kafkaClientCert) > 0 {
-		configStrings["kafkaClientCert"] = kafkaClientCert
-	}
-	kafkaClientKey := os.Getenv("KAFKA_CLIENT_KEY")
-	if len(kafkaClientKey) > 0 {
-		configStrings["kafkaClientKey"] = kafkaClientKey
-	}
-	kafkaSkipVerify := os.Getenv("KAFKA_SKIP_VERIFY")
-	if len(kafkaSkipVerify) > 0 {
-		configStrings["kafkaSkipVerify"] = kafkaSkipVerify
-	}
-
+func shouldRestartOnErr(err error) bool {
+        if err == nil {
+                return false
+        }
+        // EOF or closed/timeout conditions -> restart
+        if err == io.EOF {
+                return true
+        }
+        if ne, ok := err.(net.Error); ok && ne.Timeout() {
+                return true
+        }
+        s := strings.ToLower(err.Error())
+        if strings.Contains(s, "use of closed network connection") ||
+                strings.Contains(s, "broken pipe") ||
+                strings.Contains(s, "connection reset by peer") ||
+                strings.Contains(s, "i/o timeout") {
+                return true
+        }
+        return false
 }
 
-// handleGroups brings in the events from ActiveMQ
-func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Messagebus) {
-	for {
-		group := <-groupsChan // If you are new to GoLang see https://golangdocs.com/channels-in-golang
-		events := make([]*kafkaEvent, len(group.Values))
-		for index, value := range group.Values {
-			timestamp, err := time.Parse(time.RFC3339, value.Timestamp)
-			if err != nil {
-				// For why we do this see https://datatracker.ietf.org/doc/html/rfc3339#section-4.3
-				// Go does not handle time properly. See https://github.com/golang/go/issues/20555
-				value.Timestamp = strings.ReplaceAll(value.Timestamp, "+0000", "Z")
-				timestamp, err = time.Parse(time.RFC3339, value.Timestamp)
-				if err != nil {
-					log.Printf("Error parsing timestamp for point %s: (%s) %v", value.Context+"_"+value.ID, value.Timestamp, err)
-					continue
-				}
-			}
-			event := new(kafkaEvent)
-			event.Time = timestamp.Unix()
-			event.Event = "metric"
-			event.Host = value.System
-			floatVal, _ := strconv.ParseFloat(value.Value, 64)
-			event.Fields.Value = floatVal
-			event.Fields.MetricName = value.Context + "_" + value.ID
-
-			events[index] = event
-		}
-		// send
-		configStringsMu.RLock()
-		ktopic := configStrings["kafkaTopic"]
-		configStringsMu.RUnlock()
-		jsonStr, _ := json.Marshal(events)
-		kafkamb.SendMessage(jsonStr, ktopic)
-
-		err := kafkamb.SendMessage(jsonStr, ktopic)
-		// if broker idle (>10mins) timed out reconnect
-		if err == io.EOF || errors.Is(err, syscall.EPIPE) {
-			log.Println("Broker idle timeout detected, reconnecting....")
-			_ = kafkamb.Close()
-			// reconnect and resend the message
-			_ = kafkamb.SendMessage(jsonStr, ktopic)
-		}
-
-	}
+func (m *KafkaMessagebus) SendMessage(message []byte, queue string) error {
+        kconn, err := m.TopicConnect(queue)
+        if err != nil || kconn == nil {
+                return err
+        }
+        kconn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+        _, err = kconn.WriteMessages(kafka.Message{Value: message})
+        if err != nil {
+                log.Println("failed to write messages:", queue, err)
+                if shouldRestartOnErr(err) {
+                        log.Println("Fatal broker write error; exiting so Kubernetes restarts the pod")
+                        os.Exit(1)
+                }
+        }
+        return err
 }
 
-func main() {
-	getEnvSettings()
-	configStringsMu.RLock()
-	host := configStrings["mbhost"]
-	port, _ := strconv.Atoi(configStrings["mbport"])
-	configStringsMu.RUnlock()
+func (m *KafkaMessagebus) SendMessageWithHeaders(message []byte, queue string, headers map[string]string) error {
+        var hdrs []kafka.Header
+        for key, value := range headers {
+                hdrs = append(hdrs, kafka.Header{Key: key, Value: []byte(value)})
+        }
 
-	// internal message bus
-	var mb messagebus.Messagebus
-	for {
-		smb, err := stomp.NewStompMessageBus(host, port)
-		if err == nil {
-			defer smb.Close()
-			mb = smb
-			break
-		}
-		log.Printf("Could not connect to message bus (%s:%d): %v ", host, port, err)
-		time.Sleep(time.Minute)
-	}
+        kconn, err := m.TopicConnect(queue)
+        if err != nil || kconn == nil {
+                return err
+        }
 
-	dbClient := new(databus.DataBusClient)
-	dbClient.Bus = mb
-	configService := config.NewConfigService(mb, "/kafkapump/config", configItems)
+        kconn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+        _, err = kconn.WriteMessages(kafka.Message{Value: message, Headers: hdrs})
+        if err != nil {
+                log.Println("failed to write messages:", queue, err)
+                if shouldRestartOnErr(err) {
+                        log.Println("Fatal broker write error (headers); exiting so Kubernetes restarts the pod")
+                        os.Exit(1)
+                }
+        }
+        return err
+}
 
-	dbClient.Subscribe("/kafka")
-	dbClient.Get("/kafka")
-	groupsIn := make(chan *databus.DataGroup, 10)
-	go dbClient.GetGroup(groupsIn, "/kafka")
-	go configService.Run()
+func (m *KafkaMessagebus) ReceiveMessage(message chan<- string, queue string) (messagebus.Subscription, error) {
+        kconn, err := m.TopicConnect(queue)
+        if err != nil || kconn == nil {
+                return nil, err
+        }
+        go m.RecieveLoop(kconn, message, queue)
 
-	// external message bus - kafka
-	var kafkamb messagebus.Messagebus
-	var ktopic, kpart, kcert, kccert, kckey string
+        mySub := new(KafkaSubscription)
+        return messagebus.Subscription(mySub), nil
+}
 
-	var kbroker []string
-	var skipVerify bool
+func (m *KafkaMessagebus) RecieveLoop(conn *kafka.Conn, message chan<- string, queue string) {
+        defer func() {
+                _, cancel := context.WithTimeout(m.ctx, 1*time.Second)
+                conn.Close()
+                cancel()
+        }()
 
-	// wait for configuration
-	for {
-		configStringsMu.RLock()
-		kbroker = strings.Split(configStrings["kafkaBroker"], ":")
-		if configStrings["kafkaCACert"] != "" {
-			kcert = "/extrabin/certs/" + configStrings["kafkaCACert"]
-		}
-		if configStrings["kafkaClientCert"] != "" {
-			kccert = "/extrabin/certs/" + configStrings["kafkaClientCert"]
-		}
-		if configStrings["kafkaClientKey"] != "" {
-			kckey = "/extrabin/certs/" + configStrings["kafkaClientKey"]
-		}
-		ktopic = configStrings["kafkaTopic"]
-		kpart = configStrings["kafkaPartition"]
+        for {
+                // Receive next message
+                msg, err := conn.ReadMessage(KafkaMaxMessageBytes)
+                if err != nil {
+                        log.Println("failed to read message:", err)
+                        // Treat read errors as fatal so the pod is restarted
+                        if shouldRestartOnErr(err) {
+                                log.Println("Fatal broker read error; exiting so Kubernetes restarts the pod")
+                                os.Exit(1)
+                        }
+                        break
+                }
+                message <- string(msg.Value)
+        }
+}
 
-		if configStrings["kafkaSkipVerify"] == "true" {
-			skipVerify = true
-		}
+func (m *KafkaMessagebus) Close() error {
+        var err error
+        m.topicConnMu.Lock()
+        defer m.topicConnMu.Unlock()
+        for topic, conn := range m.conns {
+                err1 := conn.Close()
+                if err1 != nil {
+                        err = err1
+                }
+                delete(m.conns, topic)
+        }
+        return err
+}
 
-		log.Println("configStrings : ", configStrings)
-
-		configStringsMu.RUnlock()
-
-		// minimum config available
-		if len(kbroker) > 1 && kbroker[0] != "" && ktopic != "" {
-			log.Printf("Kafka minimum configuration available, continuing ... \n")
-			break
-		}
-		// wait for min configuration
-		time.Sleep(time.Minute)
-	}
-
-	// connection loop
-	for {
-		tlsCfg := &kafka.KafkaTLSConfig{
-			ServerCA:   kcert,
-			ClientCert: kccert,
-			ClientKey:  kckey,
-			SkipVerify: skipVerify,
-		}
-
-		khost := kbroker[0]
-		kport, _ := strconv.Atoi(kbroker[1])
-		log.Printf("Connecting to kafka broker (%s:%d) with topic %s, partition %s\n", khost, kport, ktopic, kpart)
-		p, _ := strconv.Atoi(kpart)
-		kmb, err := kafka.NewKafkaMessageBus(khost, kport, ktopic, p, tlsCfg)
-		if err == nil {
-			defer kmb.Close()
-			kafkamb = kmb
-			break
-		}
-
-		log.Printf("Could not connect to kafka broker (%s:%d): %v ", khost, kport, err)
-		time.Sleep(time.Minute)
-	}
-
-	log.Printf("Entering processing loop")
-
-	handleGroups(groupsIn, kafkamb)
+func (m *KafkaSubscription) Close() error {
+        return nil
 }
