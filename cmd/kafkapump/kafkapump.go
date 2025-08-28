@@ -197,12 +197,10 @@ func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Message
 
 			events[index] = event
 		}
-
-		// --- send to kafka ---
+		// send
 		configStringsMu.RLock()
 		ktopic := configStrings["kafkaTopic"]
 		configStringsMu.RUnlock()
-
 		jsonStr, _ := json.Marshal(events)
 		if err := kafkamb.SendMessage(jsonStr, ktopic); err != nil {
 			log.Printf("SendMessage error, terminating for restart: %v", err)
