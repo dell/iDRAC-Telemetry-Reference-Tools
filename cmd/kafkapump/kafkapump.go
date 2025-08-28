@@ -2,15 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/config"
@@ -114,7 +111,6 @@ func configGet(name string) (interface{}, error) {
 // getEnvSettings grabs environment variables used to configure kafkapump from the running environment. During normal
 // operations these should be defined in a docker file and passed into the container which is running kafkapump
 func getEnvSettings() {
-	// already locked on entrance
 	mbHost := os.Getenv("MESSAGEBUS_HOST")
 	if len(mbHost) > 0 {
 		configStrings["mbhost"] = mbHost
@@ -151,14 +147,13 @@ func getEnvSettings() {
 	if len(kafkaSkipVerify) > 0 {
 		configStrings["kafkaSkipVerify"] = kafkaSkipVerify
 	}
-
 }
 
-// handleGroups brings in the events from ActiveMQ
 func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Messagebus) {
 	for {
 		group := <-groupsChan // If you are new to GoLang see https://golangdocs.com/channels-in-golang
 		events := make([]*kafkaEvent, len(group.Values))
+
 		for index, value := range group.Values {
 			// --- timestamp parsing ---
 			timestamp, err := time.Parse(time.RFC3339, value.Timestamp)
@@ -168,7 +163,7 @@ func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Message
 				value.Timestamp = strings.ReplaceAll(value.Timestamp, "+0000", "Z")
 				timestamp, err = time.Parse(time.RFC3339, value.Timestamp)
 				if err != nil {
-					log.Printf("Error parsing timestamp for point %s: (%s) %v", value.Context+"_"+value.ID, value.Timestamp, err)
+					log.Printf("Error parsing timestamp for point %s: (%s) %v",	value.Context+"_"+value.ID, value.Timestamp, err)
 					continue
 				}
 			}
@@ -201,6 +196,7 @@ func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Message
 		configStringsMu.RLock()
 		ktopic := configStrings["kafkaTopic"]
 		configStringsMu.RUnlock()
+
 		jsonStr, _ := json.Marshal(events)
 		if err := kafkamb.SendMessage(jsonStr, ktopic); err != nil {
 			log.Printf("SendMessage error, terminating for restart: %v", err)
@@ -242,7 +238,6 @@ func main() {
 	// external message bus - kafka
 	var kafkamb messagebus.Messagebus
 	var ktopic, kpart, kcert, kccert, kckey string
-
 	var kbroker []string
 	var skipVerify bool
 
@@ -267,7 +262,6 @@ func main() {
 		}
 
 		log.Println("configStrings : ", configStrings)
-
 		configStringsMu.RUnlock()
 
 		// minimum config available
@@ -291,7 +285,7 @@ func main() {
 		khost := kbroker[0]
 		kport, _ := strconv.Atoi(kbroker[1])
 		log.Printf("Connecting to kafka broker (%s:%d) with topic %s, partition %s\n", khost, kport, ktopic, kpart)
-		p, _ := strconv.Atoi(kpart)
+        p, _ := strconv.Atoi(kpart)
 		kmb, err := kafka.NewKafkaMessageBus(khost, kport, ktopic, p, tlsCfg)
 		if err == nil {
 			defer kmb.Close()
@@ -304,6 +298,5 @@ func main() {
 	}
 
 	log.Printf("Entering processing loop")
-
 	handleGroups(groupsIn, kafkamb)
 }
