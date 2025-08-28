@@ -111,6 +111,7 @@ func configGet(name string) (interface{}, error) {
 // getEnvSettings grabs environment variables used to configure kafkapump from the running environment. During normal
 // operations these should be defined in a docker file and passed into the container which is running kafkapump
 func getEnvSettings() {
+	// already locked on entrance
 	mbHost := os.Getenv("MESSAGEBUS_HOST")
 	if len(mbHost) > 0 {
 		configStrings["mbhost"] = mbHost
@@ -147,15 +148,15 @@ func getEnvSettings() {
 	if len(kafkaSkipVerify) > 0 {
 		configStrings["kafkaSkipVerify"] = kafkaSkipVerify
 	}
+
 }
 
+// handleGroups brings in the events from ActiveMQ
 func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Messagebus) {
 	for {
 		group := <-groupsChan // If you are new to GoLang see https://golangdocs.com/channels-in-golang
 		events := make([]*kafkaEvent, len(group.Values))
-
 		for index, value := range group.Values {
-			// --- timestamp parsing ---
 			timestamp, err := time.Parse(time.RFC3339, value.Timestamp)
 			if err != nil {
 				// For why we do this see https://datatracker.ietf.org/doc/html/rfc3339#section-4.3
@@ -202,6 +203,7 @@ func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Message
 			log.Printf("SendMessage error, terminating for restart: %v", err)
 			os.Exit(1) // let K8s restart the pod
 		}
+
 	}
 }
 
@@ -238,6 +240,7 @@ func main() {
 	// external message bus - kafka
 	var kafkamb messagebus.Messagebus
 	var ktopic, kpart, kcert, kccert, kckey string
+
 	var kbroker []string
 	var skipVerify bool
 
@@ -298,5 +301,6 @@ func main() {
 	}
 
 	log.Printf("Entering processing loop")
+
 	handleGroups(groupsIn, kafkamb)
 }
