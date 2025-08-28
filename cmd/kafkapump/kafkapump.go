@@ -2,17 +2,22 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/config"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/databus"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
+
+	//"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/amqp"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/kafka"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
 )
@@ -106,8 +111,10 @@ func configGet(name string) (interface{}, error) {
 	}
 }
 
-// getEnvSettings grabs environment variables used to configure kafkapump from the running environment.
+// getEnvSettings grabs environment variables used to configure kafkapump from the running environment. During normal
+// operations these should be defined in a docker file and passed into the container which is running kafkapump
 func getEnvSettings() {
+	// already locked on entrance
 	mbHost := os.Getenv("MESSAGEBUS_HOST")
 	if len(mbHost) > 0 {
 		configStrings["mbhost"] = mbHost
@@ -148,18 +155,18 @@ func getEnvSettings() {
 
 func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Messagebus) {
 	for {
-		group := <-groupsChan
+		group := <-groupsChan // If you are new to GoLang see https://golangdocs.com/channels-in-golang
 		events := make([]*kafkaEvent, len(group.Values))
-
 		for index, value := range group.Values {
 			// --- timestamp parsing ---
 			timestamp, err := time.Parse(time.RFC3339, value.Timestamp)
 			if err != nil {
+				// For why we do this see https://datatracker.ietf.org/doc/html/rfc3339#section-4.3
+				// Go does not handle time properly. See https://github.com/golang/go/issues/20555
 				value.Timestamp = strings.ReplaceAll(value.Timestamp, "+0000", "Z")
 				timestamp, err = time.Parse(time.RFC3339, value.Timestamp)
 				if err != nil {
-					log.Printf("Error parsing timestamp for point %s: (%s) %v",
-						value.Context+"_"+value.ID, value.Timestamp, err)
+					log.Printf("Error parsing timestamp for point %s: (%s) %v", value.Context+"_"+value.ID, value.Timestamp, err)
 					continue
 				}
 			}
