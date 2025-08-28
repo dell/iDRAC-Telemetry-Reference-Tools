@@ -1,5 +1,4 @@
 // Licensed to You under the Apache License, Version 2.0.
-
 package kafka
 
 import (
@@ -16,7 +15,6 @@ import (
 	"time"
 
 	kafka "github.com/segmentio/kafka-go"
-
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
 )
 
@@ -63,7 +61,6 @@ func NewKafkaMessageBus(host string, port int, topic string, partition int, tlsC
 		if ok := pool.AppendCertsFromPEM(ca); !ok {
 			log.Println("Unable to apppend cert to pool")
 		}
-
 		config := tls.Config{
 			RootCAs:            pool,
 			MinVersion:         tls.VersionTLS12,
@@ -99,22 +96,20 @@ func NewKafkaMessageBus(host string, port int, topic string, partition int, tlsC
 			log.Println("kafka.DialLeader: could not connect ", err)
 			return nil, err
 		}
-
 		// ✅ Log the actual broker & partition we got connected to
 		log.Printf("Kafka pump connected to broker %s [topic=%s partition=%d]",
-			conn.RemoteAddr().String(), topic, partition)
+			conn.RemoteAddr().String(), topic, 0)
 
 		ret.topicConnMu.Lock()
 		ret.conns[topic] = conn
 		ret.topicConnMu.Unlock()
 	}
-
 	return messagebus.Messagebus(ret), nil
 }
 
 func NewKafkaMessageBusFromConn(conn *kafka.Conn, topic string) (messagebus.Messagebus, error) {
 	ret := new(KafkaMessagebus)
-	ret.conns = map[string]*kafka.Conn{topic: conn}
+	ret.conns[topic] = conn
 	ret.topicConnMu = sync.RWMutex{}
 	ret.ctx = context.Background()
 	intRet := messagebus.Messagebus(ret)
@@ -123,16 +118,17 @@ func NewKafkaMessageBusFromConn(conn *kafka.Conn, topic string) (messagebus.Mess
 
 func (m *KafkaMessagebus) TopicConnect(queue string) (*kafka.Conn, error) {
 	topic := strings.ReplaceAll(queue, "/", "_")
+
 	m.topicConnMu.RLock()
 	kconn, ok := m.conns[topic]
 	m.topicConnMu.RUnlock()
+
 	if !ok || kconn == nil {
 		conn, err := m.dialer.DialLeader(context.Background(), "tcp", m.addr, topic, 0)
 		if err != nil || conn == nil {
 			log.Println("kafka.DialLeader: could not connect ", err)
 			return nil, err
 		}
-
 		// ✅ Log which broker we connected to for this topic
 		log.Printf("Kafka topic connect to broker %s [topic=%s partition=%d]",
 			conn.RemoteAddr().String(), topic, 0)
@@ -149,6 +145,7 @@ func shouldRestartOnErr(err error) bool {
 	if err == nil {
 		return false
 	}
+
 	// EOF or closed/timeout conditions -> restart
 	if err == io.EOF {
 		return true
@@ -171,6 +168,7 @@ func (m *KafkaMessagebus) SendMessage(message []byte, queue string) error {
 	if err != nil || kconn == nil {
 		return err
 	}
+
 	kconn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 	_, err = kconn.WriteMessages(kafka.Message{Value: message})
 	if err != nil {
@@ -184,9 +182,12 @@ func (m *KafkaMessagebus) SendMessage(message []byte, queue string) error {
 }
 
 func (m *KafkaMessagebus) SendMessageWithHeaders(message []byte, queue string, headers map[string]string) error {
+	var hdr kafka.Header
 	var hdrs []kafka.Header
 	for key, value := range headers {
-		hdrs = append(hdrs, kafka.Header{Key: key, Value: []byte(value)})
+		hdr.Key = key
+		hdr.Value = []byte(value)
+		hdrs = append(hdrs, hdr)
 	}
 
 	kconn, err := m.TopicConnect(queue)
@@ -212,7 +213,6 @@ func (m *KafkaMessagebus) ReceiveMessage(message chan<- string, queue string) (m
 		return nil, err
 	}
 	go m.RecieveLoop(kconn, message, queue)
-
 	mySub := new(KafkaSubscription)
 	return messagebus.Subscription(mySub), nil
 }
@@ -244,6 +244,7 @@ func (m *KafkaMessagebus) Close() error {
 	var err error
 	m.topicConnMu.Lock()
 	defer m.topicConnMu.Unlock()
+
 	for topic, conn := range m.conns {
 		err1 := conn.Close()
 		if err1 != nil {
