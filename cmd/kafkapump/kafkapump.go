@@ -151,8 +151,10 @@ func getEnvSettings() {
 	if len(kafkaSkipVerify) > 0 {
 		configStrings["kafkaSkipVerify"] = kafkaSkipVerify
 	}
+
 }
 
+// handleGroups brings in the events from ActiveMQ
 func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Messagebus) {
 	for {
 		group := <-groupsChan // If you are new to GoLang see https://golangdocs.com/channels-in-golang
@@ -170,8 +172,6 @@ func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Message
 					continue
 				}
 			}
-
-			// --- build event ---
 			event := new(kafkaEvent)
 			event.Time = timestamp.Unix()
 			event.Event = "metric"
@@ -244,6 +244,7 @@ func main() {
 	// external message bus - kafka
 	var kafkamb messagebus.Messagebus
 	var ktopic, kpart, kcert, kccert, kckey string
+
 	var kbroker []string
 	var skipVerify bool
 
@@ -268,6 +269,7 @@ func main() {
 		}
 
 		log.Println("configStrings : ", configStrings)
+
 		configStringsMu.RUnlock()
 
 		// minimum config available
@@ -290,9 +292,7 @@ func main() {
 
 		khost := kbroker[0]
 		kport, _ := strconv.Atoi(kbroker[1])
-
 		log.Printf("Connecting to kafka broker (%s:%d) with topic %s, partition %s\n", khost, kport, ktopic, kpart)
-
 		p, _ := strconv.Atoi(kpart)
 		kmb, err := kafka.NewKafkaMessageBus(khost, kport, ktopic, p, tlsCfg)
 		if err == nil {
@@ -306,5 +306,6 @@ func main() {
 	}
 
 	log.Printf("Entering processing loop")
+
 	handleGroups(groupsIn, kafkamb)
 }
