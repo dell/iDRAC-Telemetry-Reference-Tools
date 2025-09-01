@@ -96,7 +96,7 @@ func NewKafkaMessageBus(host string, port int, topic string, partition int, tlsC
 			log.Println("kafka.DialLeader: could not connect ", err)
 			return nil, err
 		}
-		// ✅ Log the actual broker & partition we got connected to
+		// Log the actual broker & partition we got connected to
 		log.Printf("Kafka pump connected to broker %s [topic=%s partition=%d]",
 			conn.RemoteAddr().String(), topic, 0)
 
@@ -129,7 +129,7 @@ func (m *KafkaMessagebus) TopicConnect(queue string) (*kafka.Conn, error) {
 			log.Println("kafka.DialLeader: could not connect ", err)
 			return nil, err
 		}
-		// ✅ Log which broker we connected to for this topic
+		// Log which broker we connected to for this topic
 		log.Printf("Kafka topic connect to broker %s [topic=%s partition=%d]",
 			conn.RemoteAddr().String(), topic, 0)
 
