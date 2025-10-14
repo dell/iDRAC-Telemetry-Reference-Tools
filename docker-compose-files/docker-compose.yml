@@ -30,7 +30,8 @@ x-env-mysql: &mysql-env
 x-env-victoria: &victoria-env
   VICTORIA_USERNAME: ""
   VICTORIA_PASSWORD: ""
- 
+  VICTORIA_METRICS_URL: http://172.0.0.1:8428/api/v1/import/prometheus
+   
 x-env-messagebus: &messagebus-env
   MESSAGEBUS_HOST: activemq
   MESSAGEBUS_PORT: 61613
@@ -230,11 +231,11 @@ services:
     depends_on:
       - activemq
     environment:
-      <<: *messagebus-env
+      <<: [*messagebus-env, *victoria-env]
       MESSAGEBUS_HOST: activemq
       MESSAGEBUS_TYPE: stomp
       MESSAGEBUS_PORT: "61613"
-      VM_PUSH_URL: http://localhost:8428/api/v1/import/prometheus
+      
     build:
       <<: *base-build
       args:

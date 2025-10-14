@@ -14,6 +14,7 @@
     - [Post Install for Elasticsearch](#post-install-for-elasticsearch)
     - [Post Install for InfluxDB, Prometheus, or TimescaleDB](#post-install-for-influxdb-prometheus-or-timescaledb)
    - [Kafka Configuration](#kafka-configuration)
+  - [victoriaDB deployment](#Victoria-DB-deployement)
 
 ## Navigation
 
@@ -279,3 +280,5 @@ export KAFKA_CLIENT_CERT="<Client Cert>"
 export KAFKA_CLIENT_KEY="<Client Key>"
 export KAFKA_SKIP_VERIFY=true/false
 ```
+
+## Victoria DB deployement
