@@ -117,6 +117,7 @@ func parseReport(metricReport *redfish.RedfishPayload, r *RedfishDevice, dataBus
 	group.ImgID = r.ImgID
 	group.ID = metricReport.Object["Id"].(string)
 	group.Label = metricReport.Object["Name"].(string)
+	group.Timestamp = metricReport.Object["Timestamp"].(string)
 	valuesSize := metricValues.GetArraySize()
 	for j := 0; j < valuesSize; j++ {
 		metricValue, err := metricValues.GetPropertyByIndex(j)
