@@ -1,18 +1,11 @@
-// Licensed to You under the Apache License, Version 2.0.   See the LICENSE file for more details.
-
-//nolint:revive,funlen,gofmt,stylecheck,gocognit,staticcheck
 package main
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
-	"log"
-	"net"
-	"net/http"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -23,45 +16,20 @@ import (
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/databus"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
-
 	"github.com/spf13/viper"
+
+	commonv1 "go.opentelemetry.io/proto/otlp/common/v1"
+	logsv1 "go.opentelemetry.io/proto/otlp/logs/v1"
+	metricsv1 "go.opentelemetry.io/proto/otlp/metrics/v1"
+	resourcev1 "go.opentelemetry.io/proto/otlp/resource/v1"
 )
 
-const (
-	ip = "localhost"
-	// sdk behavior can be tested outside of the box with the following steps
-	// change ip to idrac ip
-	// update credentials from token to basic
-	ERROR = 1
-	WARN  = 2
-	INFO  = 3
-	DEBUG = 4
-
-	successReponseCode = 200
-
-	maxIdleConnsCount     = 10
-	idleConnTimoutSeconds = 30
-)
-
-var tr = &http.Transport{
-	MaxIdleConns:    maxIdleConnsCount,
-	IdleConnTimeout: idleConnTimoutSeconds * time.Second,
-	DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
-		return net.Dial("unix", "/run/container/http_client_socket")
-	},
-	// InsecureSkipVerify: true because this client is used for internal localhost calls
-	// nolint:gosec
-	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+// Intermediate struct to hold metric data points before conversion to OTLP
+type dp struct {
+	value any // float64 or string (for enums)
+	time  int64
+	attr  []*commonv1.KeyValue
 }
-var client = &http.Client{Transport: tr}
-var clientRich = &http.Client{}
-
-var (
-	jsonStart  = []byte(`{"resource_metrics": [{ "resource": {"attributes": [{"key":"`)
-	jsonKey    = []byte(`"}},{"key": "`)
-	jsonInBtwn = []byte(`","value": {"stringValue":"`)
-	jsonEnd    = []byte(`"}}]},`)
-)
 
 type otelMeta struct {
 	name        string
@@ -72,36 +40,10 @@ type otelMeta struct {
 	Time        int64
 	Value       interface{}
 	MetricName  string
-}
-type attrMeta struct {
-	Key   string `json:"key"`
-	Value value  `json:"value"`
+	enum        map[string]interface{}
 }
 
-type value struct {
-	StringValue string `json:"stringValue"`
-}
-
-type otelEventFields struct {
-	Value      float64 `json:"_value"`
-	MetricName string  `json:"metric_name"`
-	Source     string  `json:"source"`
-}
-
-type otelEvent struct {
-	Time   int64           `json:"time"`
-	Event  string          `json:"event"`
-	Host   string          `json:"host"`
-	Fields otelEventFields `json:"fields"`
-}
-type SystemDetails struct {
-	FQDN    string
-	Name    string
-	Id      string
-	Version string
-	SKU     string
-	Model   string
-}
+var idrac2Otel = map[string]otelMeta{}
 
 var configStringsMu sync.RWMutex
 var configStrings = map[string]string{
@@ -142,6 +84,16 @@ var configItems = map[string]*config.ConfigEntry{
 	},
 }
 
+// configSet updates a configuration property in the in‑memory config map.
+//
+// Parameters:
+//
+//	name string - the name of the configuration property to set.
+//	value interface{} - the new value for the property (must be a string).
+//
+// Returns:
+//
+//	error - nil on success, or an error if the property name is unknown.
 func configSet(name string, value interface{}) error {
 	configStringsMu.Lock()
 	defer configStringsMu.Unlock()
@@ -154,6 +106,15 @@ func configSet(name string, value interface{}) error {
 	return nil
 }
 
+// configGet retrieves a configuration property's current value from the in‑memory config map.
+//
+// Parameters:
+//
+//	name string - the name of the configuration property to get.
+//
+// Returns:
+//
+//	(interface{}, error) - the property value as an interface{} and nil on success, or an error if the property name is unknown.
 func configGet(name string) (interface{}, error) {
 	switch name {
 	case "otelCollector", "otelCACert", "otelClientCert", "otelClientKey", "otelSkipVerify":
@@ -164,6 +125,11 @@ func configGet(name string) (interface{}, error) {
 	default:
 		return nil, fmt.Errorf("unknown property %s", name)
 	}
+}
+
+type rf2Otel struct {
+	ScopeAttr map[string]string
+	Metric    []map[string]interface{}
 }
 
 // getEnvSettings grabs environment variables used to configure otelpump from the running environment. During normal
@@ -202,98 +168,34 @@ func getEnvSettings() {
 
 }
 
-func (o *otelMeta) MarshalJSON() ([]byte, error) {
-	type metricvalue struct {
-		AsDouble *float64 `json:"asDouble,omitempty"`
-		AsInt    *int64   `json:"asInt,omitempty"`
-	}
-	type format struct {
-		TimeUnixNano int64    `json:"timeUnixNano"`
-		AsDouble     *float64 `json:"asDouble,omitempty"`
-		AsInt        *int64   `json:"asInt,omitempty"`
-		//Value metricvalue `json:"value"`
-	}
-
-	target := format{}
-	//for attr, val := range o.attributes {
-	//	target.Attributes = append(target.Attributes, attrMeta{Key: attr, Value: value{StringValue: val}})
-	//}
-	val := o.Value.(string)
-	switch o.valueType {
-	case "int", "int64":
-		asInt, err := strconv.ParseInt(val, 10, 64)
-		if err == nil {
-			//target.Value.AsInt = &asInt
-			target.AsInt = &asInt
-		}
-	case "double":
-		asDouble, err := strconv.ParseFloat(val, 64)
-		if err == nil {
-			//target.Value.AsDouble = &asDouble
-			target.AsDouble = &asDouble
-		}
-	case "string":
-		// All the metrics are Gauge type, enum string to int
-		asInt := int64(-1)
-		enumStr := strings.ToLower(o.Value.(string))
-		logTrace(DEBUG, "enumStr ", enumStr, o.attributes)
-		if ival, ok := o.attributes["enum."+enumStr]; ok {
-			ai, err := strconv.ParseInt(ival, 10, 64)
-			if err == nil {
-				asInt = ai
-			}
-		}
-		//target.Value.AsInt = &asInt
-		target.AsInt = &asInt
-	}
-
-	//target.TimeUnixNano = strconv.FormatInt(o.Time, 10) + "000000"
-	target.TimeUnixNano = o.Time
-	//target.STimeUnixNano = strconv.FormatInt(o.Time, 10) + "000000"
-	jstr, err := json.Marshal(&target)
-	//logTrace(DEBUG, "GSR valtype target, jstr, err ", o.valueType, target, string(jstr), err)
-	return jstr, err
-}
-
-type rf2Otel struct {
-	ScopeAttr map[string]string
-	Metric    []map[string]interface{}
-}
-
-var (
-	tmpMetar = otelMeta{
-		name:        "hw.temperature",
-		description: "Temperature in degrees Celsius",
-		unit:        "Cel",
-		valueType:   "int",
-		attributes:  map[string]string{"id": "", "name": "", "parent": "", "hw.type": "temperature"},
-	}
-
-	idrac2Otel = map[string]otelMeta{
-		"temperature": tmpMetar,
-		// others read from yaml  - readOtelMeta()
-	}
-)
-
-func readOtelMeta() {
-	logTrace(INFO, "readOtelMeta: using config /extrabin/redfishToOtel.yaml")
+// readOtelMeta loads the redfish‑to‑OTel mapping configuration from a YAML file and populates internal structures used for metric conversion.
+//
+// Parameters:
+//
+//	configFile string - path to the YAML configuration file.
+//
+// Returns:
+//
+//	(none) - exits the program on fatal errors; otherwise populates global variables.
+func readOtelMeta(configFile string) {
+	slog.Info("readOtelMeta: using config file", "configFile", configFile)
 	cfg := viper.New()
-	cfg.SetConfigFile("/extrabin/redfishToOtel.yaml")
+	cfg.SetConfigFile(configFile)
 	err := cfg.ReadInConfig()
 	if err != nil {
-		logTrace(ERROR, " error reading redfishToOtel.yaml ", err)
+		slog.Error("error reading redfishToOtel.yaml", "error", err)
 		os.Exit(-1)
 	}
 
 	subcfg := cfg.Sub("ScopeAttrDefault")
 	if subcfg == nil {
-		logTrace(ERROR, " error, ScopeAttrDefault not found in redfishToOtel.yaml ")
+		slog.Error("ScopeAttrDefault not found in redfishToOtel.yaml ")
 		os.Exit(-1)
 	}
 	var scopeDef = map[string]string{}
 	err = subcfg.Unmarshal(&scopeDef)
 	if err != nil {
-		logTrace(ERROR, " Unmarshal error ", err)
+		slog.Error("Unmarshal error", "error", err)
 		os.Exit(-1)
 	}
 	// replace _ with . in keys
@@ -306,7 +208,7 @@ func readOtelMeta() {
 
 	subcfg = cfg.Sub("MetricReport")
 	if subcfg == nil {
-		logTrace(ERROR, " error, MetricReport not found in redfishToOtel.yaml ")
+		slog.Error("MetricReport not found in redfishToOtel.yaml ")
 		os.Exit(-1)
 	}
 
@@ -315,14 +217,14 @@ func readOtelMeta() {
 		//logTrace(DEBUG, " Process metricReport ", metricReport)
 		subcfg2 := subcfg.Sub(k)
 		if subcfg2 == nil {
-			logTrace(WARN, " nil subcfg for ", k)
+			slog.Warn("nil subcfg for section", "section", k)
 			continue
 		}
 
 		var r2o rf2Otel
 		err := subcfg2.Unmarshal(&r2o)
 		if err != nil {
-			logTrace(WARN, " Unmarshal error ", err)
+			slog.Warn("Unmarshal error", "error", err)
 			continue
 		}
 
@@ -332,19 +234,20 @@ func readOtelMeta() {
 				r2o.ScopeAttr[strings.Replace(sa, "_", ".", -1)] = v
 			}
 		}
-		logTrace(DEBUG, " r2o: scopeattr ", r2o.ScopeAttr)
-		logTrace(DEBUG, " r2o: Metric ", r2o.Metric)
-		var om otelMeta
+		slog.Debug("r2o: scopeattr", "scopeattr", r2o.ScopeAttr)
+		slog.Debug("r2o: Metric ", "Metric", r2o.Metric)
+
 		for _, m := range r2o.Metric {
+			var om otelMeta
 			onm, ok := m["otelmetricname"].(string)
 			if !ok {
-				logTrace(WARN, "otelMetricName not found!")
+				slog.Warn("otelMetricName not found!")
 				continue
 			}
 			om.name = onm
 			otyp, ok := m["oteltype"].(string)
 			if !ok {
-				logTrace(WARN, "otelType not found!")
+				slog.Warn("otelType not found!")
 				continue
 			}
 			om.valueType = otyp
@@ -358,7 +261,7 @@ func readOtelMeta() {
 			}
 			rnm, ok := m["redfishname"].(string)
 			if !ok {
-				logTrace(WARN, "redfishName not found!")
+				slog.Warn("redfishName not found!")
 				continue
 			}
 			om.attributes = make(map[string]string)
@@ -383,416 +286,370 @@ func readOtelMeta() {
 			if rnm == "TemperatureReading" {
 				rnm = metricReport + ":" + rnm
 			}
+
+			// Add the enum map to the meta if it exists
+			if enum, ok := m["enum"]; ok {
+				om.enum = enum.(map[string]interface{})
+			}
 			idrac2Otel[rnm] = om
 			// logTrace(DEBUG, "otelMeta ", om)
 		}
 	}
-	// logTrace(DEBUG, "idrac2Otel ", idrac2Otel)
 }
 
-func PostOtelMetrics(url string, reader io.Reader) (io.ReadCloser, error) {
-	tmp := clientRich
-
-	req, err := http.NewRequestWithContext(context.Background(), "POST", url, reader)
+// parseFloat attempts to parse a string as a float64.
+//
+// Parameters:
+//
+//	value string - the string to convert.
+//
+// Returns:
+//
+//	(float64, bool) - the parsed float and true on success, or 0 and false on failure.
+func parseFloat(value string) (float64, bool) {
+	val, err := strconv.ParseFloat(value, 64)
 	if err != nil {
-		logTrace(DEBUG, "Error creating httprequest for url:", url, "error:", err)
-		return nil, err
+		return 0, false
 	}
+	return val, true
+}
 
-	req.Header.Add("Content-Type", "application/json")
-	resp, err := tmp.Do(req)
-
+// parseRFC3339ToNanos parses an RFC3339 timestamp string and returns the Unix nanosecond representation.
+//
+// Parameters:
+//
+//	s string - timestamp in RFC3339 format.
+//
+// Returns:
+//
+//	(int64, error) - nanoseconds since epoch and an error if parsing fails.
+func parseRFC3339ToNanos(s string) (int64, error) {
+	if strings.TrimSpace(s) == "" {
+		return 0, errors.New("empty timestamp")
+	}
+	t, err := time.Parse(time.RFC3339, s)
 	if err != nil {
-		return nil, err
+		return 0, fmt.Errorf("parse timestamp %q: %w", s, err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		//
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading response body: %v\n", err)
-			os.Exit(1)
-		}
-		fmt.Println(string(body))
-		//
-		return nil, fmt.Errorf("http POST request failed for %s with Error code %d", // do not chnage the message format
-			url, resp.StatusCode)
-	}
-	return nil, nil
+	return t.UnixNano(), nil
 }
 
-type telemetryMetric struct {
-	MetricId       string
-	MetricProperty string
-	MetricValue    string
-	Oem            struct {
-		Dell struct {
-			FQDD      string
-			Label     string
-			Source    string
-			ContextId string
-		} `json:"Dell"`
-	} `json:"Oem"`
-	Timestamp string
-}
-
-func writeotel(otelM otelMeta, tele telemetryMetric, w io.Writer) {
-	if otelM.attributes == nil {
-		return
-	}
-	//otelM.attributes["name"] = tele.Oem.Dell.FQDD
-	//otelM.attributes["id"] = tele.Oem.Dell.FQDD
-	otelM.Value = tele.MetricValue
-	thetime, _ := time.Parse(time.RFC3339, tele.Timestamp)
-	otelM.Time = thetime.UnixNano()
-	err := json.NewEncoder(w).Encode(&otelM)
-	if err != nil {
-		if err != io.ErrClosedPipe {
-			logTrace(WARN, "writeotel ", err)
-			return
-		}
-		logTrace(DEBUG, "writeotel ", err)
+// kv creates a OpenTelemetry KeyValue attribute from a string key and string value.
+//
+// Parameters:
+//
+//	k string - attribute key.
+//	v string - attribute value.
+//
+// Returns:
+//
+//	*commonv1.KeyValue - pointer to the constructed KeyValue protobuf message.
+func kv(k, v string) *commonv1.KeyValue {
+	return &commonv1.KeyValue{
+		Key:   k,
+		Value: &commonv1.AnyValue{Value: &commonv1.AnyValue_StringValue{StringValue: v}},
 	}
 }
 
-type attrList struct {
-	Attributes []attrMeta `json:"attributes"`
-}
-
-func writeBytes(s string, w io.Writer) {
-	_, err := w.Write([]byte(s))
-	if err != nil {
-		logTrace(ERROR, "writeBytes ", err)
+// getHostAttributes builds a slice of host‑level attributes for a DataGroup, used in OTLP resources.
+//
+// Parameters:
+//
+//	group *databus.DataGroup - the data group containing host information.
+//
+// Returns:
+//
+//	[]*commonv1.KeyValue - slice of KeyValue attributes describing the host.
+func getHostAttributes(group *databus.DataGroup) []*commonv1.KeyValue {
+	return []*commonv1.KeyValue{
+		kv("host.type", "PowerEdge"),
+		kv("host.id", group.SKU),
+		kv("host.name", group.FQDN),
+		kv("host.model", group.Model),
 	}
 }
 
-func addResource(hostInfo map[string]string, metrics bool, w io.Writer) error {
-	var s attrList
-
-	for key, val := range hostInfo {
-		s.Attributes = append(s.Attributes, attrMeta{Key: key, Value: value{StringValue: val}})
-	}
-	if metrics {
-		writeBytes("{\"resourceMetrics\": [{\"resource\": ", w)
-	} else {
-		writeBytes("{\"resource_logs\": [{\"resource\": ", w)
-	}
-	a, err := json.Marshal(&s)
-	if err != nil {
-		logTrace(ERROR, "addResource(): ", err)
-		return err
-	}
-	writeBytes(string(a), w)
-	// end resource
-	writeBytes(",", w)
-
-	return nil
-}
-
-func addMetricScope(otelM otelMeta, m telemetryMetric, w io.Writer) error {
-	var s attrList
-
+// addScopeAttributes populates the instrumentation scope attributes for a metric based on the otelMeta definition, FQDD, and timestamp.
+//
+// Parameters:
+//
+//	otelM otelMeta - metadata describing the metric.
+//	fqdd string - the Fully Qualified Device Descriptor identifying the source.
+//	timestamp string - string representation of the report timestamp.
+//	scope *commonv1.InstrumentationScope - the scope object to which attributes will be added.
+//
+// Returns:
+//
+//	(none) - modifies the provided scope in place.
+func addScopeAttributes(otelM otelMeta, fqdd, timestamp string, scope *commonv1.InstrumentationScope) {
+	scope.Attributes = []*commonv1.KeyValue{}
 	for attr, val := range otelM.attributes {
 		switch val {
 		case "var-FQDD":
-			val = m.Oem.Dell.FQDD
+			val = fqdd
 		case "var-Timestamp":
-			thetime, _ := time.Parse(time.RFC3339, m.Timestamp)
-			val = strconv.FormatInt(thetime.UnixMilli(), 10) + "000000"
+			val = timestamp
+		default:
+			// use the value as is
 		}
-		s.Attributes = append(s.Attributes, attrMeta{Key: attr, Value: value{StringValue: val}})
+		scope.Attributes = append(scope.Attributes, kv(attr, val))
 	}
-	writeBytes("\"scope\": ", w)
-
-	a, err := json.Marshal(&s)
-	if err != nil {
-		logTrace(ERROR, "addMetricScope(): ", err)
-		return err
-	}
-	writeBytes(string(a), w)
-	//end scope
-	//writeBytes("},", w)
-
-	return nil
 }
 
-func addLogScope(attrs map[string]string, w io.Writer) error {
-	var s attrList
+// groupMetricsByFQDDAndMetricId groups metric data points from a
+// DataGroup by their FQDD and metric ID.
+//
+// Parameters:
+//
+//	group *databus.DataGroup - the input data group containing metric values.
+//
+// Returns:
+//
+//	map[string]map[string][]dp - a nested map keyed first by FQDD then by metric ID, each containing a slice of data points.
+func groupMetricsByFQDDAndMetricId(group *databus.DataGroup) map[string]map[string][]dp {
 
-	// TODO: Name and Version ?
-	writeBytes("\"scope\": {\"name\": \"Lifecycle Logs\", \"version\": \"1.0.0\"", w)
-
-	if attrs != nil {
-		writeBytes("}", w)
-		for attr, val := range attrs {
-			s.Attributes = append(s.Attributes, attrMeta{Key: attr, Value: value{StringValue: val}})
+	metricsByFQDDMetricId := map[string]map[string][]dp{}
+	for _, value := range group.Values {
+		var val any
+		val, ok := parseFloat(value.Value)
+		if !ok {
+			val = value.Value // keep original string value for enum conversion
 		}
-		a, err := json.Marshal(&s)
+		nanos, err := parseRFC3339ToNanos(value.Timestamp)
 		if err != nil {
-			logTrace(ERROR, "addLogScope(): ", err)
-			return err
+			slog.Warn("skip record with bad timestamp", "timestamp", value.Timestamp, "error", err)
+			continue
 		}
-		writeBytes(string(a), w)
+		if _, ok := metricsByFQDDMetricId[value.Context]; !ok {
+			metricsByFQDDMetricId[value.Context] = map[string][]dp{}
+		}
+
+		if _, ok := metricsByFQDDMetricId[value.Context][value.ID]; !ok {
+			metricsByFQDDMetricId[value.Context][value.ID] = []dp{}
+		}
+		metricsByFQDDMetricId[value.Context][value.ID] = append(metricsByFQDDMetricId[value.Context][value.ID], dp{value: val, time: nanos})
+	}
+	return metricsByFQDDMetricId
+}
+
+// toOTLPMetrics converts a DataGroup containing metric values into an
+// OTLP ResourceMetrics protobuf message.
+//
+// Parameters:
+//
+//	group *databus.DataGroup - the data group with metric information.
+//
+// Returns:
+//
+//	(*metricsv1.ResourceMetrics, error) - the constructed ResourceMetrics and any error encountered during conversion.
+func toOTLPMetrics(group *databus.DataGroup) (*metricsv1.ResourceMetrics, error) {
+	metricsByFQDDMetricId := groupMetricsByFQDDAndMetricId(group)
+	// Top level object for every group. Here a DataGroup is a MetricReport
+	rm := &metricsv1.ResourceMetrics{
+		Resource: &resourcev1.Resource{
+			Attributes: getHostAttributes(group),
+		},
 	}
 
-	writeBytes("},", w)
-
-	return nil
+	for fqdd, metricsByMetricId := range metricsByFQDDMetricId {
+		metrics := make([]*metricsv1.Metric, 0, len(metricsByMetricId))
+		scope := &commonv1.InstrumentationScope{}
+		for metricId, dps := range metricsByMetricId {
+			otelM, ok := idrac2Otel[metricId]
+			if !ok || otelM.name == "" {
+				slog.Warn("OtelMeta not found for the redfish MetricId", "metricId", metricId)
+				continue
+			}
+			if scope.Attributes == nil {
+				//  Get the report time stamp from the DataGroup for scope attribute
+				reportTime, err := parseRFC3339ToNanos(group.Timestamp)
+				if err != nil {
+					slog.Warn("skip record with bad timestamp", "timestamp", group.Timestamp, "error", err)
+					continue
+				}
+				addScopeAttributes(otelM, fqdd, strconv.FormatInt(reportTime, 10), scope)
+			}
+			m := &metricsv1.Metric{
+				Name:        otelM.name,
+				Description: otelM.description,
+				Unit:        otelM.unit,
+				Data: &metricsv1.Metric_Gauge{
+					Gauge: &metricsv1.Gauge{DataPoints: make([]*metricsv1.NumberDataPoint, 0)},
+				},
+			}
+			if otelM.enum != nil {
+				m.Metadata = make([]*commonv1.KeyValue, 0)
+				for k, v := range otelM.enum {
+					m.Metadata = append(m.Metadata, kv("enum."+k, strconv.Itoa(v.(int))))
+				}
+			}
+			for _, p := range dps {
+				switch v := p.value.(type) {
+				case float64:
+					// no conversion needed
+					m.GetGauge().DataPoints = append(m.GetGauge().DataPoints, &metricsv1.NumberDataPoint{
+						TimeUnixNano: uint64(p.time),
+						Attributes:   p.attr,
+						Value:        &metricsv1.NumberDataPoint_AsDouble{AsDouble: v},
+					})
+				case string:
+					// enum string to int conversion
+					if otelM.enum == nil {
+						slog.Warn("no enum map. cannot convert value", "metricId", metricId, "value", v)
+						continue
+					}
+					ev, ok := otelM.enum[strings.ToLower(v)]
+					if !ok {
+						slog.Warn("no enum mapping for value", "metricId", metricId, "value", v)
+						continue
+					}
+					m.GetGauge().DataPoints = append(m.GetGauge().DataPoints, &metricsv1.NumberDataPoint{
+						TimeUnixNano: uint64(p.time),
+						Attributes:   p.attr,
+						Value:        &metricsv1.NumberDataPoint_AsInt{AsInt: int64(ev.(int))},
+					})
+				default:
+					slog.Warn("unexpected value type for metric id", "metricId", metricId, "value", v, "type", fmt.Sprintf("%T", v))
+					continue
+				}
+			}
+			metrics = append(metrics, m)
+		}
+		rm.ScopeMetrics = append(rm.ScopeMetrics, &metricsv1.ScopeMetrics{
+			Scope:   scope,
+			Metrics: metrics,
+		})
+	}
+	return rm, nil
 }
 
-type logBody struct {
-	StrVal string `json:"stringValue"`
+// mapSeverity maps a textual severity string to the corresponding OpenTelemetry SeverityNumber.
+//
+// Parameters:
+//
+//	s string - severity text (e.g., "ok", "warning", "critical").
+//
+// Returns:
+//
+//	logsv1.SeverityNumber - the corresponding severity enum value.
+func mapSeverity(s string) logsv1.SeverityNumber {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "ok":
+		return logsv1.SeverityNumber_SEVERITY_NUMBER_INFO
+	case "warning":
+		return logsv1.SeverityNumber_SEVERITY_NUMBER_WARN
+	case "critical":
+		return logsv1.SeverityNumber_SEVERITY_NUMBER_ERROR
+	default:
+		return logsv1.SeverityNumber_SEVERITY_NUMBER_UNSPECIFIED
+	}
 }
 
-type logRecord struct {
-	TimeUnixNano         int64      `json:"timeUnixNano"`
-	ObservedTimeUnixNano int64      `json:"observedTimeUnixNano"`
-	SeverityNumber       int        `json:"severityNumber"`
-	SeverityText         string     `json:"severityText"`
-	Body                 logBody    `json:"body"`
-	AttrList             []attrMeta `json:"attributes"`
-}
-
-func InsertLogData(group *databus.DataGroup, w io.Writer) {
-	//defer func() {
-	//	if r := recover(); r != nil {
-	//		logTrace(WARN, "error parsing the log data", r)
-	//	}
-	//}()
-
-	var logRecords []logRecord
+// toOTLPLogs converts a DataGroup containing events into an
+// OTLP ResourceLogs protobuf message.
+//
+// Parameters:
+//
+//	group *databus.DataGroup - the data group with event information.
+//
+// Returns:
+//
+//	(*logsv1.ResourceLogs, error) - the constructed ResourceLogs and any error encountered during conversion.
+func toOTLPLogs(group *databus.DataGroup) (*logsv1.ResourceLogs, error) {
+	var records []*logsv1.LogRecord
 
 	for _, event := range group.Events {
-		var lr logRecord
-		tmFmt := "2006-01-02T15:04:05-0700"
-		//thetime, err := time.Parse(time.RFC3339, event.EventTimestamp)
-		thetime, err := time.Parse(tmFmt, event.EventTimestamp)
+		etime, err := parseRFC3339ToNanos(event.EventTimestamp)
 		if err != nil {
-			logTrace(WARN, "Time format error ", err)
+			slog.Warn("error formatting timestamp", "error", err, "event id", event.EventId)
+			continue
 		}
-
-		lr.TimeUnixNano = thetime.UnixNano()
-		lr.ObservedTimeUnixNano = thetime.UnixNano()
-		sev := 0
-		sevText := "Unknown"
-		switch event.MessageSeverity {
-		case "OK":
-			sev = 9
-			sevText = "Information"
-		case "Warning":
-			sev = 13
-			sevText = "Warning"
-		case "Critical":
-			sev = 17
-			sevText = "Critical"
+		attrs := []*commonv1.KeyValue{
+			kv("event.data.type", "telemetry"),
+			kv("event.object.type", event.EventType),
+			kv("event.object.id", event.EventId),
 		}
-		lr.SeverityNumber = sev
-		lr.SeverityText = sevText
-		// TODO
 		jstr, err := json.Marshal(event)
 		if err != nil {
-			logTrace(WARN, "Error marshaling event data ", err)
-		}
-		lr.Body.StrVal = string(jstr)
-
-		lr.AttrList = append(lr.AttrList, attrMeta{Key: "event.data.type", Value: value{StringValue: "telemetry"}})
-		lr.AttrList = append(lr.AttrList, attrMeta{Key: "event.object.type", Value: value{StringValue: event.EventType}})
-		lr.AttrList = append(lr.AttrList, attrMeta{Key: "event.object.id", Value: value{StringValue: event.EventId}})
-
-		logRecords = append(logRecords, lr)
-	}
-
-	js, err := json.Marshal(&logRecords)
-	if err != nil {
-		logTrace(ERROR, "InsertLogData(): ", err)
-		return
-	}
-	writeBytes("\"log_records\":", w)
-	writeBytes(string(js), w)
-	// close resource logs
-	//writeBytes("}", w)
-}
-
-func InsertMetricReportData(group *databus.DataGroup, w io.Writer) {
-	defer func() {
-		if r := recover(); r != nil {
-			logTrace(WARN, "error parsing the telemetry data", r)
-		}
-	}()
-	var m telemetryMetric
-	lastMetric := ""
-	lastFQDD := ""
-	btwn := "\","
-
-	for _, value := range group.Values {
-		m.MetricId = value.ID
-		if strings.Contains(m.MetricId, "PowerTime") {
+			slog.Warn("error marshaling event data", "error", err, "event id", event.EventId)
 			continue
 		}
-		// map iDRAC metric to Otel meta
-		if m.MetricId == "TemperatureReading" {
-			m.MetricId = strings.ToLower(group.ID) + ":" + m.MetricId
+		lr := &logsv1.LogRecord{
+			TimeUnixNano:         uint64(etime),
+			ObservedTimeUnixNano: uint64(etime),
+			SeverityText:         event.MessageSeverity,
+			SeverityNumber:       mapSeverity(event.MessageSeverity),
+			Attributes:           attrs,
+			Body:                 &commonv1.AnyValue{Value: &commonv1.AnyValue_StringValue{StringValue: string(jstr)}},
 		}
-		otelM, ok := idrac2Otel[m.MetricId]
-		if !ok || otelM.name == "" {
-			logTrace(WARN, "OtelMeta not found for the redfish MetricId ", m.MetricId)
-			continue
-		}
-		m.MetricValue = value.Value
-		m.Timestamp = value.Timestamp
-		m.Oem.Dell.FQDD = value.Context
-		m.Oem.Dell.Label = value.Label
-		// m.Oem.Dell.Source = dell["Source"].(string)   // TODO: add source
-		m.Oem.Dell.ContextId = value.Context
-
-		// Generate Scope attributes
-		if lastFQDD != m.Oem.Dell.FQDD {
-			if lastFQDD != "" {
-				// end data_point object
-				writeBytes("]}}", w)
-
-				// close metric-array and scope_metric and start new
-				writeBytes("]},{", w)
-
-			} else {
-				// start first scope_metric
-				writeBytes("{", w)
-			}
-			lastFQDD = m.Oem.Dell.FQDD
-			err := addMetricScope(otelM, m, w)
-			if err != nil {
-				return
-			}
-			// start metric-array
-			writeBytes(",\"metrics\":[", w)
-			lastMetric = ""
-		}
-		if lastMetric != otelM.name {
-			// end data_point object
-			if lastMetric != "" {
-				writeBytes("]}},", w)
-			}
-			// start metric object
-			writeBytes("{\"name\":\""+otelM.name+btwn+
-				"\"description\": \""+otelM.description+btwn+
-				"\"unit\": \""+otelM.unit+btwn+
-				"\"gauge\":{\"data_points\": [", w)
-		}
-		// metric or data_point object separator
-		if lastMetric == otelM.name {
-			writeBytes(",", w)
-		}
-
-		// data points
-		writeotel(otelM, m, w)
-
-		lastMetric = otelM.name
-	}
-	writeBytes("]}}", w)
-}
-
-func initOtelCollectorTransport(caCert, clientCert, clientKey string, skipVerify bool) {
-
-	// default transport
-	clientRich = &http.Client{Transport: &http.Transport{
-		MaxIdleConns:    maxIdleConnsCount,
-		IdleConnTimeout: idleConnTimoutSeconds * time.Second,
-		// InsecureSkipVerify: true because this is updated with the user defined value
-		// when SSL is enabled on the collector
-		// nolint:gosec
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}}
-
-	// TLS
-	if caCert != "" {
-		pool := x509.NewCertPool()
-		if ok := pool.AppendCertsFromPEM([]byte(caCert)); !ok {
-			logTrace(WARN, "Unable to apppend cert to pool")
-		}
-
-		config := tls.Config{
-			RootCAs:            pool,
-			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: skipVerify, // nolint:gosec
-		}
-
-		// Client Authentication - optional
-		if clientCert != "" && clientKey != "" {
-			cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
-			if err != nil {
-				logTrace(WARN, "X509KeyPair error ", err)
-				return
-			}
-			config.Certificates = []tls.Certificate{cert}
-		}
-		clientRich.Transport = &http.Transport{
-			MaxIdleConns:    maxIdleConnsCount,
-			IdleConnTimeout: idleConnTimoutSeconds * time.Second,
-			TLSClientConfig: &config,
-		}
+		records = append(records, lr)
 	}
 
+	if len(records) == 0 {
+		return &logsv1.ResourceLogs{
+			ScopeLogs: []*logsv1.ScopeLogs{},
+		}, nil
+	}
+
+	rl := &logsv1.ResourceLogs{
+		Resource: &resourcev1.Resource{
+			Attributes: getHostAttributes(group),
+		},
+		ScopeLogs: []*logsv1.ScopeLogs{
+			{
+				Scope: &commonv1.InstrumentationScope{
+					Name:    "Lifecycle Logs",
+					Version: "1.0.0",
+				},
+				LogRecords: records,
+			},
+		},
+	}
+	return rl, nil
 }
 
-func convertAndSendOtelMetrics(groupsChan chan *databus.DataGroup, ocUrl string) {
-	logTrace(DEBUG, "convertMetricsToOtel ")
+func convertAndSendOtelMetrics(ctx context.Context, groupsChan chan *databus.DataGroup, exp *httpExporter) {
 	for {
 		group := <-groupsChan
 		if group.ID == "MemoryMetrics" {
 			continue
 		}
-		reader, writer := io.Pipe()
-		go func() {
-			logTrace(INFO, "parsing report / event ", group.ID)
-			hostInfo := map[string]string{
-				"host.type": "PowerEdge",
-				//"collection.time": strconv.FormatInt(time.Now().UnixMilli(), 10) + "000000",
-				"host.id":    group.SKU,
-				"host.name":  group.FQDN,
-				"host.model": group.Model,
+		if len(group.Values) > 0 {
+			rm, err := toOTLPMetrics(group)
+			if err != nil {
+				slog.Error("error converting metrics to OTLP", "error", err)
+				continue
 			}
-			defer writer.Close()
-
-			if len(group.Events) == 0 {
-				addResource(hostInfo, true, writer)
-				fmt.Println("GSR report ", group.ID)
-				writeBytes("\"scope_metrics\": [", writer)
-				InsertMetricReportData(group, writer)
-				// close scope_metrics array and resource array
-				writeBytes("]}]}]}", writer)
-			} else {
-				addResource(hostInfo, false, writer)
-				fmt.Println("GSR events ", group.Events)
-				writeBytes("\"scope_logs\": [{", writer)
-				addLogScope(nil, writer)
-				InsertLogData(group, writer)
-				// close scopeLogs array and resource array
-				writeBytes("}]}]}", writer)
+			if len(rm.ScopeMetrics) == 0 {
+				slog.Warn("no metrics converted", "group id", group.ID)
+				continue
 			}
-
-		}()
-
-		// send to OTEL Collector
-		_, err := PostOtelMetrics(ocUrl, reader)
-		if err != nil && !strings.HasSuffix(err.Error(), ": EOF") {
-			logTrace(WARN, "Unable to send metrics to Otel Collector ", err)
+			if err := exp.exportMetrics(ctx, rm); err != nil {
+				slog.Error("error exporting metrics", "error", err)
+			}
+		} else if len(group.Events) > 0 {
+			rl, err := toOTLPLogs(group)
+			if err != nil {
+				slog.Error("error converting logs to OTLP", "error", err)
+				continue
+			}
+			if len(rl.ScopeLogs) == 0 {
+				slog.Warn("no logs converted", "group id", group.ID)
+				continue
+			}
+			if err := exp.exportLogs(ctx, rl); err != nil {
+				slog.Error("error exporting logs", "error", err)
+			}
 		}
+
 	}
 
 }
 
-var setLogLevel int
-
-func init() {
-	// All logging above Error get printed.
-	setLogLevel = INFO
-}
-func logTrace(logLevel int, v ...any) {
-	if logLevel <= setLogLevel {
-		fmt.Println(v...)
-	}
-}
 func main() {
+	slog.SetLogLoggerLevel(slog.LevelWarn)
+	slog.SetDefault(slog.Default().With("pump", "otelpump"))
+
 	getEnvSettings()
 	configStringsMu.RLock()
 	host := configStrings["mbhost"]
@@ -808,7 +665,7 @@ func main() {
 			mb = smb
 			break
 		}
-		logTrace(WARN, "Could not connect to message bus (%s:%d): %v, retrying... ", host, port, err)
+		slog.Warn("Could not connect to message bus ", "host", host, "port", port, "error", err)
 		time.Sleep(time.Minute)
 	}
 
@@ -843,23 +700,30 @@ func main() {
 			skipVerify = true
 		}
 
-		log.Println("configStrings : ", configStrings)
+		slog.Info("Read configuration", "config", configStrings)
 
 		configStringsMu.RUnlock()
 
 		// minimum config available
 		if ocUrl != "" {
-			logTrace(INFO, "otel minimum configuration available, continuing ... \n")
+			slog.Info("otel minimum configuration available, continuing ... \n")
 			break
 		}
 		// wait for min configuration
 		time.Sleep(time.Minute)
 	}
-	initOtelCollectorTransport(kcert, kccert, kckey, skipVerify)
 
-	readOtelMeta()
+	readOtelMeta("/extrabin/redfishToOtel.yaml")
 
-	logTrace(INFO, "Entering processing loop....")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	exp, err := newHTTPExporter(ocUrl, kcert, kccert, kckey, skipVerify)
+	if err != nil {
+		slog.Error("error creating HTTP exporter", "error", err)
+		return
+	}
+
+	slog.Info("Entering processing loop....")
 	// convert DMTF metrics to OTEL format and send to OTEL Collector
-	convertAndSendOtelMetrics(groupsIn, ocUrl)
+	convertAndSendOtelMetrics(ctx, groupsIn, exp)
 }
