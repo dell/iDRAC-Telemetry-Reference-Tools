@@ -24,6 +24,10 @@ import (
 	resourcev1 "go.opentelemetry.io/proto/otlp/resource/v1"
 )
 
+const (
+	joinChar = ":"
+)
+
 // Intermediate struct to hold metric data points before conversion to OTLP
 type dp struct {
 	value any // float64 or string (for enums)
@@ -168,6 +172,15 @@ func getEnvSettings() {
 
 }
 
+func containsString(slice []string, str string) bool {
+	for _, item := range slice {
+		if item == str {
+			return true
+		}
+	}
+	return false
+}
+
 // readOtelMeta loads the redfish‑to‑OTel mapping configuration from a YAML file and populates internal structures used for metric conversion.
 //
 // Parameters:
@@ -185,6 +198,14 @@ func readOtelMeta(configFile string) {
 	if err != nil {
 		slog.Error("error reading redfishToOtel.yaml", "error", err)
 		os.Exit(-1)
+	}
+	var repeatedMetricIds []string
+	if cfg.IsSet("repeatedMetricIds") {
+		err = cfg.UnmarshalKey("repeatedMetricIds", &repeatedMetricIds)
+		if err != nil {
+			slog.Error("error unmarshalling repeatedMetricIds", "error", err)
+			os.Exit(-1)
+		}
 	}
 
 	subcfg := cfg.Sub("ScopeAttrDefault")
@@ -282,9 +303,9 @@ func readOtelMeta(configFile string) {
 				}
 			}
 
-			// TemperatureReading common metric across some metric reports
-			if rnm == "TemperatureReading" {
-				rnm = metricReport + ":" + rnm
+			// Handle repeatedMetricIds by prefixing with metric report
+			if containsString(repeatedMetricIds, rnm) {
+				rnm = metricReport + joinChar + rnm
 			}
 
 			// Add the enum map to the meta if it exists
@@ -455,12 +476,20 @@ func toOTLPMetrics(group *databus.DataGroup) (*metricsv1.ResourceMetrics, error)
 		metrics := make([]*metricsv1.Metric, 0, len(metricsByMetricId))
 		scope := &commonv1.InstrumentationScope{}
 		for metricId, dps := range metricsByMetricId {
+			var otelM otelMeta
 			otelM, ok := idrac2Otel[metricId]
 			if !ok || otelM.name == "" {
-				slog.Warn("OtelMeta not found for the redfish MetricId", "metricId", metricId)
-				continue
+
+				// If the metricId is not found, check if it is a
+				// repeatedMetricId and try prefixing with the group ID (metric report ID)
+				otelM, ok = idrac2Otel[strings.ToLower(group.ID)+joinChar+metricId]
+				if !ok || otelM.name == "" {
+					slog.Warn("OtelMeta not found for the redfish MetricId", "metricId", metricId)
+					continue
+				}
 			}
 			if scope.Attributes == nil {
+
 				//  Get the report time stamp from the DataGroup for scope attribute
 				reportTime, err := parseRFC3339ToNanos(group.Timestamp)
 				if err != nil {

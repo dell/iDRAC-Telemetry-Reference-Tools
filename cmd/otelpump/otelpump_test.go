@@ -25,6 +25,16 @@ func TestReadOtelMetaEnum(t *testing.T) {
 	}
 }
 
+func TestReadOtelMetaRepeatedMetricIds(t *testing.T) {
+	readOtelMeta("redfishToOtel.yaml")
+	if _, ok := idrac2Otel["nicsensor:TemperatureReading"]; !ok {
+		t.Errorf("repeatedMetricIds handling failed, got no entry for nicsensor:TemperatureReading")
+	}
+	if _, ok := idrac2Otel["TemperatureReading"]; ok {
+		t.Errorf("repeatedMetricIds handling failed, got entry for TemperatureReading when it should be prefixed with metric report")
+	}
+}
+
 func logTestCases() []struct {
 	name      string
 	group     *databus.DataGroup
@@ -218,11 +228,12 @@ func metricTestCases() []struct {
 		{
 			name: "single metric - all fields populated",
 			group: &databus.DataGroup{
+				ID:        "GPUMetrics",
+				Timestamp: ts,
 				Values: []databus.DataValue{
 					{
 						ID:        "GPUMemoryUsage",          // metric name
 						Context:   "SystemBoard",             // will become the FQDD / scope attribute
-						Label:     "node1",                   // an extra label that we will turn into an attribute
 						Value:     fmt.Sprintf("%v", 123.45), // OTLP expects a float, we store it as a string
 						Timestamp: ts,
 						System:    "host123",
@@ -250,6 +261,8 @@ func metricTestCases() []struct {
 		{
 			name: "missing metric value - conversion should error and return empty",
 			group: &databus.DataGroup{
+				ID:        "Sensor",
+				Timestamp: ts,
 				Values: []databus.DataValue{
 					{
 						ID:        "BadMetric",
@@ -262,6 +275,39 @@ func metricTestCases() []struct {
 			},
 			wantData:  nil,
 			wantEmpty: true,
+		},
+		{
+			name: "single metric - all fields populated with repeatedMetricIds",
+			group: &databus.DataGroup{
+				ID:        "NICSensor",
+				Timestamp: ts,
+				Values: []databus.DataValue{
+					{
+						ID:        "TemperatureReading",      // metric name
+						Context:   "SystemBoard",             // will become the FQDD / scope attribute
+						Value:     fmt.Sprintf("%v", 123.45), // OTLP expects a float, we store it as a string
+						Timestamp: ts,
+						System:    "host123",
+						HostName:  "myhost",
+					},
+				},
+			},
+			wantData: &metricsv1.Metric{
+				Name: "hw.nic.temperature",
+				Data: &metricsv1.Metric_Gauge{
+					Gauge: &metricsv1.Gauge{
+						DataPoints: []*metricsv1.NumberDataPoint{
+							{
+								TimeUnixNano: uint64(tsNano),
+								Value: &metricsv1.NumberDataPoint_AsDouble{
+									AsDouble: 123.45,
+								},
+							},
+						},
+					},
+				},
+			},
+			wantEmpty: false,
 		},
 	}
 }

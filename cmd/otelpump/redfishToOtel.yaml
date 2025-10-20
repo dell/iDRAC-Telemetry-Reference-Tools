@@ -1,11 +1,12 @@
-redfishMetricToOtel:
+repeatedMetricIds:
+  - TemperatureReading
 
 ScopeAttrDefault:
-    collection_object_type: "ComputerSystem"
-    collection_object_id: "var-FQDD"
-    collection_metric_type: "PERFORMANCE"
-    collection_time: "var-Timestamp"
-    collection_version: "1.0.7"
+  collection_object_type: "ComputerSystem"
+  collection_object_id: "var-FQDD"
+  collection_metric_type: "PERFORMANCE"
+  collection_time: "var-Timestamp"
+  collection_version: "1.0.7"
 
 MetricReport:
   AggregationMetrics:
