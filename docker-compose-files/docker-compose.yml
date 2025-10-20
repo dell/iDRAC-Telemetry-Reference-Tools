@@ -1,4 +1,4 @@
-version: "3.9"
+
 
 ######
 # core services: activemq, mysqldb, configui, dbdiscauth, redfishread
