@@ -117,6 +117,7 @@ func parseReport(metricReport *redfish.RedfishPayload, r *RedfishDevice, dataBus
 	group.ImgID = r.ImgID
 	group.ID = metricReport.Object["Id"].(string)
 	group.Label = metricReport.Object["Name"].(string)
+	group.Timestamp = metricReport.Object["Timestamp"].(string)
 	valuesSize := metricValues.GetArraySize()
 	for j := 0; j < valuesSize; j++ {
 		metricValue, err := metricValues.GetPropertyByIndex(j)
@@ -193,8 +194,10 @@ func parseRedfishEvents(events *redfish.RedfishPayload, r *RedfishDevice, dataBu
 			data.Message = eventData.Object["Message"].(string)
 			data.MessageId = eventData.Object["MessageId"].(string)
 			if args, ok := eventData.Object["MessageArgs"]; ok {
-				for _, a := range args.([]interface{}) {
-					data.MessageArgs = append(data.MessageArgs, a.(string))
+				if args != nil {
+					for _, a := range args.([]interface{}) {
+						data.MessageArgs = append(data.MessageArgs, a.(string))
+					}
 				}
 			}
 			group.Events = append(group.Events, *data)
@@ -632,7 +635,7 @@ func main() {
 			}
 		case databus.DELETEPRODUCER:
 			devices[command.ServiceIP].CtxCancel()
-			log.Printf("service has been cancelled, Ctx = ", devices[command.ServiceIP].Ctx)
+			log.Printf("service has been cancelled, Ctx = %v", devices[command.ServiceIP].Ctx)
 			time.Sleep(2 * time.Second)
 			delete(devices, command.ServiceIP)
 		case auth.TERMINATE:

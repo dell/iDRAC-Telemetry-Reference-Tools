@@ -51,18 +51,19 @@ type EventValue struct {
 }
 
 type DataGroup struct {
-	ID       string
-	Label    string
-	Sequence string
-	System   string
-	HostName string
-	Model    string
-	SKU      string
-	FQDN     string
-	FwVer    string
-	ImgID    string
-	Values   []DataValue
-	Events   []EventValue
+	ID        string
+	Label     string
+	Sequence  string
+	System    string
+	HostName  string
+	Model     string
+	SKU       string
+	FQDN      string
+	FwVer     string
+	ImgID     string
+	Timestamp string
+	Values    []DataValue
+	Events    []EventValue
 }
 
 type DataProducer struct {

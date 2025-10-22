@@ -1,11 +1,12 @@
-redfishMetricToOtel:
+repeatedMetricIds:
+  - TemperatureReading
 
 ScopeAttrDefault:
-    collection_object_type: "ComputerSystem"
-    collection_object_id: "var-FQDD"
-    collection_metric_type: "PERFORMANCE"
-    collection_time: "var-Timestamp"
-    collection_version: "1.0.7"
+  collection_object_type: "ComputerSystem"
+  collection_object_id: "var-FQDD"
+  collection_metric_type: "PERFORMANCE"
+  collection_time: "var-Timestamp"
+  collection_version: "1.0.7"
 
 MetricReport:
   AggregationMetrics:
@@ -352,19 +353,37 @@ MetricReport:
         otelMetricName: "network.fc.os.driverstate"
         otelType: "string"
         description: "This property indicates the OS driver state"
-        attr: {"enum.Other": "0", "enum.Not Applicable": "1", "enum.Non-operational": "2", "enum.Operational": "3", "enum.Unknown": "4"}
+        enum:
+          Other: 0
+          Not Applicable: 1
+          Non-operational: 2
+          Operational: 3
+          Unknown: 4
 
       - redfishName: "PortSpeed"
         otelMetricName: "network.fc.port.speed"
         otelType: "string"
         description: "Specifies the port speed"
-        attr: {"enum.No Link": "0", "enum.2 Gbps": "1", "enum.4 Gbps": "2", "enum.8 Gbps": "3", "enum.16 Gbps": "4", "enum.32 Gbps": "5", "enum.64 Gbps": "6", "enum.128 Gbps": "7", "enum.256 Gbps": "8", "enum.Unknown": "9"}
+        enum:
+          "No Link": 0
+          "2 Gbps": 1
+          "4 Gbps": 2
+          "8 Gbps": 3
+          "16 Gbps": 4
+          "32 Gbps": 5
+          "64 Gbps": 6
+          "128 Gbps": 7
+          "256 Gbps": 8
+          Unknown: 9
 
       - redfishName: "PortStatus"
         otelMetricName: "network.fc.port.status"
         otelType: "string"
         description: "FC port status"
-        attr: {"enum.Down": "0", "enum.Up": "1", "enum.Unknown": "2"}
+        enum:
+          Down: 0
+          Up: 1
+          Unknown: 2
 
 
   FCSensor:
@@ -398,7 +417,10 @@ MetricReport:
         otelMetricName: "hw.gpu.board.powersupply.status"
         otelType: "string"
         description: "GPU board power supply status"
-        attr: {"enum.UnderPowered": "0", "enum.SufficientPower": "1", "enum.Not Applicable": "2"}
+        enum:
+          UnderPowered: 0
+          SufficientPower: 1
+          "Not Applicable": 2
 
 
       - redfishName: "BoardTemperature"
@@ -411,7 +433,11 @@ MetricReport:
         otelMetricName: "hw.gpu.health"
         otelType: "string"
         description: "GPU health status"
-        attr: {"enum.Unknown":"0", "enum.OK":"1", "enum.Degraded":"2", "enum.Critical":"3"}
+        enum:
+          Unknown: 0
+          OK: 1
+          Degraded: 2
+          Critical: 3
 
 
       - redfishName: "GPUMemoryUsage"
@@ -442,7 +468,10 @@ MetricReport:
         otelMetricName: "hw.gpu.status"
         otelType: "string"
         description: "GPU Availability Status"
-        attr: {"enum.Available": "0", "enum.Unavailable": "1", "enum.Not Applicable": "2"}
+        enum:
+          Available: 0
+          Unavailable: 1
+          Not Applicable: 2
 
 
       - redfishName: "MemoryTemperature"
@@ -455,7 +484,10 @@ MetricReport:
         otelMetricName: "hw.gpu.powerbrake.state"
         otelType: "string"
         description: "Power brake state"
-        attr: {"enum.Released": "0", "enum.Set": "1", "enum.Not Applicable": "2"}
+        enum:
+          Released: 0
+          Set: 1
+          Not Applicable: 2
 
 
       - redfishName: "PowerConsumption"
@@ -467,7 +499,10 @@ MetricReport:
         otelMetricName: "hw.gpu.powersupply.status"
         otelType: "string"
         description: "Specifies Power supply status"
-        attr: {"enum.Disabled": "0", "enum.Enabled": "1", "enum.Not Applicable": "2"}
+        enum:
+          Disabled: 0
+          Enabled: 1
+          Not Applicable: 2
 
 
       - redfishName: "PrimaryTemperature"
@@ -486,7 +521,10 @@ MetricReport:
         otelMetricName: "hw.gpu.thermal.alert.state"
         otelType: "string"
         description: "Thermal alert state"
-        attr: {"enum.NotPending": "0", "enum.Pending": "1", "enum.Not Applicable": "2"}
+        enum: 
+          NotPending: 0
+          Pending: 1
+          "Not Applicable": 2
 
 
   MemorySensor:
@@ -519,26 +557,38 @@ MetricReport:
       - redfishName: "OSDriverState"
         otelMetricName: "network.eth.os.state"
         otelType: "string"
-        attr: {"enum.Non-operational":"0", "enum.Operational":"1", "enum.Unknown":"2"}
         description: "Indicates operating system driver states (Unknown, Operational, Non-operational)"
+        enum: 
+          Non-operational: 0
+          Operational: 1
+          Unknown: 2
 
       - redfishName: "LinkStatus"
         otelMetricName: "network.eth.link.status"
         otelType: "string"
-        attr: {"enum.Down":"0", "enum.Up":"1", "enum.Unknown":"2"}
         description: "Indicates whether the link is up or down"
+        enum: 
+          "Down": 0
+          Up: 1
+          Unknown: 2
 
       - redfishName: "PartitionLinkStatus"
         otelMetricName: "network.eth.partition.link.status"
         otelType: "string"
-        attr: {"enum.Down":"0", "enum.Up":"1", "enum.Unknown":"2"}
         description: "Indicates whether the partition link is up or down"
+        enum: 
+          Down: 0
+          Up: 1
+          Unknown: 2
 
       - redfishName: "PartitionOSDriverState"
         otelMetricName: "network.eth.partition.os.driver.state"
         otelType: "string"
-        attr: {"enum.Non-operational":"0", "enum.Operational":"1", "enum.Unknown":"2"}
         description: "Indicates partitions operating system driver states"
+        enum: 
+          Non-operational: 0
+          Operational: 1
+          Unknown: 2
 
       - redfishName: "TxBytes"
         otelMetricName: "network.eth.tx.bytes"
@@ -1144,7 +1194,11 @@ MetricReport:
         otelMetricName: "hw.sfp.temperature.status"
         otelType: "string"
         description: "Status of the Temperature sensor reading"
-        attr: {"enum.Unknown": "0", "enum.OK": "1", "enum.Warning": "2", "enum.Critical": "3"}
+        enum: 
+          Unknown: 0
+          OK: 1
+          Warning: 2
+          Critical: 3
 
       - redfishName: "SFPVoltage"
         otelMetricName: "hw.sfp.voltage"
@@ -1156,7 +1210,11 @@ MetricReport:
         otelMetricName: "hw.sfp.voltage.status"
         otelType: "string"
         description: "Status of the Voltage of Small Form Factor pluggable(SFP) Tranceiver"
-        attr: {"enum.Unknown": "0", "enum.OK": "1", "enum.Warning": "2", "enum.Critical": "3"}
+        enum: 
+          Unknown: 0
+          OK: 1
+          Warning: 2
+          Critical: 3
 
       - redfishName: "TxBiasCurrent"
         otelMetricName: "hw.sfp.bias_current"
@@ -1168,7 +1226,11 @@ MetricReport:
         otelMetricName: "hw.sfp.bias_current.status"
         otelType: "string"
         description: "Status of Tx Bias Current value of Small Form Factor pluggable(SFP) Transceiver Metric Definition"
-        attr: {"enum.Unknown": "0", "enum.OK": "1", "enum.Warning": "2", "enum.Critical": "3"}
+        enum: 
+          Unknown: 0
+          OK: 1
+          Warning: 2
+          Critical: 3
 
       - redfishName: "TxOutputPower"
         otelMetricName: "hw.sfp.power.output"
@@ -1180,7 +1242,11 @@ MetricReport:
         otelMetricName: "hw.sfp.power.output.status"
         otelType: "string"
         description: "Status of Tx Output Power value of Small Form Factor pluggable(SFP) Transceiver Metric Definition"
-        attr: {"enum.Unknown": "0", "enum.OK": "1", "enum.Warning": "2", "enum.Critical": "3"}
+        enum: 
+          Unknown: 0
+          OK: 1
+          Warning: 2
+          Critical: 3
 
       - redfishName: "RxInputPower"
         otelMetricName: "hw.sfp.power.input"
@@ -1192,7 +1258,11 @@ MetricReport:
         otelMetricName: "hw.sfp.power.input.status"
         otelType: "string"
         description: "Status of Rx Input Power value of Small Form Factor pluggable(SFP) Transceiver Metric Definition"
-        attr: {"enum.Unknown": "0", "enum.OK": "1", "enum.Warning": "2", "enum.Critical": "3"}
+        enum: 
+          Unknown: 0
+          OK: 1
+          Warning: 2
+          Critical: 3
 
 
   StorageDiskSMARTData:
