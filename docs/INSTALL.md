@@ -14,6 +14,7 @@
     - [Post Install for Elasticsearch](#post-install-for-elasticsearch)
     - [Post Install for InfluxDB, Prometheus, or TimescaleDB](#post-install-for-influxdb-prometheus-or-timescaledb)
    - [Kafka Configuration](#kafka-configuration)
+  - [victoria DB deployment](#Victoria-DB-deployement)
 
 ## Navigation
 
@@ -279,3 +280,144 @@ export KAFKA_CLIENT_CERT="<Client Cert>"
 export KAFKA_CLIENT_KEY="<Client Key>"
 export KAFKA_SKIP_VERIFY=true/false
 ```
+
+## Victoria DB deployement
+
+# VictoriaMetrics Configuration
+
+**VictoriaMetrics** is a high-performance, scalable, and cost-efficient **time-series database** designed for fast ingestion and querying of **Prometheus-compatible metrics**.  
+Within the iDRAC Telemetry framework, the **VictoriaPump** component collects **iDRAC Redfish telemetry data** from the **ActiveMQ message bus** and pushes it directly into **VictoriaMetrics** using the **Prometheus exposition format**.
+
+This **push-based model** eliminates the need for a Prometheus intermediary, providing:
+
+* Lower latency
+* Reduced memory usage
+* Simplified deployment
+
+
+## Victoria Pipeline Configuration Using Environment Variables
+
+Configure credentials and the target URL of the VictoriaMetrics using the following environment variables.
+
+| Variable | Description | Example |
+|-----------|--------------|----------|
+| `VICTORIA_URL` | URL of the VictoriaMetrics instance | `http://victoriametrics:8428` |
+| `VICTORIA_USER` | Username for authentication | `admin` |
+| `VICTORIA_PASSWORD` | Password for authentication | `secret` |
+
+> **Note:**  
+ * These variables can be set in your terminal session or defined in your Docker Compose file.  
+* This approach makes deployments consistent, flexible, and portable across environments.
+
+
+## Start VictoriaPump and VictoriaMetrics
+
+To launch the entire iDRAC Telemetry pipeline using VictoriaMetrics, execute the following command:
+
+```
+./compose.sh start --victoria-db --victoria-pump
+```
+
+If you already have an external VictoriaMetrics instance running, you can skip the local database by omitting the `--victoria-db` flag:
+
+```
+./compose.sh start --victoria-pump
+```
+
+
+## Add iDRAC Endpoints
+
+1. Open your web browser and navigate to: http://localhost:8080. Replace `localhost` with your host machine’s IP address. <img width="1434" height="447" alt="image" src="https://github.com/user-attachments/assets/2b19b5ec-c8d2-44e3-ba2f-17c948eb89f0" />
+
+2. From the **Config UI**, do the following:
+	1. Click **Add Endpoint**.  
+	2. Enter your **iDRAC IP address**, **username**, and **password**.  
+	3. Click **Save**.
+
+This enables the Telemetry Service to start collecting telemetry data from your Dell PowerEdge servers using the Redfish protocol.
+
+
+## Verify VicroriaPump Container Logs
+
+To confirm that **VictoriaPump** is running and pushing data correctly into VictoriaMetrics, view the container logs using the following command:
+
+```
+docker logs idrac-telemetry-reference-tools-victoriapump-standalone-1
+```
+
+This screenshot shows real-time logs from the VictoriaPump container. Each log entry in the following screenshot confirms the telemetry data flow from iDRAC to VictoriaMetrics.
+
+<img width="811" height="109" alt="image" src="https://github.com/user-attachments/assets/2c594e19-0789-4a03-ad6f-25f310dbbba0" />
+
+
+
+## Verify Telemetry Data in VictoriaMetrics
+
+Once VictoriaPump starts sending data, you can validate the metrics stored in VictoriaMetrics using **VMUI**.
+
+Open your browser and navigate to: http://localhost:8428/vmui
+
+You will see metric statistics and telemetry data collected from iDRAC.
+
+<img width="589" height="437" alt="image" src="https://github.com/user-attachments/assets/2cd89e19-2087-4497-b536-10c44bd96df7" />
+
+
+## Filter Telemetry Data using VMUI
+
+You can filter and view telemetry metrics using queries in **VMUI**.
+
+For example, running the following query displays the detailed temperature readings for each hardware component,
+
+{name="PowerEdge_TemperatureReading", FQDD!=""}
+<img width="1853" height="672" alt="image" src="https://github.com/user-attachments/assets/e56be821-4faf-4fe5-bc01-25dc3d24fdc7" />
+
+<img width="1878" height="476" alt="image" src="https://github.com/user-attachments/assets/d64dea24-ceeb-40f2-927e-a4a11b64770b" />
+
+
+
+(Re-)build the docker containers from source
+
+```
+./compose.sh --build  --victoria-pump --victoria-db start
+```
+
+If you already have an external VictoriaMetrics instance running, you can skip the local database by omitting the --victoria-db flag:
+
+```
+./compose.sh --build  --victoria-pump start
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
