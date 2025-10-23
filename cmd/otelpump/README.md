@@ -55,10 +55,10 @@ mkdir -p collector-export prometheus-data grafana/storage grafana/provisioning g
 
 Add the following files:
 
-- `docker-compose.yaml`
-- `otel-collector-config.yaml`
-- `prometheus.yml`
-- `loki/loki-config.yaml`
+- `docker-compose.yaml`[content](#-docker-compose-file-docker-composeyaml)
+- `otel-collector-config.yaml`[content](#️-opentelemetry-collector-configuration-otel-collector-configyaml)
+- `prometheus.yml`[content](#prometheus-configuration-prometheusyml) 
+- `loki/loki-config.yaml`[content](#️-loki-configuration-lokiloki-configyaml)
 
 ### 3. Start the Stack
 
@@ -254,6 +254,31 @@ service:
       receivers: [otlp]
       exporters: [debug, file, otlphttp]
   extensions: [health_check]
+```
+
+## Prometheus Configuration (`prometheus.yml`)
+
+```
+# my global config
+global:
+  scrape_interval: 5s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+  evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
+  # scrape_timeout is set to the global default (10s).
+
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
+rule_files:
+# - "first_rules.yml"
+# - "second_rules.yml"
+
+# A scrape configuration containing exactly one endpoint to scrape:
+# Here it's Prometheus itself.
+scrape_configs:
+  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+  - job_name: 'prometheus'
+    # metrics_path defaults to '/metrics'
+    # scheme defaults to 'http'.
+    static_configs:
+      - targets: [ 'prometheus:9090' ]
 ```
 
 ---
