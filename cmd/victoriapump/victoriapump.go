@@ -27,7 +27,7 @@ var configStrings = map[string]string{
 }
 
 var collectors map[string]map[string]*prometheus.GaugeVec
-
+var loggedMissingVictoria bool = false
 // sanitizeMetricName replaces invalid Prometheus metric characters
 func sanitizeMetricName(name string) string {
         replacer := strings.NewReplacer(
@@ -101,10 +101,12 @@ func createOrUpdateGauge(value databus.DataValue, registry *prometheus.Registry)
 // pushToVictoriaMetrics encodes and sends metrics to VictoriaMetrics
 func pushToVictoriaMetrics(registry *prometheus.Registry) {
         if configStrings["victoria_url"] == "" {
-                log.Printf("VictoriaMetrics URL not set, skipping push")
+                if !loggedMissingVictoria {
+                        log.Printf("VictoriaMetrics URL not set, skipping push")
+                        loggedMissingVictoria = true
+                }
                 return
         }
-
         var buf bytes.Buffer
         enc := expfmt.NewEncoder(&buf, expfmt.FmtText)
         mfs, err := registry.Gather()
