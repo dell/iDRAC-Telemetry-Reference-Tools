@@ -19,78 +19,86 @@ import (
 )
 
 var configStrings = map[string]string{
-        "mbhost":       "activemq",
-        "mbport":       "61613",
-        "victoria_url": "",
+        "mbhost":        "activemq",
+        "mbport":        "61613",
+        "victoria_url":  "",
         "victoria_user": "",
         "victoria_pass": "",
 }
 
 var collectors map[string]map[string]*prometheus.GaugeVec
 
-func doFQDDGuage(value databus.DataValue, registry *prometheus.Registry) {
-        if collectors["FQDD"] == nil {
-                collectors["FQDD"] = make(map[string]*prometheus.GaugeVec)
+// sanitizeMetricName replaces invalid Prometheus metric characters
+func sanitizeMetricName(name string) string {
+        replacer := strings.NewReplacer(
+                ".", "_",
+                "-", "_",
+                " ", "_",
+        )
+        return replacer.Replace(name)
+}
+
+// parseFloatOrString converts numeric strings or certain status strings to float64
+func parseFloatOrString(value string) float64 {
+        if f, err := strconv.ParseFloat(value, 64); err == nil {
+                return f
         }
-        if collectors["FQDD"][value.ID] == nil {
-                guage := prometheus.NewGaugeVec(
-                        prometheus.GaugeOpts{
-                                Namespace: "PowerEdge",
-                                Name:      value.ID,
-                        },
-                        []string{
-                                "ServiceTag",
-                                "HostName",
-                                "FQDD",
-                        })
-                registry.MustRegister(guage)
-                floatVal, err := strconv.ParseFloat(value.Value, 64)
-                if err != nil {
-                        if value.Value == "Up" || value.Value == "Operational" {
-                                floatVal = 1
-                        }
-                }
-                guage.WithLabelValues(value.System, value.HostName, value.Context).Set(floatVal)
-                collectors["FQDD"][value.ID] = guage
-        } else {
-                guage := collectors["FQDD"][value.ID]
-                floatVal, err := strconv.ParseFloat(value.Value, 64)
-                if err != nil {
-                        if value.Value == "Up" || value.Value == "Operational" {
-                                floatVal = 1
-                        }
-                }
-                guage.WithLabelValues(value.System, value.HostName, value.Context).Set(floatVal)
+        switch value {
+        case "Up", "Operational":
+                return 1
+        case "Down", "Degraded", "Disabled":
+                return 0
+        default:
+                return 0
         }
 }
 
-func doNonFQDDGuage(value databus.DataValue, registry *prometheus.Registry) {
-        value.Context = strings.Replace(value.Context, " ", "", -1)
-        if collectors[value.Context] == nil {
-                collectors[value.Context] = make(map[string]*prometheus.GaugeVec)
+// createOrUpdateGauge handles both FQDD and non-FQDD metrics
+func createOrUpdateGauge(value databus.DataValue, registry *prometheus.Registry) {
+        isFQDD := strings.Contains(value.Context, ".")
+        subsystem := ""
+        labels := []string{"ServiceTag", "HostName"}
+        contextKey := value.Context
+
+        if isFQDD {
+                labels = append(labels, "FQDD")
+                contextKey = "FQDD"
+        } else {
+                value.Context = strings.ReplaceAll(value.Context, " ", "")
+                subsystem = value.Context
         }
-        if collectors[value.Context][value.ID] == nil {
-                guage := prometheus.NewGaugeVec(
+
+        if collectors[contextKey] == nil {
+                collectors[contextKey] = make(map[string]*prometheus.GaugeVec)
+        }
+
+        metricName := sanitizeMetricName(value.ID)
+        if isFQDD {
+                metricName = sanitizeMetricName("PowerEdge_" + value.ID)
+        }
+
+        if collectors[contextKey][metricName] == nil {
+                gauge := prometheus.NewGaugeVec(
                         prometheus.GaugeOpts{
                                 Namespace: "PowerEdge",
-                                Subsystem: value.Context,
-                                Name:      value.ID,
+                                Subsystem: subsystem,
+                                Name:      metricName,
                         },
-                        []string{
-                                "ServiceTag",
-                                "HostName",
-                        })
-                registry.MustRegister(guage)
-                floatVal, _ := strconv.ParseFloat(value.Value, 64)
-                guage.WithLabelValues(value.System, value.HostName).Set(floatVal)
-                collectors[value.Context][value.ID] = guage
+                        labels,
+                )
+                registry.MustRegister(gauge)
+                collectors[contextKey][metricName] = gauge
+        }
+
+        gauge := collectors[contextKey][metricName]
+        if isFQDD {
+                gauge.WithLabelValues(value.System, value.HostName, value.Context).Set(parseFloatOrString(value.Value))
         } else {
-                guage := collectors[value.Context][value.ID]
-                floatVal, _ := strconv.ParseFloat(value.Value, 64)
-                guage.WithLabelValues(value.System, value.HostName).Set(floatVal)
+                gauge.WithLabelValues(value.System, value.HostName).Set(parseFloatOrString(value.Value))
         }
 }
 
+// pushToVictoriaMetrics encodes and sends metrics to VictoriaMetrics
 func pushToVictoriaMetrics(registry *prometheus.Registry) {
         if configStrings["victoria_url"] == "" {
                 log.Printf("VictoriaMetrics URL not set, skipping push")
@@ -105,8 +113,7 @@ func pushToVictoriaMetrics(registry *prometheus.Registry) {
                 return
         }
         for _, mf := range mfs {
-                err := enc.Encode(mf)
-                if err != nil {
+                if err := enc.Encode(mf); err != nil {
                         log.Printf("Failed to encode metric: %v", err)
                 }
         }
@@ -127,27 +134,25 @@ func pushToVictoriaMetrics(registry *prometheus.Registry) {
                 return
         }
         defer resp.Body.Close()
+
         if resp.StatusCode >= 300 {
                 log.Printf("VictoriaMetrics responded with status: %s", resp.Status)
         }
 }
 
+// handleGroups processes telemetry groups and pushes them to VictoriaMetrics
 func handleGroups(groupsChan chan *databus.DataGroup, registry *prometheus.Registry) {
         collectors = make(map[string]map[string]*prometheus.GaugeVec)
         for {
                 group := <-groupsChan
                 for _, value := range group.Values {
-                        log.Print("value: ", value)
-                        if strings.Contains(value.Context, ".") {
-                                doFQDDGuage(value, registry)
-                        } else {
-                                doNonFQDDGuage(value, registry)
-                        }
+                        createOrUpdateGauge(value, registry)
                 }
                 pushToVictoriaMetrics(registry)
         }
 }
 
+// getEnvSettings loads environment variables for config
 func getEnvSettings() {
         if val := os.Getenv("MESSAGEBUS_HOST"); val != "" {
                 configStrings["mbhost"] = val
@@ -182,12 +187,12 @@ func main() {
                 } else {
                         dbClient.Bus = mb
                         defer mb.Close()
-                        log.Printf("  Connected to message bus at %s:%d", configStrings["mbhost"], stompPort)
+                        log.Printf("Connected to message bus at %s:%d", configStrings["mbhost"], stompPort)
                         break
                 }
 
                 if i == maxRetries {
-                        log.Fatalf("  Failed to connect to message bus after %d attempts", maxRetries)
+                        log.Fatalf("Failed to connect to message bus after %d attempts", maxRetries)
                 }
         }
 
