@@ -206,7 +206,7 @@ func main() {
         registry := prometheus.NewRegistry()
         // Start HTTP server for /metrics scraping
         go func() {
-            httpPort := 2113 // port for vmagent to scrape
+            httpPort := 2112 // port for vmagent to scrape
             log.Printf("Starting HTTP server for /metrics on :%d", httpPort)
             http.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
             if err := http.ListenAndServe("0.0.0.0:"+strconv.Itoa(httpPort), nil); err != nil {
