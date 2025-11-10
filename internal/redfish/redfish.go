@@ -316,6 +316,19 @@ func (r *RedfishClient) ListenForLceEvents(Ctx context.Context, event chan<- *Re
 func (r *RedfishClient) StartSSE(Ctx context.Context, event chan<- *RedfishEvent, sseURI string) error {
 	sseConfig := new(sse.Config)
 	sseConfig.Client = r.HttpClient
+	//iDRAC version
+	filter := mrSSEFilter
+	serviceRoot, err := r.GetUri("/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion")
+	if err == nil {
+		if serviceRoot.Object["FirmwareVersion"] != nil {
+			fwver, ok := serviceRoot.Object["FirmwareVersion"].(string)
+			if ok && strings.Compare(fwver, "4.00.00.00") < 0 {
+				filter = mrSSEFilter17G
+			}
+		}
+	}
+	log.Println("SSE Metric Report Filter: ", filter)
+
 	lastTS := time.Now() // Variable to hold the latest event timestamp
 	sseConfig.RequestCreator = func() *http.Request {
 		req, err := http.NewRequest("GET", sseURI, nil)

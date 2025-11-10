@@ -2,15 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/config"
@@ -41,6 +38,7 @@ var configStrings = map[string]string{
 	"mbport":          "61613",
 	"kafkaBroker":     "",
 	"kafkaTopic":      "",
+	"kafkaPartition":  "0",
 	"kafkaCACert":     "",
 	"kafkaClientCert": "",
 	"kafkaClientKey":  "",
@@ -57,6 +55,11 @@ var configItems = map[string]*config.ConfigEntry{
 		Set:     configSet,
 		Get:     configGet,
 		Default: "",
+	},
+	"kafkaPartition": {
+		Set:     configSet,
+		Get:     configGet,
+		Default: "0",
 	},
 	"kafkaCACert": {
 		Set:     configSet,
@@ -85,7 +88,7 @@ func configSet(name string, value interface{}) error {
 	defer configStringsMu.Unlock()
 
 	switch name {
-	case "kafkaBroker", "kafkaTopic", "kafkaCACert", "kafkaClientCert", "kafkaClientKey", "kafkaSkipVerify":
+	case "kafkaBroker", "kafkaTopic", "kafkaPartition", "kafkaCACert", "kafkaClientCert", "kafkaClientKey", "kafkaSkipVerify":
 		configStrings[name] = value.(string)
 	default:
 		return fmt.Errorf("unknown property %s", name)
@@ -95,7 +98,7 @@ func configSet(name string, value interface{}) error {
 
 func configGet(name string) (interface{}, error) {
 	switch name {
-	case "kafkaBroker", "kafkaTopic", "kafkaCACert", "kafkaClientCert", "kafkaClientKey", "kafkaSkipVerify":
+	case "kafkaBroker", "kafkaTopic", "kafkaPartition", "kafkaCACert", "kafkaClientCert", "kafkaClientKey", "kafkaSkipVerify":
 		configStringsMu.RLock()
 		ret := configStrings[name]
 		configStringsMu.RUnlock()
@@ -124,6 +127,10 @@ func getEnvSettings() {
 	kafkaTopic := os.Getenv("KAFKA_TOPIC")
 	if len(kafkaTopic) > 0 {
 		configStrings["kafkaTopic"] = kafkaTopic
+	}
+	kafkaPartition := os.Getenv("KAFKA_PARTITION")
+	if len(kafkaPartition) > 0 {
+		configStrings["kafkaPartition"] = kafkaPartition
 	}
 	kafkaCert := os.Getenv("KAFKA_CACERT")
 	if len(kafkaCert) > 0 {
@@ -157,7 +164,7 @@ func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Message
 				value.Timestamp = strings.ReplaceAll(value.Timestamp, "+0000", "Z")
 				timestamp, err = time.Parse(time.RFC3339, value.Timestamp)
 				if err != nil {
-					log.Printf("Error parsing timestamp for point %s: (%s) %v", value.Context+"_"+value.ID, value.Timestamp, err)
+					log.Printf("Error parsing timestamp for point %s: (%s) %v",	value.Context+"_"+value.ID, value.Timestamp, err)
 					continue
 				}
 			}
@@ -165,7 +172,22 @@ func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Message
 			event.Time = timestamp.Unix()
 			event.Event = "metric"
 			event.Host = value.System
-			floatVal, _ := strconv.ParseFloat(value.Value, 64)
+
+			// --- safe numeric/boolean parsing (silent fallback) ---
+			var floatVal float64
+			switch strings.ToLower(value.Value) {
+			case "true":
+				floatVal = 1.0
+			case "false":
+				floatVal = 0.0
+			default:
+				f, err := strconv.ParseFloat(value.Value, 64)
+				if err != nil {
+					f = 0.0 // fallback silently, no log
+				}
+				floatVal = f
+			}
+
 			event.Fields.Value = floatVal
 			event.Fields.MetricName = value.Context + "_" + value.ID
 
@@ -175,16 +197,11 @@ func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Message
 		configStringsMu.RLock()
 		ktopic := configStrings["kafkaTopic"]
 		configStringsMu.RUnlock()
-		jsonStr, _ := json.Marshal(events)
-		kafkamb.SendMessage(jsonStr, ktopic)
 
-		err := kafkamb.SendMessage(jsonStr, ktopic)
-		// if broker idle (>10mins) timed out reconnect
-		if err == io.EOF || errors.Is(err, syscall.EPIPE) {
-			log.Println("Broker idle timeout detected, reconnecting....")
-			_ = kafkamb.Close()
-			// reconnect and resend the message
-			_ = kafkamb.SendMessage(jsonStr, ktopic)
+		jsonStr, _ := json.Marshal(events)
+		if err := kafkamb.SendMessage(jsonStr, ktopic); err != nil {
+			log.Printf("SendMessage error, terminating for restart: %v", err)
+			os.Exit(1) // let K8s restart the pod
 		}
 
 	}
@@ -222,7 +239,8 @@ func main() {
 
 	// external message bus - kafka
 	var kafkamb messagebus.Messagebus
-	var ktopic, kcert, kccert, kckey string
+	var ktopic, kpart, kcert, kccert, kckey string
+
 	var kbroker []string
 	var skipVerify bool
 
@@ -240,13 +258,13 @@ func main() {
 			kckey = "/extrabin/certs/" + configStrings["kafkaClientKey"]
 		}
 		ktopic = configStrings["kafkaTopic"]
+		kpart = configStrings["kafkaPartition"]
 
 		if configStrings["kafkaSkipVerify"] == "true" {
 			skipVerify = true
 		}
 
 		log.Println("configStrings : ", configStrings)
-
 		configStringsMu.RUnlock()
 
 		// minimum config available
@@ -269,9 +287,9 @@ func main() {
 
 		khost := kbroker[0]
 		kport, _ := strconv.Atoi(kbroker[1])
-		log.Printf("Connecting to kafka broker (%s:%d) cert file %s\n", khost, kport, kcert)
-
-		kmb, err := kafka.NewKafkaMessageBus(khost, kport, ktopic, tlsCfg)
+		log.Printf("Connecting to kafka broker (%s:%d) with topic %s, partition %s\n", khost, kport, ktopic, kpart)
+        p, _ := strconv.Atoi(kpart)
+		kmb, err := kafka.NewKafkaMessageBus(khost, kport, ktopic, p, tlsCfg)
 		if err == nil {
 			defer kmb.Close()
 			kafkamb = kmb

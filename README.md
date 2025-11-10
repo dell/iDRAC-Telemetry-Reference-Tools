@@ -148,6 +148,20 @@ List of Metric Reports with Metrics:
       • PrimaryTemperature
       • SecondaryTemperature
       • ThermalAlertState
+      • GPUArbitratedPowerLimit
+      • GPUEnforcedPowerLimit
+      • GPUPCIeLinkSpeed
+      • GPUPCIeLinkSpeedMax
+      • GPUPCIeRxThroughput
+      • GPUPCIeTxThroughput
+      • GPUPCIeCorrectableErrorCount
+      • GPUMemBandwidthUsage
+      • GPUClockEventReason
+      • GPUTotalSMUsageTime
+      • GPUSMActivity
+      • GPUSMOccupancy
+      • GPUTensorCoreUsage
+      • GPUHmmaUsage
 
 - MemoryMetrics
   
@@ -497,7 +511,7 @@ If you would like to perform some simple testing on your own you can pull all re
 command:
 
 ```bash
-curl -kX GET -u root:PASSWORD "https://YOUR_IDRAC_IP/redfish/v1/SSE? \$filter=EventFormatType%20eq%20MetricReport"
+curl -kX GET -u root:PASSWORD "https://YOUR_IDRAC_IP/redfish/v1/SSE?$filter=EventFormatType%20eq%20MetricReport"
 ```
 
 ## What to do next?/Installation

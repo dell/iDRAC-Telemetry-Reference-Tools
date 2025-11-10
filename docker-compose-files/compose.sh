@@ -83,12 +83,14 @@ opts=$(getopt \
 --longoptions "otel-pump" \
   --longoptions "elk-pump" \
   --longoptions "timescale-pump" \
+  --longoptions "victoria-pump" \
   --longoptions "influx-test-db" \
   --longoptions "setup-influx-test-db" \
   --longoptions "setup-prometheus-test-db" \
   --longoptions "prometheus-test-db" \
   --longoptions "elk-test-db" \
   --longoptions "timescale-test-db" \
+  --longoption  "victoria-db"\
   --longoptions "grafana" \
   -- "$@")
 if [[ $? -ne 0 ]]; then
@@ -119,12 +121,14 @@ while [[ $# -gt 0 ]]; do
       echo "    --elk-pump"
       echo "    --timescale-pump"
 echo "    --otel-pump"
+      echo "    --victoria-pump"
       echo
       echo "  demonstration test databases:"
       echo "    --influx-test-db"
       echo "    --prometheus-test-db"
       echo "    --elk-test-db"
       echo "    --timescale-test-db"
+      echo "    --victoria-db"
       echo
       echo "Start options:"
       echo "  --detach|--nodetach   Either detach (default) from docker compose or stay attached and view debug"
@@ -157,11 +161,14 @@ echo "    --otel-pump"
     --timescale-pump)
       PROFILE_ARG="$PROFILE_ARG --profile timescale-pump"
       ;;
+    --victoria-pump)
+      PROFILE_ARG="$PROFILE_ARG --profile victoria-pump"
+      ;;
     --influx-test-db)
       PROFILE_ARG="$PROFILE_ARG --profile influx-test-db"
       INFLUX=1
       ;;
-
+      
     --prometheus-test-db)
       PROFILE_ARG="$PROFILE_ARG --profile prometheus-test-db"
       PROMETHEUS=1
@@ -171,6 +178,9 @@ echo "    --otel-pump"
       ;;
     --timescale-test-db)
       PROFILE_ARG="$PROFILE_ARG --profile timescale-test-db"
+      ;;
+    --victoria-db)
+      PROFILE_ARG="$PROFILE_ARG --profile victoria-db"
       ;;
     --grafana)
       PROFILE_ARG="$PROFILE_ARG --profile grafana"
@@ -236,6 +246,9 @@ chmod 700 $topdir/.certs
   fi
   if [ -z $KAFKA_TOPIC ]; then
     export KAFKA_TOPIC=
+  fi
+  if [ -z $KAFKA_PARTITION ]; then
+    export KAFKA_PARTITION=
   fi
   if [ -z $KAFKA_CACERT ]; then
     export KAFKA_CACERT=

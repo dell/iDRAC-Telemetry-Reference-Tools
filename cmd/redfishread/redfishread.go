@@ -83,9 +83,20 @@ func getValueIdContextAndLabel(value *redfish.RedfishPayload, i int) (string, st
 	id := ""
 	if value.Object["MetricId"] != nil {
 		id = value.Object["MetricId"].(string)
-	} else {
+		if id == "" && value.Object["MetricProperty"] != nil {
+			id = value.Object["MetricProperty"].(string)
+			//get last part of MP, /abc/def#ghi => def_ghi
+			li := strings.LastIndex(id, "/")
+			if li != -1 {
+				id = id[li+1:]
+			}
+			id = strings.ReplaceAll(id, "#", "_")
+		}
+	}
+	if id == "" {
 		id = fmt.Sprintf("Metric%d", i)
 	}
+
 	if value.Object["Oem"] != nil {
 		oem := value.Object["Oem"].(map[string]interface{})
 		if oem["Dell"] != nil {
@@ -520,9 +531,15 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 func handleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *databus.DataBusService) {
 	for {
 		service := <-serviceIn
-		if service.Ip == "" || devices[service.Ip] != nil {
+		if service.Ip == "" {
+			log.Println("Service IP is empty")
 			continue
 		}
+		if devices[service.Ip] != nil {
+			log.Printf("Device with IP %s already exists", service.Ip)
+			continue
+		}
+		
 		log.Print("Got new service = ", service.Ip)
 		var r *redfish.RedfishClient
 		var err error
