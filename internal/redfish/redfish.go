@@ -18,8 +18,10 @@ import (
 )
 
 const (
-	mrSSEFilter    = "?$filter=EventFormatType%20eq%20MetricReport"
-	mrSSEFilter17G = "?$filter=EventFormatType%20eq%20%27MetricReport%27"
+	mrSSEFilter     = "?$filter=EventFormatType%20eq%20MetricReport"
+	mrSSEFilter17G  = "?$filter=EventFormatType%20eq%20%27MetricReport%27"
+	evtSSEFilter    = "?$filter=EventFormatType%20eq%20Event"
+	evtSSEFilter17G = "?$filter=EventType%20eq%20%27Alert%27"
 )
 
 type RedfishClient struct {
@@ -134,16 +136,50 @@ func (r *RedfishClient) walkUri(uri string, res *map[string]*RedfishPayload) {
 	payload.walk(res)
 }
 
-func (r *RedfishClient) GetHostName() (string, error) {
-	serviceRoot, err := r.GetUri("/redfish/v1/Systems/System.Embedded.1?$select=HostName")
+func (r *RedfishClient) GetSysInfo() (hostname, sku, model, fwver, fqdn, imgid string, err error) {
+	serviceRoot, err := r.GetUri("/redfish/v1/Systems/System.Embedded.1?$select=HostName,SKU,Model")
 	if err != nil {
-		return "", err
+		return
 	}
 	//iDRAC
 	if serviceRoot.Object["HostName"] != nil {
-		return serviceRoot.Object["HostName"].(string), nil
+		hostname = serviceRoot.Object["HostName"].(string)
 	}
-	return "", err
+	if serviceRoot.Object["SKU"] != nil {
+		sku = serviceRoot.Object["SKU"].(string)
+	}
+	if serviceRoot.Object["Model"] != nil {
+		model = serviceRoot.Object["Model"].(string)
+	}
+
+	serviceRoot, err = r.GetUri("/redfish/v1/Managers/iDRAC.Embedded.1/EthernetInterfaces/NIC.1?$select=FQDN")
+	if err != nil {
+		return
+	}
+	//iDRAC
+	if serviceRoot.Object["FQDN"] != nil {
+		fqdn = serviceRoot.Object["FQDN"].(string)
+	}
+
+	serviceRoot, err = r.GetUri("/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion,Links")
+	if err != nil {
+		return
+	}
+	//iDRAC
+	if serviceRoot.Object["FirmwareVersion"] != nil {
+		fwver = serviceRoot.Object["FirmwareVersion"].(string)
+	}
+
+	if serviceRoot.Object["Links"] != nil {
+		act, ok := serviceRoot.Object["Links"].(map[string]interface{})["ActiveSoftwareImage"]
+		if ok {
+			imgid = act.(map[string]interface{})["@odata.id"].(string)
+			if imgid != "" {
+				imgid = imgid[strings.LastIndex(imgid, "/")+1:]
+			}
+		}
+	}
+	return
 }
 
 func (r *RedfishClient) GetSystemId() (string, error) {
@@ -193,15 +229,48 @@ func (r *RedfishClient) GetSystemId() (string, error) {
 	return "", errors.New("Unable to determine System ID")
 }
 
-func (r *RedfishClient) ListenForEvents(Ctx context.Context, event chan<- *RedfishEvent) {
+func (r *RedfishClient) ListenForAlerts(Ctx context.Context, event chan<- *RedfishEvent) {
 	ret := new(RedfishEvent)
 	serviceRoot, err := r.GetUri("/redfish/v1")
 	if err == nil {
 		eventService, err := serviceRoot.GetPropertyByName("EventService")
 		if err == nil {
 			if eventService.Object["ServerSentEventUri"] != nil {
-				ret.Err = r.GetSSE(Ctx, event, eventService)
+				sseUri := "https://" + r.Hostname + eventService.Object["ServerSentEventUri"].(string)
+				filter := evtSSEFilter
+				if strings.Compare(r.FwVer, "4.00.00.00") < 0 {
+					filter = evtSSEFilter17G
+				}
+				ret.Err = r.StartSSE(Ctx, event, sseUri+filter)
 
+			} else {
+				log.Println("Don't support POST back yet!")
+				ret.Err = errors.New("Don't support POST back yet!")
+			}
+		} else {
+			ret.Err = err
+		}
+	} else {
+		log.Println("Unable to get service root!", err)
+		ret.Err = err
+	}
+	if ret.Err != nil {
+		event <- ret
+	}
+}
+func (r *RedfishClient) ListenForMetricReports(Ctx context.Context, event chan<- *RedfishEvent) {
+	ret := new(RedfishEvent)
+	serviceRoot, err := r.GetUri("/redfish/v1")
+	if err == nil {
+		eventService, err := serviceRoot.GetPropertyByName("EventService")
+		if err == nil {
+			if eventService.Object["ServerSentEventUri"] != nil {
+				sseUri := "https://" + r.Hostname + eventService.Object["ServerSentEventUri"].(string)
+				filter := mrSSEFilter
+				if strings.Compare(r.FwVer, "4.00.00.00") < 0 {
+					filter = mrSSEFilter17G
+				}
+				ret.Err = r.StartSSE(Ctx, event, sseUri+filter)
 			} else {
 				log.Println("Don't support POST back yet!")
 				ret.Err = errors.New("Don't support POST back yet!")
@@ -244,7 +313,7 @@ func (r *RedfishClient) ListenForLceEvents(Ctx context.Context, event chan<- *Re
 	}
 }
 
-func (r *RedfishClient) GetMetricReportsSSE(Ctx context.Context, event chan<- *RedfishEvent, sseURI string) error {
+func (r *RedfishClient) StartSSE(Ctx context.Context, event chan<- *RedfishEvent, sseURI string) error {
 	sseConfig := new(sse.Config)
 	sseConfig.Client = r.HttpClient
 	//iDRAC version
@@ -262,7 +331,7 @@ func (r *RedfishClient) GetMetricReportsSSE(Ctx context.Context, event chan<- *R
 
 	lastTS := time.Now() // Variable to hold the latest event timestamp
 	sseConfig.RequestCreator = func() *http.Request {
-		req, err := http.NewRequest("GET", sseURI+filter, nil)
+		req, err := http.NewRequest("GET", sseURI, nil)
 		if err != nil {
 			return nil
 		}
@@ -274,6 +343,7 @@ func (r *RedfishClient) GetMetricReportsSSE(Ctx context.Context, event chan<- *R
 	sseSource, err := sseConfig.Connect()
 	if err != nil {
 		log.Println("Error connecting! ", err)
+		err = errors.New("connection error")
 		return err
 	}
 	for {
@@ -321,11 +391,15 @@ func (r *RedfishClient) GetMetricReportsSSE(Ctx context.Context, event chan<- *R
 	}
 }
 
-func (r *RedfishClient) GetEventsSSE(event chan<- *RedfishEvent, sseURI string) error {
+func (r *RedfishClient) GetEventsSSE(Ctx context.Context, event chan<- *RedfishEvent, sseURI string) error {
 	sseConfig := new(sse.Config)
 	sseConfig.Client = r.HttpClient
 	sseConfig.RequestCreator = func() *http.Request {
-		req, err := http.NewRequest("GET", sseURI+"?$filter=EventFormatType%20eq%Event", nil)
+		filter := evtSSEFilter
+		if strings.Compare(r.FwVer, "4.00.00.00") < 0 {
+			filter = evtSSEFilter17G
+		}
+		req, err := http.NewRequest("GET", sseURI+filter, nil)
 		if err != nil {
 			return nil
 		}
@@ -339,23 +413,28 @@ func (r *RedfishClient) GetEventsSSE(event chan<- *RedfishEvent, sseURI string) 
 		return err
 	}
 	for {
-		sseEvent, err := sseSource.Next()
-		if err != nil {
-			break
+		select {
+		case <-Ctx.Done():
+			sseSource.Close()
+			return nil
+		default:
+			sseEvent, err := sseSource.Next()
+			if err != nil {
+				break
+			}
+			redfishEvent := new(RedfishEvent)
+			redfishEvent.ID = sseEvent.ID
+			ret := new(RedfishPayload)
+			err = json.Unmarshal(sseEvent.Data, &ret.Object)
+			if err != nil {
+				log.Printf("Failed to parse message %v", err)
+				continue
+			}
+			ret.Client = r
+			redfishEvent.Payload = ret
+			event <- redfishEvent
 		}
-		redfishEvent := new(RedfishEvent)
-		redfishEvent.ID = sseEvent.ID
-		ret := new(RedfishPayload)
-		err = json.Unmarshal(sseEvent.Data, &ret.Object)
-		if err != nil {
-			log.Printf("Failed to parse message %v", err)
-			continue
-		}
-		ret.Client = r
-		redfishEvent.Payload = ret
-		event <- redfishEvent
 	}
-	return nil
 }
 
 func (r *RedfishClient) GetLceSSE(Ctx context.Context, event chan<- *RedfishEvent, sseURI string) error {
@@ -375,7 +454,6 @@ func (r *RedfishClient) GetLceSSE(Ctx context.Context, event chan<- *RedfishEven
 	if err != nil {
 		return err
 	}
-	fmt.Println("GSR: GetLceSSE connection made. Ctx = ", Ctx)
 	// waiting for context to be cancelled by listening to Ctx.Done() channel
 	// if someone cancelled it, it will close the connection
 	for {
@@ -479,10 +557,4 @@ func (r *RedfishClient) GetInventoryByUri(sseURI string) (*RedfishPayload, error
 	}
 	ret.Client = r
 	return ret, nil
-}
-
-func (r *RedfishClient) GetSSE(Ctx context.Context, event chan<- *RedfishEvent, eventService *RedfishPayload) error {
-	sseUri := "https://" + r.Hostname + eventService.Object["ServerSentEventUri"].(string)
-	return r.GetMetricReportsSSE(Ctx, event, sseUri)
-	//return r.GetEventsSSE(event, sseUri)
 }

@@ -7,6 +7,7 @@
     - [Configure Metrics Index](#configure-metrics-index)
     - [Configure HTTP Event Collector](#configure-http-event-collector)
   - [Elasticsearch](#elasticsearch)
+  - [Pre Install for OpenTelemetry](#opentelemetry)
   - [Do for All Pipelines](#do-for-all-pipelines)
     - [Install Docker](#install-docker)
     - [Install docker-compose](#install-docker-compose)
@@ -108,6 +109,21 @@ Linux and were tested on Ubuntu 20.04.3 LTS.
 
 Next you need to finish configuring the docker pipeline. Proceed to [Do for All Pipelines](#do-for-all-pipelines)
 
+## OpenTelemetry
+
+Set the following environment variables per the OpenTelemetry Collector configuration
+
+* OTEL_COLLECTOR
+   * Base URL for OTel Collector (http://\<IP\>:\<PORT\>)
+* OTEL_CACERT
+   * CA Cert for OTel Collector
+* OTEL_CLIENT_CERT
+   * Client cert for OTel Collector
+* OTEL_CLIENT_KEY
+   * Client key for OTel Collector
+* OTEL_SKIP_VERIFY
+   * true/false
+
 ## Do for All Pipelines
 
 These instructions apply to all pipelines
@@ -150,8 +166,8 @@ iDRACs
        SPLUNK_HEC_URL=http://\<Splunk hostname or ip\>:\<HTTP Port Number\>  
        SPLUNK_HEC_INDEX=\<Index name\>  
 3. Next run `bash compose.sh`. The options you use will depend on what you want to do. There are five different 
-   "pumps" for the five different databases: `--influx-pump`, `--prometheus-pump`, `--splunk-pump`, `--elk-pump`, 
-   `--timescale-pump`. These pumps are responsible for feeding the data from the pipeline into the pipeline of your 
+   "pumps" for the 6 different databases: `--influx-pump`, `--prometheus-pump`, `--splunk-pump`, `--elk-pump`, 
+   `--timescale-pump`, `--otel-pump`. These pumps are responsible for feeding the data from the pipeline into the pipeline of your 
    choice. The other option you may want to add is a command to build the time series database of your choosing. If 
    you already have an external instance of the database running then this won't be necessary. These options are: 
    `--influx-test-db`, `--prometheus-test-db`, `--elk-test-db`, `--timescale-test-db`. We have not currently built 

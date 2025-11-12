@@ -15,34 +15,55 @@ import (
 )
 
 type DataValue struct {
-	ID                        string
-	Context                   string
-	Label                     string
-	Value                     string
-	System                    string
-	HostName                  string
-	Timestamp                 string
-	MessageId                 string
-	EventType                 string
-	MaxBandwidthPercent       float64
-	MinBandwidthPercent       float64
-	DiscardedPkts             float64
-	RxBroadcast               float64
-	RxBytes                   float64
-	RxErrorPktAlignmentErrors float64
-	RxMulticastPackets        float64
-	RxUnicastPackets          float64
-	TxBroadcast               float64
-	TxBytes                   float64
-	TxMutlicastPackets        float64
-	TxUnicastPackets          float64
+	ID        string
+	Context   string
+	Label     string
+	Value     string
+	System    string
+	HostName  string
+	Timestamp string
+	// MessageId                 string
+	// EventType                 string
+	// MaxBandwidthPercent       float64
+	// MinBandwidthPercent       float64
+	// DiscardedPkts             float64
+	// RxBroadcast               float64
+	// RxBytes                   float64
+	// RxErrorPktAlignmentErrors float64
+	// RxMulticastPackets        float64
+	// RxUnicastPackets          float64
+	// TxBroadcast               float64
+	// TxBytes                   float64
+	// TxMutlicastPackets        float64
+	// TxUnicastPackets          float64
+}
+
+type EventValue struct {
+	EventType         string
+	EventId           string
+	EventTimestamp    string
+	MemberId          string
+	MessageSeverity   string
+	Message           string
+	MessageId         string
+	MessageArgs       []string
+	OriginOfCondition string
 }
 
 type DataGroup struct {
-	ID       string
-	Label    string
-	Sequence string
-	Values   []DataValue
+	ID        string
+	Label     string
+	Sequence  string
+	System    string
+	HostName  string
+	Model     string
+	SKU       string
+	FQDN      string
+	FwVer     string
+	ImgID     string
+	Timestamp string
+	Values    []DataValue
+	Events    []EventValue
 }
 
 type DataProducer struct {

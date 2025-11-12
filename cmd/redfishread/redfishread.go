@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	//"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -26,13 +27,23 @@ var configStrings = map[string]string{
 	"inventoryurl": "/redfish/v1/Chassis/System.Embedded.1",
 }
 
+type SystemDetail struct {
+	SystemID string
+	HostName string
+	Model    string
+	SKU      string
+	FwVer    string
+	FQDN     string
+	ImgID    string
+}
+
 type RedfishDevice struct {
-	HasChildren  bool
-	Redfish      *redfish.RedfishClient
-	SystemID     string
-	HostName     string
+	HasChildren bool
+	Redfish     *redfish.RedfishClient
+	SystemDetail
 	ChildDevices map[int]string
 	Events       chan *redfish.RedfishEvent
+	Metrics      chan *redfish.RedfishEvent
 	State        string
 	LastEvent    time.Time
 	CtxCancel    context.CancelFunc
@@ -100,16 +111,24 @@ func getValueIdContextAndLabel(value *redfish.RedfishPayload, i int) (string, st
 
 // Responsible for taking the report received from SSE, getting its component parts, and then sending it along the
 // data bus
-func parseReport(metricReport *redfish.RedfishPayload, systemid string, hostname string, dataBusService *databus.DataBusService) {
+func parseReport(metricReport *redfish.RedfishPayload, r *RedfishDevice, dataBusService *databus.DataBusService) {
 	metricValues, err := metricReport.GetPropertyByName("MetricValues")
 	if err != nil {
-		log.Printf("%s: Unable to get metric report's MetricValues: %v %v", systemid, err, metricReport)
+		log.Printf("%s: Unable to get metric report's MetricValues: %v %v", r.SystemID, err, metricReport)
 		return
 	}
 	group := new(databus.DataGroup)
 
+	group.HostName = r.HostName
+	group.FQDN = r.FQDN
+	group.System = r.SystemID
+	group.Model = r.Model
+	group.SKU = r.SKU
+	group.FwVer = r.FwVer
+	group.ImgID = r.ImgID
 	group.ID = metricReport.Object["Id"].(string)
 	group.Label = metricReport.Object["Name"].(string)
+	group.Timestamp = metricReport.Object["Timestamp"].(string)
 	valuesSize := metricValues.GetArraySize()
 	for j := 0; j < valuesSize; j++ {
 		metricValue, err := metricValues.GetPropertyByIndex(j)
@@ -127,21 +146,85 @@ func parseReport(metricReport *redfish.RedfishPayload, systemid string, hostname
 			} else {
 				data.Timestamp = metricValue.Object["Timestamp"].(string)
 			}
-			data.System = systemid
-			data.HostName = hostname
+			data.System = r.SystemID
+			data.HostName = r.HostName
 			group.Values = append(group.Values, *data)
 		}
 	}
 	dataBusService.SendGroup(*group)
 
 	dataGroupsMu.Lock()
-	if dataGroups[systemid] == nil {
-		dataGroups[systemid] = make(map[string]*databus.DataGroup)
+	if dataGroups[r.SystemID] == nil {
+		dataGroups[r.SystemID] = make(map[string]*databus.DataGroup)
 	}
-	dataGroups[systemid][group.ID] = group
+	dataGroups[r.SystemID][group.ID] = group
 	dataGroupsMu.Unlock()
 }
 
+func parseRedfishEvents(events *redfish.RedfishPayload, r *RedfishDevice, dataBusService *databus.DataBusService) {
+	id := r.SystemID
+	eventData, err := events.GetPropertyByName("Events")
+	if err != nil {
+		log.Printf("%s: Unable to get eventData: %v", id, err)
+		return
+	}
+	log.Printf("RedFish Events Found for parsing: %v\n", eventData)
+
+	group := new(databus.DataGroup)
+	group.HostName = r.HostName
+	group.FQDN = r.FQDN
+	group.System = r.SystemID
+	group.Model = r.Model
+	group.SKU = r.SKU
+	group.FwVer = r.FwVer
+	group.ImgID = r.ImgID
+
+	group.ID = events.Object["Id"].(string)
+	//group.Label = events.Object["Name"].(string)
+	size := eventData.GetArraySize()
+	for j := 0; j < size; j++ {
+		eventData, err := events.GetEventByIndex(j)
+		if err != nil {
+			log.Printf("Unable to retrieve the redfish events\n")
+			return
+		}
+		if eventData.Object["EventId"] != nil {
+			data := new(databus.EventValue)
+
+			originCondition, err := eventData.GetPropertyByName("OriginOfCondition")
+			if err != nil {
+				log.Printf("Unable to get property %v\n", err)
+			} else {
+				data.OriginOfCondition = originCondition.Object["@odata.id"].(string)
+			}
+			data.EventId = eventData.Object["EventId"].(string)
+			data.EventType = eventData.Object["EventType"].(string)
+			data.EventTimestamp = eventData.Object["EventTimestamp"].(string)
+			data.MemberId = eventData.Object["MemberId"].(string)
+			data.MessageSeverity = eventData.Object["MessageSeverity"].(string)
+			data.Message = eventData.Object["Message"].(string)
+			data.MessageId = eventData.Object["MessageId"].(string)
+			if args, ok := eventData.Object["MessageArgs"]; ok {
+				if args != nil {
+					for _, a := range args.([]interface{}) {
+						data.MessageArgs = append(data.MessageArgs, a.(string))
+					}
+				}
+			}
+			group.Events = append(group.Events, *data)
+		}
+	}
+	dataBusService.SendGroup(*group)
+
+	dataGroupsMu.Lock()
+	if dataGroups[r.SystemID] == nil {
+		dataGroups[r.SystemID] = make(map[string]*databus.DataGroup)
+	}
+	dataGroups[r.SystemID][group.ID] = group
+	dataGroupsMu.Unlock()
+}
+
+/*
 // Responsible for taking the lifecycle events received from SSE, getting its events, and then sending it along the
 // data bus
 func parseRedfishLce(lceevents *redfish.RedfishPayload, r *RedfishDevice, dataBusService *databus.DataBusService) {
@@ -239,24 +322,72 @@ func parseRedfishLce(lceevents *redfish.RedfishPayload, r *RedfishDevice, dataBu
 	dataGroups[id][group.ID] = group
 	dataGroupsMu.Unlock()
 }
+*/
 
-func (r *RedfishDevice) RestartEventListener() {
-	go r.Redfish.ListenForEvents(r.Ctx, r.Events)
+func (r *RedfishDevice) RestartMetricListener() {
+	go r.Redfish.ListenForMetricReports(r.Ctx, r.Metrics)
+}
+
+func (r *RedfishDevice) RestartAlertListener() {
+	go r.Redfish.ListenForAlerts(r.Ctx, r.Events)
 }
 
 func (r *RedfishDevice) RestartLceEventListener() {
 	go r.Redfish.ListenForLceEvents(r.Ctx, r.Events)
 }
 
-// StartEventListener Directly responsible for receiving SSE events from iDRAC. Will parse received reports or issue a
+// StartMetricListener Directly responsible for receiving SSE events from iDRAC. Will parse received reports or issue a
 // message in the log indicating it received an unknown SSE event.
-func (r *RedfishDevice) StartEventListener(dataBusService *databus.DataBusService) {
+func (r *RedfishDevice) StartMetricListener(dataBusService *databus.DataBusService) {
+	if r.Metrics == nil {
+		r.Metrics = make(chan *redfish.RedfishEvent, 10)
+	}
+	//timer := time.AfterFunc(time.Minute*5, r.RestartAlertListener)
+	log.Printf("%s: Starting metric listener...\n", r.SystemID)
+	go r.Redfish.ListenForMetricReports(r.Ctx, r.Metrics)
+	for {
+		event := <-r.Metrics
+		if event == nil {
+			log.Printf("%s: Got SSE nil event \n", r.SystemID)
+			continue
+		}
+		if event.Err != nil { // SSE connect failure , retry connection
+			log.Printf("%s: Got SSE error %s\n", r.SystemID, event.Err)
+			if strings.Contains(event.Err.Error(), "connection error") {
+				// Wait for 5 minutes before restarting, so that the iDRAC can be rebooted
+				// and SSE connection can be re-established
+
+				log.Printf("Sleep 5 minutes before restarting SSE connection for %s\n", r.SystemID)
+				time.Sleep(time.Minute * 5)
+			}
+			r.RestartMetricListener()
+			continue
+		}
+		r.LastEvent = time.Now()
+		if event.Payload != nil {
+			if ot, ok := event.Payload.Object["@odata.type"].(string); ok {
+				switch {
+				case strings.Contains(ot, ".MetricReport"):
+					log.Printf("%s: Got new report for %s\n", r.SystemID, event.Payload.Object["@odata.id"].(string))
+					parseReport(event.Payload, r, dataBusService)
+					continue
+				default:
+					log.Printf("%s: Got unknown event type %s\n", r.SystemID, ot)
+				}
+			}
+		}
+		//log.Printf("%s: Got unknown SSE event %v\n", r.SystemID, event.Payload)
+		log.Printf("%s: Got bad SSE event \n", r.SystemID)
+	}
+}
+
+func (r *RedfishDevice) StartAlertListener(dataBusService *databus.DataBusService) {
 	if r.Events == nil {
 		r.Events = make(chan *redfish.RedfishEvent, 10)
 	}
-	//timer := time.AfterFunc(time.Minute*5, r.RestartEventListener)
+	//timer := time.AfterFunc(time.Minute*5, r.RestartAlertListener)
 	log.Printf("%s: Starting event listener...\n", r.SystemID)
-	go r.Redfish.ListenForEvents(r.Ctx, r.Events)
+	go r.Redfish.ListenForAlerts(r.Ctx, r.Events)
 	for {
 		event := <-r.Events
 		if event == nil {
@@ -272,21 +403,28 @@ func (r *RedfishDevice) StartEventListener(dataBusService *databus.DataBusServic
 				log.Printf("Sleep 5 minutes before restarting SSE connection for %s\n", r.SystemID)
 				time.Sleep(time.Minute * 5)
 			}
-			r.RestartEventListener()
+			r.RestartAlertListener()
 			continue
 		}
 		r.LastEvent = time.Now()
-		if event != nil && event.Payload != nil &&
-			event.Payload.Object["@odata.id"] != nil {
-			log.Printf("%s: Got new report for %s\n", r.SystemID, event.Payload.Object["@odata.id"].(string))
-			parseReport(event.Payload, r.SystemID, r.HostName, dataBusService)
-		} else {
-			//log.Printf("%s: Got unknown SSE event %v\n", r.SystemID, event.Payload)
-			log.Printf("%s: Got unknown SSE event \n", r.SystemID)
+		if event.Payload != nil {
+			if ot, ok := event.Payload.Object["@odata.type"].(string); ok {
+				switch {
+				case strings.Contains(ot, ".Event"):
+					log.Printf("%s: Got new event\n", r.SystemID)
+					parseRedfishEvents(event.Payload, r, dataBusService)
+					continue
+				default:
+					log.Printf("%s: Got unknown event type %s\n", r.SystemID, ot)
+				}
+			}
 		}
+		//log.Printf("%s: Got unknown SSE event %v\n", r.SystemID, event.Payload)
+		log.Printf("%s: Got bad SSE event \n", r.SystemID)
 	}
 }
 
+/*
 // StartLceEventListener Directly responsible for receiving Redfish LifeCycleEvents from iDRAC. Will parse received reports or issue a
 // message in the log indicating it received an unknown event.
 func (r *RedfishDevice) StartLceEventListener(dataBusService *databus.DataBusService) {
@@ -308,31 +446,19 @@ func (r *RedfishDevice) StartLceEventListener(dataBusService *databus.DataBusSer
 		}
 	}
 }
-
+*/
 // getTelemetry Starts the service which will listen for SSE reports from the iDRAC
 func getTelemetry(r *RedfishDevice, telemetryService *redfish.RedfishPayload, dataBusService *databus.DataBusService) {
-	metricReports, err := telemetryService.GetPropertyByName("MetricReports")
-	if err != nil {
-		log.Printf("Error retrieving metric reports for %s: %v\n", r.SystemID, err)
-		return
-	}
-	size := metricReports.GetCollectionSize()
-	if size == 0 {
-		log.Printf("%s: No metric reports!\n", r.SystemID)
-	}
-	log.Printf("%s: Found %d Metric Reports\n", r.Redfish.Hostname, size)
-	for i := 0; i < size; i++ {
-		metricReport, err := metricReports.GetPropertyByIndex(i)
-		if err != nil {
-			log.Printf("Unable to get metric report %d: %v", i, err)
-			continue
-		}
-		parseReport(metricReport, r.SystemID, r.HostName, dataBusService)
-	}
 	r.State = databus.RUNNING
-	r.StartEventListener(dataBusService)
+	inclAlerts := os.Getenv("INCLUDE_ALERTS")
+	if inclAlerts == "true" {
+		go r.StartAlertListener(dataBusService)
+	}
+	go r.StartMetricListener(dataBusService)
+
 }
 
+/*
 // getRedfishLce Starts the service which will listens for Redfish LifeCycle Events from the iDRAC
 func getRedfishLce(r *RedfishDevice, eventService *redfish.RedfishPayload, dataBusService *databus.DataBusService) {
 	eventsIn := make(chan *redfish.RedfishEvent, 10)
@@ -350,9 +476,9 @@ func getRedfishLce(r *RedfishDevice, eventService *redfish.RedfishPayload, dataB
 		parseRedfishLce(eventSvc, r, dataBusService)
 	}
 	r.State = databus.RUNNING
-	//r.StartEventListener(dataBusService)
+	r.StartLceEventListener(dataBusService)
 }
-
+*/
 // Take an instance of a Redfish device, get its system ID, get any child devices if it is a chassis, and then start
 // listening for SSE events. NOTE: This expects that someone has enabled Telemetry reports and started the telemetry
 // service externally.
@@ -362,7 +488,7 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 		log.Printf("%s: Failed to get system id! %v\n", r.Redfish.Hostname, err)
 		return
 	}
-	hostName, err := r.Redfish.GetHostName()
+	hostName, sku, model, fwver, fqdn, imgid, err := r.Redfish.GetSysInfo()
 	if err != nil || hostName == "" {
 		log.Printf("%s: Failed to get hostName id! %v\n", r.Redfish.Hostname, err)
 		// assume same as system id, host name cannot be empty if used as key
@@ -371,6 +497,13 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 	log.Printf("%s: Got System ID %s, Hostname %s\n", r.Redfish.Hostname, systemID, hostName)
 	r.SystemID = systemID
 	r.HostName = hostName
+	r.SKU = sku
+	r.Model = model
+	r.FwVer = fwver
+	r.FQDN = fqdn
+	r.ImgID = imgid
+
+	r.Redfish.FwVer = fwver
 
 	serviceRoot, err := r.Redfish.GetUri("/redfish/v1")
 	if err != nil {
@@ -388,20 +521,9 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 		r.State = databus.TELNOTFOUND
 	} else {
 		log.Printf("%s: Using Telemetry Service...\n", r.Redfish.Hostname)
-		go getTelemetry(r, telemetryService, dataBusService)
+		//go getRedfishLce(r, telemetryService, dataBusService)
+		getTelemetry(r, telemetryService, dataBusService)
 	}
-
-	/*
-		//Checking for EventService support
-		eventService, err := serviceRoot.GetPropertyByName("EventService")
-		if err != nil {
-			log.Println("EventService not supported...")
-			r.State = databus.TELNOTFOUND
-		} else {
-			log.Printf("%s: Event Service consumption loading...\n", r.Redfish.Hostname)
-			go getRedfishLce(r, eventService, dataBusService)
-		}
-	*/
 }
 
 // handleAuthServiceChannel Authenticates to the iDRAC and then launches the telemetry monitoring process via
@@ -530,7 +652,7 @@ func main() {
 			}
 		case databus.DELETEPRODUCER:
 			devices[command.ServiceIP].CtxCancel()
-			log.Printf("service has been cancelled, Ctx = ", devices[command.ServiceIP].Ctx)
+			log.Printf("service has been cancelled, Ctx = %v", devices[command.ServiceIP].Ctx)
 			time.Sleep(2 * time.Second)
 			delete(devices, command.ServiceIP)
 		case auth.TERMINATE:

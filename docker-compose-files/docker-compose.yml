@@ -1,4 +1,4 @@
-version: "3.9"
+
 
 ######
 # core services: activemq, mysqldb, configui, dbdiscauth, redfishread
@@ -206,6 +206,8 @@ services:
   redfishread:
     <<: *refdaemon
     image: idrac-telemetry-reference-tools/redfishread:latest
+    environment:
+      INCLUDE_ALERTS: ${INCLUDE_ALERTS}
     build:
       <<: *base-build
       args:
@@ -535,7 +537,7 @@ services:
         <<: *base-args
         CMD: prometheuspump
     ports:
-      - "2112:2112"    
+      - "2112:2112"
 
   prometheus-pump-withtestserver:
     container_name: prometheus-ingester
@@ -634,6 +636,44 @@ services:
         target: /extrabin/certs
         read_only: true
 
+  otel-pump-standalone:
+    ############################################################################
+    # OTEL PUMP - data pump to pump telemetry into otel format
+    #    Manually start this profile if you want to point to an external server
+    #
+    # Add this to your docker-compose cli args:
+    #   --profile otel-pump
+    #
+    # If you want to connect to an external otel database,
+    # set the following environment variables:
+    #
+    # TODO: add
+    #
+    ############################################################################
+    <<: *refdaemon
+    image: idrac-telemetry-reference-tools/otelpump:latest
+    profiles:
+      - otel-pump
+    depends_on:
+      - activemq
+    environment:
+      <<: *messagebus-env
+      OTEL_COLLECTOR: ${OTEL_COLLECTOR}
+      OTEL_CACERT: ${OTEL_CACERT}
+      OTEL_CLIENT_CERT: ${OTEL_CLIENT_CERT}
+      OTEL_CLIENT_KEY: ${OTEL_CLIENT_KEY}
+      OTEL_SKIP_VERIFY: ${OTEL_SKIP_VERIFY}
+    build:
+      <<: *base-build
+      args:
+        <<: *base-args
+        CMD: otelpump
+    volumes:
+      - type: bind
+        source: ${PWD}/cmd/otelpump/redfishToOtel.yaml
+        target: /extrabin/redfishToOtel.yaml
+        read_only: true
+
   elk-pump-standalone: &elk-pump
     ############################################################################
     # ELK PUMP - telemetry data pump for elk
@@ -673,7 +713,7 @@ services:
     depends_on:
       - es01
       - activemq
-    
+
 
   es01:
     ############################################################################

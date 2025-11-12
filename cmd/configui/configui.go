@@ -63,6 +63,16 @@ type KfkConfig struct {
 	ClientAuth      string `json:"clientAuth"`
 }
 
+type OtelConfig struct {
+	OtelCollector  string `json:"otelCollector"`
+	OtelCACert     string `json:"otelCACert"`
+	OtelClientCert string `json:"otelClientCert"`
+	OtelClientKey  string `json:"otelClientKey"`
+	OtelSkipVerify string `json:"otelSkipVerify"`
+	TLS            string `json:"tls"`
+	ClientAuth     string `json:"clientAuth"`
+}
+
 func getKafkaBrokerConfig(c *gin.Context, s *SystemHandler) {
 	var KafkaConfig KfkConfig
 	s.ConfigBus.CommandQueue = "/kafkapump/config"
@@ -198,6 +208,68 @@ func kafkaConfig(c *gin.Context, s *SystemHandler) {
 		_, err = s.ConfigBus.Set("kafkaClientKey", "kafkaClientKey")
 		if err != nil {
 			log.Println("Failed to update kafkaClientCert config: ", err)
+		}
+	}
+
+}
+
+func otelConfig(c *gin.Context, s *SystemHandler) {
+	var tmp OtelConfig
+	err := c.ShouldBind(&tmp)
+	if err != nil {
+		log.Println("Failed to parse json: ", err)
+		_ = c.AbortWithError(500, err)
+	}
+	s.ConfigBus.CommandQueue = "/otelpump/config"
+	s.ConfigBus.ResponseQueue = "/oconfigui"
+
+	if tmp.OtelCollector != "" {
+		_, err = s.ConfigBus.Set("otelCollector", tmp.OtelCollector)
+		if err != nil {
+			log.Println("Failed to update otelCollector config: ", err)
+		}
+	}
+
+	if tmp.OtelSkipVerify != "" {
+		_, err = s.ConfigBus.Set("otelSkipVerify", tmp.OtelSkipVerify)
+		if err != nil {
+			log.Println("Failed to update otelTopic config: ", err)
+		}
+	}
+
+	if tmp.OtelCACert != "" {
+		err = SaveUploadedFile(tmp.OtelCACert, "/extrabin/certs/otelCACert")
+		if err != nil {
+			log.Println("Failed to save CA cert: ", err)
+		}
+
+		//log.Println(tmp.OtelCACert.Filename)
+		_, err = s.ConfigBus.Set("otelCACert", "otelCACert")
+		if err != nil {
+			log.Println("Failed to update otelCACert config: ", err)
+		}
+	}
+
+	if tmp.OtelClientCert != "" {
+		err = SaveUploadedFile(tmp.OtelClientCert, "/extrabin/certs/otelClientCert")
+		if err != nil {
+			log.Println("Failed to save client cert: ", err)
+		}
+
+		_, err = s.ConfigBus.Set("otelClientCert", "otelClientCert")
+		if err != nil {
+			log.Println("Failed to update otelClientCert config: ", err)
+		}
+	}
+
+	if tmp.OtelClientKey != "" {
+		err = SaveUploadedFile(tmp.OtelClientKey, "/extrabin/certs/otelClientKey")
+		if err != nil {
+			log.Println("Failed to save client key: ", err)
+		}
+		_, err = s.ConfigBus.Set("otelClientKey", "otelClientKey")
+		if err != nil {
+			log.Println("Failed to update otelClientCert config: ", err)
 		}
 	}
 
@@ -408,6 +480,9 @@ func main() {
 	})
 	router.POST("/api/v1/KafkaConfig", func(c *gin.Context) {
 		kafkaConfig(c, systemHandler)
+	})
+	router.POST("/api/v1/OtelConfig", func(c *gin.Context) {
+		otelConfig(c, systemHandler)
 	})
 	router.GET("/api/v1/HttpEventCollector", func(c *gin.Context) {
 		getSplunkHttpConfig(c, systemHandler)
