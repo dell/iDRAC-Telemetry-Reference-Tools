@@ -403,7 +403,13 @@ If you already have an external VictoriaMetrics instance running, you can skip t
 ./compose.sh --build  --victoria-pump start
 ```
 
+## iDRAC Telemetry Receiver container
+ 
+``cmd/idrac-telemetry-receiver/idrac-telemetry-receiver.go`` script is created specific for [dell/omnia](https://github.com/dell/omnia) usecases. This go script internally invokes dbdiscauth, configui and redfishread go script and avoid need of having 3 different docker containers. To build this container use the docker file  ``docker-compose-files/Dockerfile.telemetry_receiver``. Run the below command to build image.
 
+```
+docker build -t idrac-telemetry-receiver:latest -f docker-compose-files/Dockerfile.telemetry_receiver .
+```
 
 
 
