@@ -1,4 +1,4 @@
-module github.com/krishnakartik1/iDRAC-Telemetry-Reference-Tools
+module github.com/dell/iDRAC-Telemetry-Reference-Tools
 
 go 1.24.11
 
