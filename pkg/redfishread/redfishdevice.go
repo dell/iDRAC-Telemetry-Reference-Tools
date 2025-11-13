@@ -148,7 +148,8 @@ func parseRedfishEvents(events *redfish.RedfishPayload, r *RedfishDevice, dataBu
 	group.FwVer = r.FwVer
 	group.ImgID = r.ImgID
 
-	group.ID = events.Object["Id"].(string)
+	groupId, _ := events.Object["Id"].(string)
+	group.ID = groupId
 	//group.Label = events.Object["Name"].(string)
 	size := eventData.GetArraySize()
 	for j := 0; j < size; j++ {
