@@ -31,3 +31,9 @@ func NewServiceChan(n int) chan *auth.Service {
 func NewCommandChan() chan *auth.Command {
 	return make(chan *auth.Command)
 }
+
+type Service = auth.Service
+
+const SYSTEM_TYPE_IDRAC = auth.IDRAC
+
+const AuthTypeUsernamePassword = auth.AuthTypeUsernamePassword
