@@ -40,7 +40,9 @@ func (d *DataGroups) AddDataGroup(sysId string, group *databus.DataGroup) {
 }
 
 func NewDataGroupsMap() *DataGroups {
-	return &DataGroups{}
+	return &DataGroups{
+		Groups: make(map[string]map[string]*databus.DataGroup),
+	}
 }
 
 func NewDataBusServiceWithBus(mb messagebus.Messagebus) *databus.DataBusService {
