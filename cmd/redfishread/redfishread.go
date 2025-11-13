@@ -6,11 +6,10 @@ package main
 import (
 	"context"
 	//"encoding/json"
-	"fmt"
+
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +18,7 @@ import (
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/redfish"
+	prr "github.com/dell/iDRAC-Telemetry-Reference-Tools/pkg/redfishread"
 )
 
 var configStrings = map[string]string{
@@ -50,179 +50,179 @@ type RedfishDevice struct {
 	Ctx          context.Context
 }
 
-var devices map[string]*RedfishDevice
+var devices prr.RedfishDevices
 var dataGroups map[string]map[string]*databus.DataGroup
 var dataGroupsMu sync.RWMutex
 
 // populateChildChassis If the device is a chassis, we also have to obtain IDs / info for all children in that chassis
 // and pull telemetry on them. This function will expand the chassis information and obtain the necessary information.
-func populateChildChassis(r *RedfishDevice, serviceRoot *redfish.RedfishPayload) {
-	chassisCollection, err := serviceRoot.GetPropertyByName("Chassis")
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	size := chassisCollection.GetCollectionSize()
-	for i := 0; i < size; i++ {
-		chassis, err := chassisCollection.GetPropertyByIndex(i)
-		if err != nil {
-			continue
-		}
-		if chassis.Object["ChassisType"].(string) != "Enclosure" && chassis.Object["SKU"] != nil {
-			name := chassis.Object["Name"].(string)
-			if strings.HasPrefix(name, "Sled-") {
-				split := strings.Split(name, "-")
-				i, _ := strconv.Atoi(split[1])
-				r.ChildDevices[i] = chassis.Object["SKU"].(string)
-			}
-		}
-	}
-}
+// func populateChildChassis(r *RedfishDevice, serviceRoot *redfish.RedfishPayload) {
+// 	chassisCollection, err := serviceRoot.GetPropertyByName("Chassis")
+// 	if err != nil {
+// 		log.Println(err)
+// 		return
+// 	}
+// 	size := chassisCollection.GetCollectionSize()
+// 	for i := 0; i < size; i++ {
+// 		chassis, err := chassisCollection.GetPropertyByIndex(i)
+// 		if err != nil {
+// 			continue
+// 		}
+// 		if chassis.Object["ChassisType"].(string) != "Enclosure" && chassis.Object["SKU"] != nil {
+// 			name := chassis.Object["Name"].(string)
+// 			if strings.HasPrefix(name, "Sled-") {
+// 				split := strings.Split(name, "-")
+// 				i, _ := strconv.Atoi(split[1])
+// 				r.ChildDevices[i] = chassis.Object["SKU"].(string)
+// 			}
+// 		}
+// 	}
+// }
 
-func getValueIdContextAndLabel(value *redfish.RedfishPayload, i int) (string, string, string) {
-	id := ""
-	if value.Object["MetricId"] != nil {
-		id = value.Object["MetricId"].(string)
-		if id == "" && value.Object["MetricProperty"] != nil {
-			id = value.Object["MetricProperty"].(string)
-			//get last part of MP, /abc/def#ghi => def_ghi
-			li := strings.LastIndex(id, "/")
-			if li != -1 {
-				id = id[li+1:]
-			}
-			id = strings.ReplaceAll(id, "#", "_")
-		}
-	}
-	if id == "" {
-		id = fmt.Sprintf("Metric%d", i)
-	}
+// func getValueIdContextAndLabel(value *redfish.RedfishPayload, i int) (string, string, string) {
+// 	id := ""
+// 	if value.Object["MetricId"] != nil {
+// 		id = value.Object["MetricId"].(string)
+// 		if id == "" && value.Object["MetricProperty"] != nil {
+// 			id = value.Object["MetricProperty"].(string)
+// 			//get last part of MP, /abc/def#ghi => def_ghi
+// 			li := strings.LastIndex(id, "/")
+// 			if li != -1 {
+// 				id = id[li+1:]
+// 			}
+// 			id = strings.ReplaceAll(id, "#", "_")
+// 		}
+// 	}
+// 	if id == "" {
+// 		id = fmt.Sprintf("Metric%d", i)
+// 	}
 
-	if value.Object["Oem"] != nil {
-		oem := value.Object["Oem"].(map[string]interface{})
-		if oem["Dell"] != nil {
-			dell := oem["Dell"].(map[string]interface{})
-			if dell["ContextID"] != nil && dell["Label"] != nil {
-				return id, dell["ContextID"].(string), dell["Label"].(string)
-			}
-		}
-	}
-	return id, "", id
-}
+// 	if value.Object["Oem"] != nil {
+// 		oem := value.Object["Oem"].(map[string]interface{})
+// 		if oem["Dell"] != nil {
+// 			dell := oem["Dell"].(map[string]interface{})
+// 			if dell["ContextID"] != nil && dell["Label"] != nil {
+// 				return id, dell["ContextID"].(string), dell["Label"].(string)
+// 			}
+// 		}
+// 	}
+// 	return id, "", id
+// }
 
-// Responsible for taking the report received from SSE, getting its component parts, and then sending it along the
-// data bus
-func parseReport(metricReport *redfish.RedfishPayload, r *RedfishDevice, dataBusService *databus.DataBusService) {
-	metricValues, err := metricReport.GetPropertyByName("MetricValues")
-	if err != nil {
-		log.Printf("%s: Unable to get metric report's MetricValues: %v %v", r.SystemID, err, metricReport)
-		return
-	}
-	group := new(databus.DataGroup)
+// // Responsible for taking the report received from SSE, getting its component parts, and then sending it along the
+// // data bus
+// func parseReport(metricReport *redfish.RedfishPayload, r *RedfishDevice, dataBusService *databus.DataBusService) {
+// 	metricValues, err := metricReport.GetPropertyByName("MetricValues")
+// 	if err != nil {
+// 		log.Printf("%s: Unable to get metric report's MetricValues: %v %v", r.SystemID, err, metricReport)
+// 		return
+// 	}
+// 	group := new(databus.DataGroup)
 
-	group.HostName = r.HostName
-	group.FQDN = r.FQDN
-	group.System = r.SystemID
-	group.Model = r.Model
-	group.SKU = r.SKU
-	group.FwVer = r.FwVer
-	group.ImgID = r.ImgID
-	group.ID = metricReport.Object["Id"].(string)
-	group.Label = metricReport.Object["Name"].(string)
-	group.Timestamp = metricReport.Object["Timestamp"].(string)
-	valuesSize := metricValues.GetArraySize()
-	for j := 0; j < valuesSize; j++ {
-		metricValue, err := metricValues.GetPropertyByIndex(j)
-		if err != nil {
-			log.Printf("Unable to get metric report MetricValue %d: %v", j, err)
-			continue
-		}
-		if metricValue.Object["MetricValue"] != nil {
-			data := new(databus.DataValue)
-			data.ID, data.Context, data.Label = getValueIdContextAndLabel(metricValue, j)
-			data.Value = metricValue.Object["MetricValue"].(string)
-			if metricValue.Object["Timestamp"] == nil {
-				t := time.Now()
-				data.Timestamp = t.Format("2006-01-02T15:04:05-0700")
-			} else {
-				data.Timestamp = metricValue.Object["Timestamp"].(string)
-			}
-			data.System = r.SystemID
-			data.HostName = r.HostName
-			group.Values = append(group.Values, *data)
-		}
-	}
-	dataBusService.SendGroup(*group)
+// 	group.HostName = r.HostName
+// 	group.FQDN = r.FQDN
+// 	group.System = r.SystemID
+// 	group.Model = r.Model
+// 	group.SKU = r.SKU
+// 	group.FwVer = r.FwVer
+// 	group.ImgID = r.ImgID
+// 	group.ID = metricReport.Object["Id"].(string)
+// 	group.Label = metricReport.Object["Name"].(string)
+// 	group.Timestamp = metricReport.Object["Timestamp"].(string)
+// 	valuesSize := metricValues.GetArraySize()
+// 	for j := 0; j < valuesSize; j++ {
+// 		metricValue, err := metricValues.GetPropertyByIndex(j)
+// 		if err != nil {
+// 			log.Printf("Unable to get metric report MetricValue %d: %v", j, err)
+// 			continue
+// 		}
+// 		if metricValue.Object["MetricValue"] != nil {
+// 			data := new(databus.DataValue)
+// 			data.ID, data.Context, data.Label = getValueIdContextAndLabel(metricValue, j)
+// 			data.Value = metricValue.Object["MetricValue"].(string)
+// 			if metricValue.Object["Timestamp"] == nil {
+// 				t := time.Now()
+// 				data.Timestamp = t.Format("2006-01-02T15:04:05-0700")
+// 			} else {
+// 				data.Timestamp = metricValue.Object["Timestamp"].(string)
+// 			}
+// 			data.System = r.SystemID
+// 			data.HostName = r.HostName
+// 			group.Values = append(group.Values, *data)
+// 		}
+// 	}
+// 	dataBusService.SendGroup(*group)
 
-	dataGroupsMu.Lock()
-	if dataGroups[r.SystemID] == nil {
-		dataGroups[r.SystemID] = make(map[string]*databus.DataGroup)
-	}
-	dataGroups[r.SystemID][group.ID] = group
-	dataGroupsMu.Unlock()
-}
+// 	dataGroupsMu.Lock()
+// 	if dataGroups[r.SystemID] == nil {
+// 		dataGroups[r.SystemID] = make(map[string]*databus.DataGroup)
+// 	}
+// 	dataGroups[r.SystemID][group.ID] = group
+// 	dataGroupsMu.Unlock()
+// }
 
-func parseRedfishEvents(events *redfish.RedfishPayload, r *RedfishDevice, dataBusService *databus.DataBusService) {
-	id := r.SystemID
-	eventData, err := events.GetPropertyByName("Events")
-	if err != nil {
-		log.Printf("%s: Unable to get eventData: %v", id, err)
-		return
-	}
-	log.Printf("RedFish Events Found for parsing: %v\n", eventData)
+// func parseRedfishEvents(events *redfish.RedfishPayload, r *RedfishDevice, dataBusService *databus.DataBusService) {
+// 	id := r.SystemID
+// 	eventData, err := events.GetPropertyByName("Events")
+// 	if err != nil {
+// 		log.Printf("%s: Unable to get eventData: %v", id, err)
+// 		return
+// 	}
+// 	log.Printf("RedFish Events Found for parsing: %v\n", eventData)
 
-	group := new(databus.DataGroup)
-	group.HostName = r.HostName
-	group.FQDN = r.FQDN
-	group.System = r.SystemID
-	group.Model = r.Model
-	group.SKU = r.SKU
-	group.FwVer = r.FwVer
-	group.ImgID = r.ImgID
+// 	group := new(databus.DataGroup)
+// 	group.HostName = r.HostName
+// 	group.FQDN = r.FQDN
+// 	group.System = r.SystemID
+// 	group.Model = r.Model
+// 	group.SKU = r.SKU
+// 	group.FwVer = r.FwVer
+// 	group.ImgID = r.ImgID
 
-	group.ID = events.Object["Id"].(string)
-	//group.Label = events.Object["Name"].(string)
-	size := eventData.GetArraySize()
-	for j := 0; j < size; j++ {
-		eventData, err := events.GetEventByIndex(j)
-		if err != nil {
-			log.Printf("Unable to retrieve the redfish events\n")
-			return
-		}
-		if eventData.Object["EventId"] != nil {
-			data := new(databus.EventValue)
+// 	group.ID = events.Object["Id"].(string)
+// 	//group.Label = events.Object["Name"].(string)
+// 	size := eventData.GetArraySize()
+// 	for j := 0; j < size; j++ {
+// 		eventData, err := events.GetEventByIndex(j)
+// 		if err != nil {
+// 			log.Printf("Unable to retrieve the redfish events\n")
+// 			return
+// 		}
+// 		if eventData.Object["EventId"] != nil {
+// 			data := new(databus.EventValue)
 
-			originCondition, err := eventData.GetPropertyByName("OriginOfCondition")
-			if err != nil {
-				log.Printf("Unable to get property %v\n", err)
-			} else {
-				data.OriginOfCondition = originCondition.Object["@odata.id"].(string)
-			}
-			data.EventId = eventData.Object["EventId"].(string)
-			data.EventType = eventData.Object["EventType"].(string)
-			data.EventTimestamp = eventData.Object["EventTimestamp"].(string)
-			data.MemberId = eventData.Object["MemberId"].(string)
-			data.MessageSeverity = eventData.Object["MessageSeverity"].(string)
-			data.Message = eventData.Object["Message"].(string)
-			data.MessageId = eventData.Object["MessageId"].(string)
-			if args, ok := eventData.Object["MessageArgs"]; ok {
-				if args != nil {
-					for _, a := range args.([]interface{}) {
-						data.MessageArgs = append(data.MessageArgs, a.(string))
-					}
-				}
-			}
-			group.Events = append(group.Events, *data)
-		}
-	}
-	dataBusService.SendGroup(*group)
+// 			originCondition, err := eventData.GetPropertyByName("OriginOfCondition")
+// 			if err != nil {
+// 				log.Printf("Unable to get property %v\n", err)
+// 			} else {
+// 				data.OriginOfCondition = originCondition.Object["@odata.id"].(string)
+// 			}
+// 			data.EventId = eventData.Object["EventId"].(string)
+// 			data.EventType = eventData.Object["EventType"].(string)
+// 			data.EventTimestamp = eventData.Object["EventTimestamp"].(string)
+// 			data.MemberId = eventData.Object["MemberId"].(string)
+// 			data.MessageSeverity = eventData.Object["MessageSeverity"].(string)
+// 			data.Message = eventData.Object["Message"].(string)
+// 			data.MessageId = eventData.Object["MessageId"].(string)
+// 			if args, ok := eventData.Object["MessageArgs"]; ok {
+// 				if args != nil {
+// 					for _, a := range args.([]interface{}) {
+// 						data.MessageArgs = append(data.MessageArgs, a.(string))
+// 					}
+// 				}
+// 			}
+// 			group.Events = append(group.Events, *data)
+// 		}
+// 	}
+// 	dataBusService.SendGroup(*group)
 
-	dataGroupsMu.Lock()
-	if dataGroups[r.SystemID] == nil {
-		dataGroups[r.SystemID] = make(map[string]*databus.DataGroup)
-	}
-	dataGroups[r.SystemID][group.ID] = group
-	dataGroupsMu.Unlock()
-}
+// 	dataGroupsMu.Lock()
+// 	if dataGroups[r.SystemID] == nil {
+// 		dataGroups[r.SystemID] = make(map[string]*databus.DataGroup)
+// 	}
+// 	dataGroups[r.SystemID][group.ID] = group
+// 	dataGroupsMu.Unlock()
+// }
 
 /*
 // Responsible for taking the lifecycle events received from SSE, getting its events, and then sending it along the
@@ -324,105 +324,105 @@ func parseRedfishLce(lceevents *redfish.RedfishPayload, r *RedfishDevice, dataBu
 }
 */
 
-func (r *RedfishDevice) RestartMetricListener() {
-	go r.Redfish.ListenForMetricReports(r.Ctx, r.Metrics)
-}
+// func (r *RedfishDevice) RestartMetricListener() {
+// 	go r.Redfish.ListenForMetricReports(r.Ctx, r.Metrics)
+// }
 
-func (r *RedfishDevice) RestartAlertListener() {
-	go r.Redfish.ListenForAlerts(r.Ctx, r.Events)
-}
+// func (r *RedfishDevice) RestartAlertListener() {
+// 	go r.Redfish.ListenForAlerts(r.Ctx, r.Events)
+// }
 
-func (r *RedfishDevice) RestartLceEventListener() {
-	go r.Redfish.ListenForLceEvents(r.Ctx, r.Events)
-}
+// func (r *RedfishDevice) RestartLceEventListener() {
+// 	go r.Redfish.ListenForLceEvents(r.Ctx, r.Events)
+// }
 
 // StartMetricListener Directly responsible for receiving SSE events from iDRAC. Will parse received reports or issue a
-// message in the log indicating it received an unknown SSE event.
-func (r *RedfishDevice) StartMetricListener(dataBusService *databus.DataBusService) {
-	if r.Metrics == nil {
-		r.Metrics = make(chan *redfish.RedfishEvent, 10)
-	}
-	//timer := time.AfterFunc(time.Minute*5, r.RestartAlertListener)
-	log.Printf("%s: Starting metric listener...\n", r.SystemID)
-	go r.Redfish.ListenForMetricReports(r.Ctx, r.Metrics)
-	for {
-		event := <-r.Metrics
-		if event == nil {
-			log.Printf("%s: Got SSE nil event \n", r.SystemID)
-			continue
-		}
-		if event.Err != nil { // SSE connect failure , retry connection
-			log.Printf("%s: Got SSE error %s\n", r.SystemID, event.Err)
-			if strings.Contains(event.Err.Error(), "connection error") {
-				// Wait for 5 minutes before restarting, so that the iDRAC can be rebooted
-				// and SSE connection can be re-established
+// // message in the log indicating it received an unknown SSE event.
+// func (r *RedfishDevice) StartMetricListener(dataBusService *databus.DataBusService) {
+// 	if r.Metrics == nil {
+// 		r.Metrics = make(chan *redfish.RedfishEvent, 10)
+// 	}
+// 	//timer := time.AfterFunc(time.Minute*5, r.RestartAlertListener)
+// 	log.Printf("%s: Starting metric listener...\n", r.SystemID)
+// 	go r.Redfish.ListenForMetricReports(r.Ctx, r.Metrics)
+// 	for {
+// 		event := <-r.Metrics
+// 		if event == nil {
+// 			log.Printf("%s: Got SSE nil event \n", r.SystemID)
+// 			continue
+// 		}
+// 		if event.Err != nil { // SSE connect failure , retry connection
+// 			log.Printf("%s: Got SSE error %s\n", r.SystemID, event.Err)
+// 			if strings.Contains(event.Err.Error(), "connection error") {
+// 				// Wait for 5 minutes before restarting, so that the iDRAC can be rebooted
+// 				// and SSE connection can be re-established
 
-				log.Printf("Sleep 5 minutes before restarting SSE connection for %s\n", r.SystemID)
-				time.Sleep(time.Minute * 5)
-			}
-			r.RestartMetricListener()
-			continue
-		}
-		r.LastEvent = time.Now()
-		if event.Payload != nil {
-			if ot, ok := event.Payload.Object["@odata.type"].(string); ok {
-				switch {
-				case strings.Contains(ot, ".MetricReport"):
-					log.Printf("%s: Got new report for %s\n", r.SystemID, event.Payload.Object["@odata.id"].(string))
-					parseReport(event.Payload, r, dataBusService)
-					continue
-				default:
-					log.Printf("%s: Got unknown event type %s\n", r.SystemID, ot)
-				}
-			}
-		}
-		//log.Printf("%s: Got unknown SSE event %v\n", r.SystemID, event.Payload)
-		log.Printf("%s: Got bad SSE event \n", r.SystemID)
-	}
-}
+// 				log.Printf("Sleep 5 minutes before restarting SSE connection for %s\n", r.SystemID)
+// 				time.Sleep(time.Minute * 5)
+// 			}
+// 			r.RestartMetricListener()
+// 			continue
+// 		}
+// 		r.LastEvent = time.Now()
+// 		if event.Payload != nil {
+// 			if ot, ok := event.Payload.Object["@odata.type"].(string); ok {
+// 				switch {
+// 				case strings.Contains(ot, ".MetricReport"):
+// 					log.Printf("%s: Got new report for %s\n", r.SystemID, event.Payload.Object["@odata.id"].(string))
+// 					parseReport(event.Payload, r, dataBusService)
+// 					continue
+// 				default:
+// 					log.Printf("%s: Got unknown event type %s\n", r.SystemID, ot)
+// 				}
+// 			}
+// 		}
+// 		//log.Printf("%s: Got unknown SSE event %v\n", r.SystemID, event.Payload)
+// 		log.Printf("%s: Got bad SSE event \n", r.SystemID)
+// 	}
+// }
 
-func (r *RedfishDevice) StartAlertListener(dataBusService *databus.DataBusService) {
-	if r.Events == nil {
-		r.Events = make(chan *redfish.RedfishEvent, 10)
-	}
-	//timer := time.AfterFunc(time.Minute*5, r.RestartAlertListener)
-	log.Printf("%s: Starting event listener...\n", r.SystemID)
-	go r.Redfish.ListenForAlerts(r.Ctx, r.Events)
-	for {
-		event := <-r.Events
-		if event == nil {
-			log.Printf("%s: Got SSE nil event \n", r.SystemID)
-			continue
-		}
-		if event.Err != nil { // SSE connect failure , retry connection
-			log.Printf("%s: Got SSE error %s\n", r.SystemID, event.Err)
-			if strings.Contains(event.Err.Error(), "connection error") {
-				// Wait for 5 minutes before restarting, so that the iDRAC can be rebooted
-				// and SSE connection can be re-established
+// func (r *RedfishDevice) StartAlertListener(dataBusService *databus.DataBusService) {
+// 	if r.Events == nil {
+// 		r.Events = make(chan *redfish.RedfishEvent, 10)
+// 	}
+// 	//timer := time.AfterFunc(time.Minute*5, r.RestartAlertListener)
+// 	log.Printf("%s: Starting event listener...\n", r.SystemID)
+// 	go r.Redfish.ListenForAlerts(r.Ctx, r.Events)
+// 	for {
+// 		event := <-r.Events
+// 		if event == nil {
+// 			log.Printf("%s: Got SSE nil event \n", r.SystemID)
+// 			continue
+// 		}
+// 		if event.Err != nil { // SSE connect failure , retry connection
+// 			log.Printf("%s: Got SSE error %s\n", r.SystemID, event.Err)
+// 			if strings.Contains(event.Err.Error(), "connection error") {
+// 				// Wait for 5 minutes before restarting, so that the iDRAC can be rebooted
+// 				// and SSE connection can be re-established
 
-				log.Printf("Sleep 5 minutes before restarting SSE connection for %s\n", r.SystemID)
-				time.Sleep(time.Minute * 5)
-			}
-			r.RestartAlertListener()
-			continue
-		}
-		r.LastEvent = time.Now()
-		if event.Payload != nil {
-			if ot, ok := event.Payload.Object["@odata.type"].(string); ok {
-				switch {
-				case strings.Contains(ot, ".Event"):
-					log.Printf("%s: Got new event\n", r.SystemID)
-					parseRedfishEvents(event.Payload, r, dataBusService)
-					continue
-				default:
-					log.Printf("%s: Got unknown event type %s\n", r.SystemID, ot)
-				}
-			}
-		}
-		//log.Printf("%s: Got unknown SSE event %v\n", r.SystemID, event.Payload)
-		log.Printf("%s: Got bad SSE event \n", r.SystemID)
-	}
-}
+// 				log.Printf("Sleep 5 minutes before restarting SSE connection for %s\n", r.SystemID)
+// 				time.Sleep(time.Minute * 5)
+// 			}
+// 			r.RestartAlertListener()
+// 			continue
+// 		}
+// 		r.LastEvent = time.Now()
+// 		if event.Payload != nil {
+// 			if ot, ok := event.Payload.Object["@odata.type"].(string); ok {
+// 				switch {
+// 				case strings.Contains(ot, ".Event"):
+// 					log.Printf("%s: Got new event\n", r.SystemID)
+// 					parseRedfishEvents(event.Payload, r, dataBusService)
+// 					continue
+// 				default:
+// 					log.Printf("%s: Got unknown event type %s\n", r.SystemID, ot)
+// 				}
+// 			}
+// 		}
+// 		//log.Printf("%s: Got unknown SSE event %v\n", r.SystemID, event.Payload)
+// 		log.Printf("%s: Got bad SSE event \n", r.SystemID)
+// 	}
+// }
 
 /*
 // StartLceEventListener Directly responsible for receiving Redfish LifeCycleEvents from iDRAC. Will parse received reports or issue a
@@ -448,15 +448,15 @@ func (r *RedfishDevice) StartLceEventListener(dataBusService *databus.DataBusSer
 }
 */
 // getTelemetry Starts the service which will listen for SSE reports from the iDRAC
-func getTelemetry(r *RedfishDevice, telemetryService *redfish.RedfishPayload, dataBusService *databus.DataBusService) {
-	r.State = databus.RUNNING
-	inclAlerts := os.Getenv("INCLUDE_ALERTS")
-	if inclAlerts == "true" {
-		go r.StartAlertListener(dataBusService)
-	}
-	go r.StartMetricListener(dataBusService)
+// func getTelemetry(r *RedfishDevice, telemetryService *redfish.RedfishPayload, dataBusService *databus.DataBusService) {
+// 	r.State = databus.RUNNING
+// 	inclAlerts := os.Getenv("INCLUDE_ALERTS")
+// 	if inclAlerts == "true" {
+// 		go r.StartAlertListener(dataBusService)
+// 	}
+// 	go r.StartMetricListener(dataBusService)
 
-}
+// }
 
 /*
 // getRedfishLce Starts the service which will listens for Redfish LifeCycle Events from the iDRAC
@@ -482,101 +482,101 @@ func getRedfishLce(r *RedfishDevice, eventService *redfish.RedfishPayload, dataB
 // Take an instance of a Redfish device, get its system ID, get any child devices if it is a chassis, and then start
 // listening for SSE events. NOTE: This expects that someone has enabled Telemetry reports and started the telemetry
 // service externally.
-func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusService) {
-	systemID, err := r.Redfish.GetSystemId()
-	if err != nil || systemID == "" {
-		log.Printf("%s: Failed to get system id! %v\n", r.Redfish.Hostname, err)
-		return
-	}
-	hostName, sku, model, fwver, fqdn, imgid, err := r.Redfish.GetSysInfo()
-	if err != nil || hostName == "" {
-		log.Printf("%s: Failed to get hostName id! %v\n", r.Redfish.Hostname, err)
-		// assume same as system id, host name cannot be empty if used as key
-		hostName = systemID
-	}
-	log.Printf("%s: Got System ID %s, Hostname %s\n", r.Redfish.Hostname, systemID, hostName)
-	r.SystemID = systemID
-	r.HostName = hostName
-	r.SKU = sku
-	r.Model = model
-	r.FwVer = fwver
-	r.FQDN = fqdn
-	r.ImgID = imgid
+// func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusService) {
+// 	systemID, err := r.Redfish.GetSystemId()
+// 	if err != nil || systemID == "" {
+// 		log.Printf("%s: Failed to get system id! %v\n", r.Redfish.Hostname, err)
+// 		return
+// 	}
+// 	hostName, sku, model, fwver, fqdn, imgid, err := r.Redfish.GetSysInfo()
+// 	if err != nil || hostName == "" {
+// 		log.Printf("%s: Failed to get hostName id! %v\n", r.Redfish.Hostname, err)
+// 		// assume same as system id, host name cannot be empty if used as key
+// 		hostName = systemID
+// 	}
+// 	log.Printf("%s: Got System ID %s, Hostname %s\n", r.Redfish.Hostname, systemID, hostName)
+// 	r.SystemID = systemID
+// 	r.HostName = hostName
+// 	r.SKU = sku
+// 	r.Model = model
+// 	r.FwVer = fwver
+// 	r.FQDN = fqdn
+// 	r.ImgID = imgid
 
-	r.Redfish.FwVer = fwver
+// 	r.Redfish.FwVer = fwver
 
-	serviceRoot, err := r.Redfish.GetUri("/redfish/v1")
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	if r.HasChildren {
-		r.ChildDevices = make(map[int]string)
-		populateChildChassis(r, serviceRoot)
-	}
-	//Does this system support Telemetry?
-	telemetryService, err := serviceRoot.GetPropertyByName("TelemetryService")
-	if err != nil {
-		log.Println("TODO: Fake some basic telemetry...") // TODO
-		r.State = databus.TELNOTFOUND
-	} else {
-		log.Printf("%s: Using Telemetry Service...\n", r.Redfish.Hostname)
-		//go getRedfishLce(r, telemetryService, dataBusService)
-		getTelemetry(r, telemetryService, dataBusService)
-	}
-}
+// 	serviceRoot, err := r.Redfish.GetUri("/redfish/v1")
+// 	if err != nil {
+// 		log.Println(err)
+// 		return
+// 	}
+// 	if r.HasChildren {
+// 		r.ChildDevices = make(map[int]string)
+// 		populateChildChassis(r, serviceRoot)
+// 	}
+// 	//Does this system support Telemetry?
+// 	telemetryService, err := serviceRoot.GetPropertyByName("TelemetryService")
+// 	if err != nil {
+// 		log.Println("TODO: Fake some basic telemetry...") // TODO
+// 		r.State = databus.TELNOTFOUND
+// 	} else {
+// 		log.Printf("%s: Using Telemetry Service...\n", r.Redfish.Hostname)
+// 		//go getRedfishLce(r, telemetryService, dataBusService)
+// 		getTelemetry(r, telemetryService, dataBusService)
+// 	}
+// }
 
 // handleAuthServiceChannel Authenticates to the iDRAC and then launches the telemetry monitoring process via
 // redfishMonitorStart
-func handleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *databus.DataBusService) {
-	for {
-		service := <-serviceIn
-		if service.Ip == "" {
-			log.Println("Service IP is empty")
-			continue
-		}
-		if devices[service.Ip] != nil {
-			log.Printf("Device with IP %s already exists", service.Ip)
-			continue
-		}
-		
-		log.Print("Got new service = ", service.Ip)
-		var r *redfish.RedfishClient
-		var err error
-		//log.Println(service)
-		if service.AuthType == auth.AuthTypeUsernamePassword {
-			r, err = redfish.Init(service.Ip, service.Auth["username"], service.Auth["password"])
-		} else if service.AuthType == auth.AuthTypeBearerToken {
-			r, err = redfish.InitBearer(service.Ip, service.Auth["token"])
-		}
-		//log.Print(r)
-		device := new(RedfishDevice)
-		if err != nil {
-			log.Printf("%s: Failed to instantiate redfish client %v", service.Ip, err)
-			// Creating device for failed password so that it will show up on GUI
-			r = new(redfish.RedfishClient)
-			r.Hostname = service.Ip
-			r.Username = service.Auth["username"]
-			r.Password = service.Auth["password"]
-			device.State = databus.CONNFAILED
-		} else {
-			device.State = databus.STARTING
-		}
-		device.Redfish = r
-		device.HasChildren = service.ServiceType == auth.MSM
-		ctx, cancel := context.WithCancel(context.Background())
-		device.Ctx = ctx
-		device.CtxCancel = cancel
-		if devices == nil {
-			devices = make(map[string]*RedfishDevice)
-		}
-		devices[service.Ip] = device
-		// Only want validated devices to be started
-		if err == nil {
-			go redfishMonitorStart(device, dataBusService)
-		}
-	}
-}
+// func handleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *databus.DataBusService) {
+// 	for {
+// 		service := <-serviceIn
+// 		if service.Ip == "" {
+// 			log.Println("Service IP is empty")
+// 			continue
+// 		}
+// 		if devices[service.Ip] != nil {
+// 			log.Printf("Device with IP %s already exists", service.Ip)
+// 			continue
+// 		}
+
+// 		log.Print("Got new service = ", service.Ip)
+// 		var r *redfish.RedfishClient
+// 		var err error
+// 		//log.Println(service)
+// 		if service.AuthType == auth.AuthTypeUsernamePassword {
+// 			r, err = redfish.Init(service.Ip, service.Auth["username"], service.Auth["password"])
+// 		} else if service.AuthType == auth.AuthTypeBearerToken {
+// 			r, err = redfish.InitBearer(service.Ip, service.Auth["token"])
+// 		}
+// 		//log.Print(r)
+// 		device := new(RedfishDevice)
+// 		if err != nil {
+// 			log.Printf("%s: Failed to instantiate redfish client %v", service.Ip, err)
+// 			// Creating device for failed password so that it will show up on GUI
+// 			r = new(redfish.RedfishClient)
+// 			r.Hostname = service.Ip
+// 			r.Username = service.Auth["username"]
+// 			r.Password = service.Auth["password"]
+// 			device.State = databus.CONNFAILED
+// 		} else {
+// 			device.State = databus.STARTING
+// 		}
+// 		device.Redfish = r
+// 		device.HasChildren = service.ServiceType == auth.MSM
+// 		ctx, cancel := context.WithCancel(context.Background())
+// 		device.Ctx = ctx
+// 		device.CtxCancel = cancel
+// 		if devices == nil {
+// 			devices = make(map[string]*RedfishDevice)
+// 		}
+// 		devices[service.Ip] = device
+// 		// Only want validated devices to be started
+// 		if err == nil {
+// 			go redfishMonitorStart(device, dataBusService)
+// 		}
+// 	}
+// }
 
 // getEnvSettings Retrieve settings from the environment. Notice that configStrings has a set of defaults but those
 // can be overridden by environment variables via this function.
@@ -620,8 +620,8 @@ func main() {
 
 	authClient.ResendAll()
 	go authClient.GetService(serviceIn)
-	go handleAuthServiceChannel(serviceIn, dataBusService) // THIS FUNCTION ADDS SERVICE
-	go dataBusService.ReceiveCommand(commands)             //nolint: errcheck
+	go prr.HandleAuthServiceChannel(serviceIn, dataBusService, devices, true, true, true) // THIS FUNCTION ADDS SERVICE
+	go dataBusService.ReceiveCommand(commands)                                            //nolint: errcheck
 	for {
 		command := <-commands
 		log.Printf("Received command in redfishread: %s", command.Command)

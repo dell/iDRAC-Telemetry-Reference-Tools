@@ -229,7 +229,7 @@ func (r *RedfishClient) GetSystemId() (string, error) {
 	return "", errors.New("Unable to determine System ID")
 }
 
-func (r *RedfishClient) ListenForAlerts(Ctx context.Context, event chan<- *RedfishEvent) {
+func (r *RedfishClient) ListenForAlerts(Ctx context.Context, event chan<- *RedfishEvent, isFilter bool) {
 	ret := new(RedfishEvent)
 	serviceRoot, err := r.GetUri("/redfish/v1")
 	if err == nil {
@@ -237,9 +237,12 @@ func (r *RedfishClient) ListenForAlerts(Ctx context.Context, event chan<- *Redfi
 		if err == nil {
 			if eventService.Object["ServerSentEventUri"] != nil {
 				sseUri := "https://" + r.Hostname + eventService.Object["ServerSentEventUri"].(string)
-				filter := evtSSEFilter
-				if strings.Compare(r.FwVer, "4.00.00.00") < 0 {
-					filter = evtSSEFilter17G
+				filter := ""
+				if isFilter {
+					filter = evtSSEFilter
+					if strings.Compare(r.FwVer, "4.00.00.00") < 0 {
+						filter = evtSSEFilter17G
+					}
 				}
 				ret.Err = r.StartSSE(Ctx, event, sseUri+filter)
 
