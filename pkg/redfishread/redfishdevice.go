@@ -167,13 +167,35 @@ func parseRedfishEvents(events *redfish.RedfishPayload, r *RedfishDevice, dataBu
 			} else {
 				data.OriginOfCondition = originCondition.Object["@odata.id"].(string)
 			}
-			data.EventId = eventData.Object["EventId"].(string)
-			data.EventType = eventData.Object["EventType"].(string)
-			data.EventTimestamp = eventData.Object["EventTimestamp"].(string)
-			data.MemberId = eventData.Object["MemberId"].(string)
-			data.MessageSeverity = eventData.Object["MessageSeverity"].(string)
-			data.Message = eventData.Object["Message"].(string)
-			data.MessageId = eventData.Object["MessageId"].(string)
+			var ok bool
+			data.EventId, ok = eventData.Object["EventId"].(string)
+			if !ok {
+				log.Printf("Unable to get property EventId")
+			}
+			data.EventType, ok = eventData.Object["EventType"].(string)
+			if !ok {
+				log.Printf("Unable to get property EventType")
+			}
+			data.EventTimestamp, ok = eventData.Object["EventTimestamp"].(string)
+			if !ok {
+				log.Printf("Unable to get property EventTimestamp")
+			}
+			data.MemberId, ok = eventData.Object["MemberId"].(string)
+			if !ok {
+				log.Printf("Unable to get property MemberId")
+			}
+			data.MessageSeverity, ok = eventData.Object["MessageSeverity"].(string)
+			if !ok {
+				log.Printf("Unable to get property MessageSeverity")
+			}
+			data.Message, ok = eventData.Object["Message"].(string)
+			if !ok {
+				log.Printf("Unable to get property Message")
+			}
+			data.MessageId, ok = eventData.Object["MessageId"].(string)
+			if !ok {
+				log.Printf("Unable to get property MessageId")
+			}
 			if args, ok := eventData.Object["MessageArgs"]; ok {
 				if args != nil {
 					for _, a := range args.([]interface{}) {
