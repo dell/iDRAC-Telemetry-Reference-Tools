@@ -21,6 +21,7 @@ const (
 	MSM     = disc.MSM
 	EC      = disc.EC
 	IDRAC   = disc.IDRAC
+	IRC     = disc.IRC
 )
 
 type Service struct {

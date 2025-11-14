@@ -52,11 +52,11 @@ func HandleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *data
 		}
 
 		log.Print("Got new service = ", service.Ip)
-		var r *redfish.RedfishClient
+		var r redfish.RedfishClientInterface
 		var err error
 		//log.Println(service)
 		if service.AuthType == auth.AuthTypeUsernamePassword {
-			r, err = redfish.Init(service.Ip, service.Auth["username"], service.Auth["password"])
+			r, err = redfish.Init(service.Ip, service.Auth["username"], service.Auth["password"], service.ServiceType)
 		} else if service.AuthType == auth.AuthTypeBearerToken {
 			r, err = redfish.InitBearer(service.Ip, service.Auth["token"])
 		}
@@ -65,10 +65,10 @@ func HandleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *data
 		if err != nil {
 			log.Printf("%s: Failed to instantiate redfish client %v", service.Ip, err)
 			// Creating device for failed password so that it will show up on GUI
-			r = new(redfish.RedfishClient)
-			r.Hostname = service.Ip
-			r.Username = service.Auth["username"]
-			r.Password = service.Auth["password"]
+			// r = new(redfish.RedfishClient)
+			// r.Hostname = service.Ip
+			// r.Username = service.Auth["username"]
+			// r.Password = service.Auth["password"]
 			device.State = databus.CONNFAILED
 		} else {
 			device.State = databus.STARTING
@@ -120,16 +120,16 @@ func populateChildChassis(r *RedfishDevice, serviceRoot *redfish.RedfishPayload)
 func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusService, isTelemetry, isAlerts bool, SSEFilter bool) {
 	systemID, err := r.Redfish.GetSystemId()
 	if err != nil || systemID == "" {
-		log.Printf("%s: Failed to get system id! %v\n", r.Redfish.Hostname, err)
+		log.Printf("%s: Failed to get system id! %v\n", r.Redfish.GetHostname(), err)
 		return
 	}
 	hostName, sku, model, fwver, fqdn, imgid, err := r.Redfish.GetSysInfo()
 	if err != nil || hostName == "" {
-		log.Printf("%s: Failed to get hostName id! %v\n", r.Redfish.Hostname, err)
+		log.Printf("%s: Failed to get hostName id! %v\n", r.Redfish.GetHostname(), err)
 		// assume same as system id, host name cannot be empty if used as key
 		hostName = systemID
 	}
-	log.Printf("%s: Got System ID %s, Hostname %s\n", r.Redfish.Hostname, systemID, hostName)
+	log.Printf("%s: Got System ID %s, Hostname %s\n", r.Redfish.GetHostname(), systemID, hostName)
 	r.SystemID = systemID
 	r.HostName = hostName
 	r.SKU = sku
@@ -138,7 +138,7 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 	r.FQDN = fqdn
 	r.ImgID = imgid
 
-	r.Redfish.FwVer = fwver
+	r.Redfish.SetFwVer(fwver)
 
 	serviceRoot, err := r.Redfish.GetUri("/redfish/v1")
 	if err != nil {
@@ -155,7 +155,7 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 		log.Println("TODO: Fake some basic telemetry...") // TODO
 		r.State = databus.TELNOTFOUND
 	} else {
-		log.Printf("%s: Using Telemetry Service...\n", r.Redfish.Hostname)
+		log.Printf("%s: Using Telemetry Service...\n", r.Redfish.GetHostname())
 		//go getRedfishLce(r, telemetryService, dataBusService)
 		getTelemetry(r, telemetryService, dataBusService, isTelemetry, isAlerts, SSEFilter)
 	}

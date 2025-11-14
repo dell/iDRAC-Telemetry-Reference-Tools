@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/sse"
 )
 
@@ -23,6 +24,26 @@ const (
 	evtSSEFilter    = "?$filter=EventFormatType%20eq%20Event"
 	evtSSEFilter17G = "?$filter=EventType%20eq%20%27Alert%27"
 )
+
+type RedfishClientInterface interface {
+	GetEventsSSE(Ctx context.Context, event chan<- *RedfishEvent, sseURI string) error
+	GetInventoryByUri(sseURI string) (*RedfishPayload, error)
+	GetLceSSE(Ctx context.Context, event chan<- *RedfishEvent, sseURI string) error
+	GetSSEByUri(event chan<- *RedfishEvent, sseURI string)
+	GetSysInfo() (hostname string, sku string, model string, fwver string, fqdn string, imgid string, err error)
+	GetSystemId() (string, error)
+	GetUri(uri string) (*RedfishPayload, error)
+	ListenForAlerts(Ctx context.Context, event chan<- *RedfishEvent, isFilter bool)
+	ListenForLceEvents(Ctx context.Context, event chan<- *RedfishEvent)
+	ListenForMetricReports(Ctx context.Context, event chan<- *RedfishEvent)
+	StartSSE(Ctx context.Context, event chan<- *RedfishEvent, sseURI string) error
+	Walk() map[string]*RedfishPayload
+	addAuthToRequest(req *http.Request)
+	walkUri(uri string, res *map[string]*RedfishPayload)
+	GetHostname() string
+	SetFwVer(ver string)
+	GetUsername() string
+}
 
 type RedfishClient struct {
 	Hostname    string
@@ -34,28 +55,93 @@ type RedfishClient struct {
 	FwVer       string
 }
 
+type IRCRedfishClient struct {
+	RedfishClient
+}
+
+type iDRACRedfishClient struct {
+	RedfishClient
+}
+
+func (i *IRCRedfishClient) GetSystemId() (string, error) {
+	managers, err := i.GetUri("/redfish/v1/Managers")
+	if err != nil {
+		return "", err
+	}
+
+	if managers.Object["Oem"] != nil {
+		//log.Printf("%s: Has Oem elem!", r.Hostname)
+		oem := i.valueToPayload(managers.Object["Oem"])
+		if oem.Object["Dell"] != nil {
+			dell := i.valueToPayload(oem.Object["Dell"])
+			//log.Printf("%s: Has Oem/Dell elem! %v", r.Hostname, dell)
+			if dell.Object["ServiceTag"] != nil {
+				return dell.Object["ServiceTag"].(string), nil
+			}
+		}
+	}
+
+	return "", errors.New("Unable to determine System ID")
+}
+
+func (i *IRCRedfishClient) valueToPayload(value any) *RedfishPayload {
+	ret := new(RedfishPayload)
+	ret.Client = &i.RedfishClient
+	switch v := value.(type) {
+	case map[string]interface{}:
+		ret.Object = v
+	case []interface{}:
+		ret.Array = v
+	case float64:
+		ret.Float = v
+	default:
+		log.Fatalf("Unknown type %T", v)
+	}
+	return ret
+}
+
 type RedfishEvent struct {
 	Err     error
 	ID      string
 	Payload *RedfishPayload
 }
 
-func Init(hostname string, username string, password string) (*RedfishClient, error) {
-	ret := new(RedfishClient)
-	ret.Hostname = hostname
-	ret.Username = username
-	ret.Password = password
+func Init(hostname string, username string, password string, serviceType int) (RedfishClientInterface, error) {
+	var ret RedfishClientInterface
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
+	switch serviceType {
+	case auth.IRC:
+		ret = &IRCRedfishClient{
+			RedfishClient: RedfishClient{
+				Hostname:   hostname,
+				Username:   username,
+				Password:   password,
+				HttpClient: &http.Client{Transport: tr},
+			},
+		}
+	case auth.IDRAC:
+		ret = &iDRACRedfishClient{
+			RedfishClient: RedfishClient{
+				Hostname:   hostname,
+				Username:   username,
+				Password:   password,
+				HttpClient: &http.Client{Transport: tr},
+			},
+		}
+	default:
+		return nil, errors.New("Unknown service type")
+	}
+
 	//Allow a max of 5 connections in the http client connection pool
 	//tr.MaxIdleConns = 5
 	//tr.MaxIdleConnsPerHost = 5
-	ret.HttpClient = &http.Client{Transport: tr}
+	// ret.HttpClient = &http.Client{Transport: tr}
 	_, err := ret.GetUri("/redfish/v1")
 	if err != nil {
 		log.Print("Failed to init redfish client: ", err)
-		return nil, err
+		return ret, err
 	}
 	return ret, nil
 }
@@ -73,6 +159,18 @@ func InitBearer(hostname string, token string) (*RedfishClient, error) {
 		return nil, err
 	}
 	return ret, nil
+}
+
+func (r *RedfishClient) GetHostname() string {
+	return r.Hostname
+}
+
+func (r *RedfishClient) SetFwVer(ver string) {
+	r.FwVer = ver
+}
+
+func (r *RedfishClient) GetUsername() string {
+	return r.Username
 }
 
 func (r *RedfishClient) addAuthToRequest(req *http.Request) {

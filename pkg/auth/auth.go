@@ -36,4 +36,6 @@ type Service = auth.Service
 
 const SYSTEM_TYPE_IDRAC = auth.IDRAC
 
+const SYSTEM_TYPE_IRC = auth.IRC
+
 const AuthTypeUsernamePassword = auth.AuthTypeUsernamePassword

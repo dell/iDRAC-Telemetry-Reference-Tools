@@ -23,7 +23,7 @@ type SystemDetail struct {
 
 type RedfishDevice struct {
 	HasChildren bool
-	Redfish     *redfish.RedfishClient
+	Redfish     redfish.RedfishClientInterface
 	SystemDetail
 	ChildDevices map[int]string
 	Events       chan *redfish.RedfishEvent

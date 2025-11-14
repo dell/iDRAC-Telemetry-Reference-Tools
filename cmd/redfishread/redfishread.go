@@ -639,8 +639,8 @@ func main() {
 			i := 0
 			for _, dev := range devices {
 				producer := new(databus.DataProducer)
-				producer.Hostname = dev.Redfish.Hostname
-				producer.Username = dev.Redfish.Username
+				producer.Hostname = dev.Redfish.GetHostname()
+				producer.Username = dev.Redfish.GetUsername()
 				producer.State = dev.State
 				producer.LastEvent = dev.LastEvent
 				producers[i] = producer

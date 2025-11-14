@@ -14,6 +14,7 @@ const (
 	MSM     = 1
 	EC      = 2
 	IDRAC   = 3
+	IRC     = 4
 )
 
 type Service struct {
