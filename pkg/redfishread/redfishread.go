@@ -151,19 +151,21 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 		populateChildChassis(r, serviceRoot)
 	}
 	//Does this system support Telemetry?
-	telemetryService, err := serviceRoot.GetPropertyByName("TelemetryService")
-	if err != nil {
-		log.Println("TODO: Fake some basic telemetry...") // TODO
-		r.State = databus.TELNOTFOUND
-	} else {
-		log.Printf("%s: Using Telemetry Service...\n", r.Redfish.GetHostname())
-		//go getRedfishLce(r, telemetryService, dataBusService)
-		getTelemetry(r, telemetryService, dataBusService, isTelemetry, isAlerts, SSEFilter)
-	}
+	// telemetryService, err := serviceRoot.GetPropertyByName("TelemetryService")
+	// if err != nil {
+	// 	log.Println("TODO: Fake some basic telemetry...") // TODO
+	// 	r.State = databus.TELNOTFOUND
+	// } else {
+	// 	log.Printf("%s: Using Telemetry Service...\n", r.Redfish.GetHostname())
+	// 	//go getRedfishLce(r, telemetryService, dataBusService)
+	// 	getTelemetry(r, telemetryService, dataBusService, isTelemetry, isAlerts, SSEFilter)
+	// }
+
+	getTelemetry(r, dataBusService, isTelemetry, isAlerts, SSEFilter)
 }
 
 // getTelemetry Starts the service which will listen for SSE reports from the iDRAC
-func getTelemetry(r *RedfishDevice, telemetryService *redfish.RedfishPayload, dataBusService *databus.DataBusService, isTelemetry, isAlerts bool, SSEFilter bool) {
+func getTelemetry(r *RedfishDevice, dataBusService *databus.DataBusService, isTelemetry, isAlerts bool, SSEFilter bool) {
 	r.State = databus.RUNNING
 	if isAlerts {
 		go r.StartAlertListener(dataBusService, SSEFilter)
