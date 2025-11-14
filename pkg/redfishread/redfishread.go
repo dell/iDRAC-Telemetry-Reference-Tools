@@ -46,6 +46,7 @@ func HandleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *data
 			log.Println("Service IP is empty")
 			continue
 		}
+		log.Println("service", service)
 		if devices[service.Ip] != nil {
 			log.Printf("Device with IP %s already exists", service.Ip)
 			continue

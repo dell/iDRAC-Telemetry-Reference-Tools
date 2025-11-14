@@ -81,7 +81,7 @@ func (i *IRCRedfishClient) GetSystemId() (string, error) {
 		}
 	}
 
-	return "", errors.New("Unable to determine System ID")
+	return "", errors.New("Unable to determine System ID - IRC")
 }
 
 func (i *IRCRedfishClient) valueToPayload(value any) *RedfishPayload {
