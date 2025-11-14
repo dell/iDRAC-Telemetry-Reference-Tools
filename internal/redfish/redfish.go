@@ -64,7 +64,7 @@ type iDRACRedfishClient struct {
 }
 
 func (i *IRCRedfishClient) GetSystemId() (string, error) {
-	managers, err := i.GetUri("/redfish/v1/Managers")
+	managers, err := i.GetUri("/redfish/v1/Managers/IRC")
 	if err != nil {
 		return "", err
 	}
