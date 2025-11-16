@@ -1,5 +1,5 @@
 ## Introduction
-This repository contains a collection of tests for telemetry reference tool
+This folder contains a collection of tests for telemetry reference tool
 ## Installation
 To install the required packages, run the following commands:
 
