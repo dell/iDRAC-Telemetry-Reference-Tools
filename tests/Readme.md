@@ -1,10 +1,9 @@
 ## Introduction
-# Introduction
-This repository contains a collection of tests telemetry reference tool
-# Installation
+This repository contains a collection of tests for telemetry reference tool
+## Installation
 To install the required packages, run the following commands:
 
-# Install Pytest
+## Install Pytest
 ```bash
 pip install pytest
 
