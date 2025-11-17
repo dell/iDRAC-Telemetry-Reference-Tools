@@ -24,6 +24,10 @@ type DataGroups struct {
 	Groups map[string]map[string]*databus.DataGroup
 }
 
+func NewDataGroupChan(n int) chan *databus.DataGroup {
+	return make(chan *databus.DataGroup, n)
+}
+
 func (d *DataGroups) GetDataGroups() map[string]map[string]*databus.DataGroup {
 	d.Mu.RLock()
 	defer d.Mu.RUnlock()

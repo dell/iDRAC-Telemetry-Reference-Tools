@@ -10,3 +10,7 @@ func NewConfigClientWithBus(mb messagebus.Messagebus) *config.ConfigClient {
 		Bus: mb,
 	}
 }
+
+func NewConfigServiceWithBus(mb messagebus.Messagebus, commandQueue string, entries map[string]*config.ConfigEntry) *config.ConfigService {
+	return config.NewConfigService(mb, commandQueue, entries)
+}
