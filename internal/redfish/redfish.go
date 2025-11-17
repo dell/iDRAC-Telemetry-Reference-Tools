@@ -416,6 +416,10 @@ func (r *RedfishClient) ListenForLceEvents(Ctx context.Context, event chan<- *Re
 
 func (r *RedfishClient) StartSSE(Ctx context.Context, event chan<- *RedfishEvent, sseURI string) error {
 	sseConfig := new(sse.Config)
+	sseConfig.RetryParams = sse.RetryParams{
+		RetryInterval: 5 * time.Second,
+		MaxRetries:    10,
+	}
 	sseConfig.Client = r.HttpClient
 	//iDRAC version
 	filter := mrSSEFilter
