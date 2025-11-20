@@ -296,6 +296,41 @@ export KAFKA_CLIENT_CERT="<Client Cert>"
 export KAFKA_CLIENT_KEY="<Client Key>"
 export KAFKA_SKIP_VERIFY=true/false
 ```
+### Alerts (EventLog) in Kafka messages
+By default Kafka messages include metrics in Kafka messages. To include Server Alerts(EventLog) in the messages define the following environment variable.
+```
+export INCLUDE_ALERTS=true
+```
+### Sample Kafka message format (json) - metrics and alerts
+```
+[
+   {
+        "time": 1758775170,
+        "event": "metric",
+        "host": "3V322N3",
+        "fields": {
+            "_value": 2.8,
+            "metric_name": "PS1 Current 1_AmpsReading",
+            "source": ""
+        }
+    },
+    {
+        "time": 1758775175,
+        "event": "alert",
+        "host": "3V322N3",
+        "fields": {
+            "alert_id": "4346",
+            "memberid": "0",
+            "severity": "Warning",
+            "message_id": "IDRAC.PDR16",
+            "message": "Predictive failure reported for Disk 5 in Enclosure 0 on Connector 0 of RAID Controller in Slot 5. Part Number =  ABCDE"
+        }
+    },
+    ...
+    ...
+]
+
+```
 
 ## Victoria DB deployement
 
