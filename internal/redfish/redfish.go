@@ -64,11 +64,15 @@ type iDRACRedfishClient struct {
 }
 
 func (i *IRCRedfishClient) GetSystemId() (string, error) {
-	managers, err := i.GetUri("/redfish/v1/Managers/IRC")
+	serviceRoot, err := i.GetUri("/redfish/v1")
 	if err != nil {
 		return "", err
 	}
 
+	managers, err := serviceRoot.GetPropertyByName("Managers/IRC")
+	if err != nil {
+		return "", err
+	}
 	if managers.Object["Oem"] != nil {
 		//log.Printf("%s: Has Oem elem!", r.Hostname)
 		oem := i.valueToPayload(managers.Object["Oem"])
@@ -79,6 +83,11 @@ func (i *IRCRedfishClient) GetSystemId() (string, error) {
 				return dell.Object["ServiceTag"].(string), nil
 			}
 		}
+	}
+
+	chassis, err := serviceRoot.GetPropertyByName("Chassis/IRC")
+	if chassis.Object["SerialNumber"] != nil {
+		return chassis.Object["SerialNumber"].(string), nil
 	}
 
 	return "", errors.New("Unable to determine System ID - IRC")
