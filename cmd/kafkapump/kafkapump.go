@@ -20,9 +20,17 @@ import (
 )
 
 type kafkaEventFields struct {
-	Value      float64 `json:"_value"`
-	MetricName string  `json:"metric_name"`
-	Source     string  `json:"source"`
+	// metric data
+	Value      float64 `json:"_value,omitempty"`
+	MetricName string  `json:"metric_name,omitempty"`
+	Source     string  `json:"source,omitempty"`
+	// alert data
+	AlertId           string `json:"alert_id,omitempty"`
+	MemberId          string `json:"memberid,omitempty"`
+	Severity          string `json:"severity,omitempty"`
+	MessageId         string `json:"message_id,omitempty"`
+	Message           string `json:"message,omitempty"`
+	OriginOfCondition string `json:"origin,omitempty"`
 }
 
 type kafkaEvent struct {
@@ -155,7 +163,8 @@ func getEnvSettings() {
 func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Messagebus) {
 	for {
 		group := <-groupsChan // If you are new to GoLang see https://golangdocs.com/channels-in-golang
-		events := make([]*kafkaEvent, len(group.Values))
+		// log.Println("Got a group:  size of metrics alerts ", len(group.Values), len(group.Events))
+		events := make([]*kafkaEvent, len(group.Values)+len(group.Events))
 		for index, value := range group.Values {
 			timestamp, err := time.Parse(time.RFC3339, value.Timestamp)
 			if err != nil {
@@ -164,7 +173,7 @@ func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Message
 				value.Timestamp = strings.ReplaceAll(value.Timestamp, "+0000", "Z")
 				timestamp, err = time.Parse(time.RFC3339, value.Timestamp)
 				if err != nil {
-					log.Printf("Error parsing timestamp for point %s: (%s) %v",	value.Context+"_"+value.ID, value.Timestamp, err)
+					log.Printf("Error parsing timestamp for point %s: (%s) %v", value.Context+"_"+value.ID, value.Timestamp, err)
 					continue
 				}
 			}
@@ -190,6 +199,32 @@ func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Message
 
 			event.Fields.Value = floatVal
 			event.Fields.MetricName = value.Context + "_" + value.ID
+
+			events[index] = event
+		}
+		// alerts
+		for index, evt := range group.Events {
+			timestamp, err := time.Parse(time.RFC3339, evt.EventTimestamp)
+			if err != nil {
+				// For why we do this see https://datatracker.ietf.org/doc/html/rfc3339#section-4.3
+				// Go does not handle time properly. See https://github.com/golang/go/issues/20555
+				evt.EventTimestamp = strings.ReplaceAll(evt.EventTimestamp, "+0000", "Z")
+				timestamp, err = time.Parse(time.RFC3339, evt.EventTimestamp)
+				if err != nil {
+					log.Printf("Error parsing timestamp for point %s: (%s) %v", evt.EventId+"_"+evt.MessageId, evt.EventTimestamp, err)
+					continue
+				}
+			}
+			event := new(kafkaEvent)
+			event.Host = group.System
+			event.Time = timestamp.Unix()
+			event.Event = "alert"
+			event.Fields.AlertId = evt.EventId
+			event.Fields.MemberId = evt.MemberId
+			event.Fields.MessageId = evt.MessageId
+			event.Fields.Severity = evt.MessageSeverity
+			event.Fields.Message = evt.Message
+			event.Fields.OriginOfCondition = evt.OriginOfCondition
 
 			events[index] = event
 		}
@@ -288,7 +323,7 @@ func main() {
 		khost := kbroker[0]
 		kport, _ := strconv.Atoi(kbroker[1])
 		log.Printf("Connecting to kafka broker (%s:%d) with topic %s, partition %s\n", khost, kport, ktopic, kpart)
-        p, _ := strconv.Atoi(kpart)
+		p, _ := strconv.Atoi(kpart)
 		kmb, err := kafka.NewKafkaMessageBus(khost, kport, ktopic, p, tlsCfg)
 		if err == nil {
 			defer kmb.Close()
