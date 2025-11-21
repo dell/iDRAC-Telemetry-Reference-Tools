@@ -31,6 +31,11 @@ type Service struct {
 	Auth        map[string]string `json:"auth"`
 }
 
+type ServiceItem struct {
+	Service
+	ServiceIP string `json:"serviceIp"` // IP of the service this item belongs to
+}
+
 const (
 	RESEND        = "resend"
 	ADDSERVICE    = "addservice"
@@ -38,6 +43,11 @@ const (
 	TERMINATE     = "terminate"
 	SPLUNKADDHEC  = "splunkaddhec"
 	GETHECCONFIG  = "gethecconfig"
+
+	ADDSERVICEITEM    = "addserviceitem"
+	DELETESERVICEITEM = "deleteserviceitem"
+	GETSERVICEITEMS   = "getserviceitems"
+	UPDATESERVICEITEM = "updateserviceitem"
 )
 
 type SplunkConfig struct {
@@ -48,8 +58,16 @@ type SplunkConfig struct {
 
 type Command struct {
 	Command      string       `json:"command"`
-	SplunkConfig SplunkConfig `json:"Splunkconfig",omitempty"`
+	SplunkConfig SplunkConfig `json:"Splunkconfig,omitempty"`
 	Service      Service      `json:"service,omitempty"`
+	ServiceItem  ServiceItem  `json:"serviceitem,omitempty"`
+	ReceiveQueue string       `json:"receivequeue,omitempty"`
+}
+
+type response struct {
+	Command  string      `json:"command"`
+	DataType string      `json:"dataType"`
+	Data     interface{} `json:"data"`
 }
 
 const (
@@ -96,8 +114,8 @@ func (d *AuthorizationService) ReceiveCommand(commands chan<- *Command) error {
 	return nil
 }
 
-func (d *AuthorizationClient) GetHECConfig() {
-	d.SendCommandString(GETHECCONFIG)
+func (a *AuthorizationClient) GetHECConfig() {
+	a.SendCommandString(GETHECCONFIG)
 }
 
 func (d *AuthorizationService) Sendconfig(config SplunkConfig) error {
@@ -110,51 +128,51 @@ func (d *AuthorizationService) Sendconfig(config SplunkConfig) error {
 
 }
 
-func (d *AuthorizationClient) SendCommand(command Command) error {
+func (a *AuthorizationClient) SendCommand(command Command) error {
 	jsonStr, _ := json.Marshal(command)
-	err := d.Bus.SendMessage(jsonStr, CommandQueue)
+	err := a.Bus.SendMessage(jsonStr, CommandQueue)
 	if err != nil {
 		log.Printf("Failed to send command %v", err)
 	}
 	return err
 }
 
-func (d *AuthorizationClient) SendCommandString(command string) {
+func (a *AuthorizationClient) SendCommandString(command string) {
 	c := new(Command)
 	c.Command = command
-	d.SendCommand(*c)
+	a.SendCommand(*c)
 }
 
-func (d *AuthorizationClient) ResendAll() {
-	d.SendCommandString(RESEND)
+func (a *AuthorizationClient) ResendAll() {
+	a.SendCommandString(RESEND)
 }
 
-func (d *AuthorizationClient) SplunkAddHEC(SplunkHttp SplunkConfig) error {
+func (a *AuthorizationClient) SplunkAddHEC(SplunkHttp SplunkConfig) error {
 	c := new(Command)
 	c.Command = SPLUNKADDHEC
 	c.SplunkConfig = SplunkHttp
-	return d.SendCommand(*c)
+	return a.SendCommand(*c)
 }
 
-func (d *AuthorizationClient) AddService(service Service) error {
+func (a *AuthorizationClient) AddService(service Service) error {
 	c := new(Command)
 	c.Command = ADDSERVICE
 	c.Service = service
-	return d.SendCommand(*c)
+	return a.SendCommand(*c)
 }
 
-func (d *AuthorizationClient) DeleteService(service Service) error {
+func (a *AuthorizationClient) DeleteService(service Service) error {
 	c := new(Command)
 	c.Command = DELETESERVICE
 	c.Service = service
-	return d.SendCommand(*c)
+	return a.SendCommand(*c)
 }
 
-func (d *AuthorizationClient) GetService(services chan<- *Service) {
+func (a *AuthorizationClient) GetService(services chan<- *Service) {
 	messages := make(chan string, 10)
 
 	go func() {
-		_, err := d.Bus.ReceiveMessage(messages, EventQueue)
+		_, err := a.Bus.ReceiveMessage(messages, EventQueue)
 		if err != nil {
 			log.Printf("Error recieving messages %v", err)
 		}
@@ -168,4 +186,60 @@ func (d *AuthorizationClient) GetService(services chan<- *Service) {
 		}
 		services <- service
 	}
+}
+
+func (a *AuthorizationClient) AddServiceItem(si ServiceItem) error {
+	c := new(Command)
+	c.Command = ADDSERVICEITEM
+	c.ServiceItem = si
+	return a.SendCommand(*c)
+}
+
+func (a *AuthorizationClient) DeleteServiceItem(si ServiceItem) error {
+	c := new(Command)
+	c.Command = DELETESERVICEITEM
+	c.ServiceItem = si
+	return a.SendCommand(*c)
+}
+
+func (a *AuthorizationClient) UpdateServiceItem(si ServiceItem) error {
+	c := new(Command)
+	c.Command = UPDATESERVICEITEM
+	c.ServiceItem = si
+	return a.SendCommand(*c)
+}
+
+func (a *AuthorizationClient) GetServiceItems() []ServiceItem {
+	recvQueue := "/authorization/serviceitems/"
+	command := Command{
+		Command:      GETSERVICEITEMS,
+		ReceiveQueue: recvQueue,
+	}
+	a.SendCommand(command)
+
+	serviceItems := []ServiceItem{}
+	err := a.ReadOneMessage(recvQueue, &serviceItems)
+	if err != nil {
+		log.Print("Error reading service items: ", err)
+		return nil
+	}
+	return serviceItems
+}
+
+func (a *AuthorizationClient) ReadOneMessage(queue string, v any) error {
+	messages := make(chan string)
+	sub, err := a.Bus.ReceiveMessage(messages, queue)
+	if err != nil {
+		log.Println("Error receiving message: ", err)
+		return err
+	}
+	message := <-messages
+
+	sub.Close()
+	err = json.Unmarshal([]byte(message), v)
+	if err != nil {
+		log.Print("Error unmarshalling message: ", err)
+		return err
+	}
+	return nil
 }

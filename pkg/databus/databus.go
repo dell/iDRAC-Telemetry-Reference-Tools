@@ -15,6 +15,8 @@ const (
 	TERMINATE      = databus.TERMINATE
 )
 
+type DataGroup = databus.DataGroup
+
 func NewCommandChan() chan *databus.Command {
 	return make(chan *databus.Command)
 }

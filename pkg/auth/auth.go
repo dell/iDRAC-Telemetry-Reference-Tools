@@ -10,6 +10,11 @@ const (
 	RESEND        = auth.RESEND
 	ADDSERVICE    = auth.ADDSERVICE
 	DELETESERVICE = auth.DELETESERVICE
+
+	ADDSERVICEITEM    = auth.ADDSERVICEITEM
+	DELETESERVICEITEM = auth.DELETESERVICEITEM
+	GETSERVICEITEMS   = auth.GETSERVICEITEMS
+	UPDATESERVICEITEM = auth.UPDATESERVICEITEM
 )
 
 func NewAuthClientWithBus(mb messagebus.Messagebus) *auth.AuthorizationClient {
@@ -33,6 +38,8 @@ func NewCommandChan() chan *auth.Command {
 }
 
 type Service = auth.Service
+
+type AuthorizationClient = auth.AuthorizationClient
 
 const SYSTEM_TYPE_IDRAC = auth.IDRAC
 
