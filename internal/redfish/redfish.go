@@ -64,18 +64,14 @@ type iDRACRedfishClient struct {
 }
 
 func (i *IRCRedfishClient) GetSystemId() (string, error) {
-	serviceRoot, err := i.GetUri("/redfish/v1")
+	managersIRC, err := i.GetUri("/redfish/v1/Managers/IRC")
 	if err != nil {
 		return "", err
 	}
 
-	managers, err := serviceRoot.GetPropertyByName("Managers/IRC")
-	if err != nil {
-		return "", err
-	}
-	if managers.Object["Oem"] != nil {
+	if managersIRC.Object["Oem"] != nil {
 		//log.Printf("%s: Has Oem elem!", r.Hostname)
-		oem := i.valueToPayload(managers.Object["Oem"])
+		oem := i.valueToPayload(managersIRC.Object["Oem"])
 		if oem.Object["Dell"] != nil {
 			dell := i.valueToPayload(oem.Object["Dell"])
 			//log.Printf("%s: Has Oem/Dell elem! %v", r.Hostname, dell)
@@ -85,9 +81,9 @@ func (i *IRCRedfishClient) GetSystemId() (string, error) {
 		}
 	}
 
-	chassis, err := serviceRoot.GetPropertyByName("Chassis/IRC")
-	if chassis.Object["SerialNumber"] != nil {
-		return chassis.Object["SerialNumber"].(string), nil
+	chassisIRC, err := i.GetUri("/redfish/v1/Chassis/IRC")
+	if chassisIRC.Object["SerialNumber"] != nil {
+		return chassisIRC.Object["SerialNumber"].(string), nil
 	}
 
 	return "", errors.New("Unable to determine System ID - IRC")
