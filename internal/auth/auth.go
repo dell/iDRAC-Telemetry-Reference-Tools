@@ -4,6 +4,7 @@ package auth
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/disc"
@@ -14,6 +15,12 @@ const (
 	AuthTypeUsernamePassword = 1
 	AuthTypeXAuthToken       = 2
 	AuthTypeBearerToken      = 3
+)
+
+const (
+	CONNECTED = iota
+	FAILED
+	LEAKED
 )
 
 const (
@@ -29,6 +36,7 @@ type Service struct {
 	Ip          string            `json:"ip"`
 	AuthType    int               `json:"authType"`
 	Auth        map[string]string `json:"auth"`
+	State       int               `json:"state"`
 }
 
 type ServiceItem struct {
@@ -207,6 +215,23 @@ func (a *AuthorizationClient) UpdateServiceItem(si ServiceItem) error {
 	c.Command = UPDATESERVICEITEM
 	c.ServiceItem = si
 	return a.SendCommand(*c)
+}
+
+func (a *AuthorizationClient) UpdateServiceItemState(state int, siip string) error {
+	switch state {
+	case CONNECTED, FAILED, LEAKED:
+		a.UpdateServiceItem(
+			ServiceItem{
+				Service: Service{
+					Ip:    siip,
+					State: state,
+				},
+			},
+		)
+	default:
+		return fmt.Errorf("invalid state %d", state)
+	}
+	return nil
 }
 
 func (a *AuthorizationClient) GetServiceItems() []ServiceItem {
