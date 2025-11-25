@@ -41,6 +41,8 @@ type Service = auth.Service
 
 type AuthorizationClient = auth.AuthorizationClient
 
+type AuthorizationService = auth.AuthorizationService
+
 const SYSTEM_TYPE_IDRAC = auth.IDRAC
 
 const SYSTEM_TYPE_IRC = auth.IRC
