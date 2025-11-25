@@ -74,13 +74,6 @@ type DataProducer struct {
 }
 
 const (
-	STARTING    = "Starting"
-	RUNNING     = "Running"
-	TELNOTFOUND = "Telemetry Service Not Found"
-	CONNFAILED  = "Connection Failed"
-)
-
-const (
 	GET            = "get"
 	SUBSCRIBE      = "subscribe"
 	GETPRODUCERS   = "getproducers"

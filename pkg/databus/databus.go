@@ -17,6 +17,7 @@ const (
 
 type DataGroup = databus.DataGroup
 type EventValue = databus.EventValue
+type DataBusService = databus.DataBusService
 
 func NewCommandChan() chan *databus.Command {
 	return make(chan *databus.Command)
@@ -24,7 +25,7 @@ func NewCommandChan() chan *databus.Command {
 
 type DataGroups struct {
 	Mu     sync.RWMutex
-	Groups map[string]map[string]*databus.DataGroup
+	Groups map[string]map[string]*databus.DataGroup // map from sysid to groupID to groups
 }
 
 func NewDataGroupChan(n int) chan *databus.DataGroup {

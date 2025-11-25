@@ -19,15 +19,18 @@ const (
 
 // Service states
 const (
-	CONNECTED = iota
-	FAILED
-	LEAKED
+	STARTING     = "Starting"
+	RUNNING      = "Running"
+	RUNNINGWOTEL = "Running Only Alerts"
+	TELNOTFOUND  = "Telemetry Service Not Found"
+	CONNFAILED   = "Connection Failed"
+	LEAKED       = "Leaked"
 )
 
 // ServiceItem states
 const (
-	SHUTDOWNSENT = iota
-	SHUTDOWNFAILED
+	SHUTDOWNSENT   = "Shutdown Sent"
+	SHUTDOWNFAILED = "Shutdown Failed"
 )
 
 const (
@@ -43,7 +46,7 @@ type Service struct {
 	Ip          string            `json:"ip"`
 	AuthType    int               `json:"authType"`
 	Auth        map[string]string `json:"auth"`
-	State       int               `json:"state"`
+	State       string            `json:"state"`
 }
 
 type ServiceItem struct {
@@ -107,8 +110,8 @@ type AuthClientInterface interface {
 	SplunkAddHEC(SplunkHttp SplunkConfig) error
 	UpdateService(s Service) error
 	UpdateServiceItem(si ServiceItem) error
-	UpdateServiceItemState(state int, siip string) error
-	UpdateServiceState(state int, sip string) error
+	UpdateServiceItemState(state string, siip string) error
+	UpdateServiceState(state string, sip string) error
 }
 
 type AuthorizationService struct {
@@ -231,9 +234,9 @@ func (a *AuthorizationClient) UpdateService(s Service) error {
 	return a.SendCommand(*c)
 }
 
-func (a *AuthorizationClient) UpdateServiceState(state int, sip string) error {
+func (a *AuthorizationClient) UpdateServiceState(state string, sip string) error {
 	switch state {
-	case CONNECTED, FAILED, LEAKED:
+	case CONNFAILED, STARTING, RUNNING, TELNOTFOUND, RUNNINGWOTEL:
 		a.UpdateService(
 			Service{
 				Ip:    sip,
@@ -241,7 +244,7 @@ func (a *AuthorizationClient) UpdateServiceState(state int, sip string) error {
 			},
 		)
 	default:
-		return fmt.Errorf("invalid state %d", state)
+		return fmt.Errorf("invalid state %s", state)
 	}
 	return nil
 }
@@ -287,9 +290,9 @@ func (a *AuthorizationClient) UpdateServiceItem(si ServiceItem) error {
 	return a.SendCommand(*c)
 }
 
-func (a *AuthorizationClient) UpdateServiceItemState(state int, siip string) error {
+func (a *AuthorizationClient) UpdateServiceItemState(state string, siip string) error {
 	switch state {
-	case SHUTDOWNSENT:
+	case SHUTDOWNSENT, SHUTDOWNFAILED:
 		a.UpdateServiceItem(
 			ServiceItem{
 				Service: Service{
@@ -299,7 +302,7 @@ func (a *AuthorizationClient) UpdateServiceItemState(state int, siip string) err
 			},
 		)
 	default:
-		return fmt.Errorf("invalid state %d", state)
+		return fmt.Errorf("invalid state %s", state)
 	}
 	return nil
 }
