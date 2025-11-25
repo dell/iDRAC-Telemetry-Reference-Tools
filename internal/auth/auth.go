@@ -17,10 +17,17 @@ const (
 	AuthTypeBearerToken      = 3
 )
 
+// Service states
 const (
 	CONNECTED = iota
 	FAILED
 	LEAKED
+)
+
+// ServiceItem states
+const (
+	SHUTDOWNSENT = iota
+	SHUTDOWNFAILED
 )
 
 const (
@@ -48,6 +55,7 @@ const (
 	RESEND        = "resend"
 	ADDSERVICE    = "addservice"
 	DELETESERVICE = "deleteservice"
+	UPDATESERVICE = "updateservice"
 	TERMINATE     = "terminate"
 	SPLUNKADDHEC  = "splunkaddhec"
 	GETHECCONFIG  = "gethecconfig"
@@ -82,6 +90,26 @@ const (
 	CommandQueue = "/authorization/command"
 	EventQueue   = "/authorization"
 )
+
+type AuthClientInterface interface {
+	AddService(service Service) error
+	AddServiceItem(si ServiceItem) error
+	DeleteService(service Service) error
+	DeleteServiceItem(si ServiceItem) error
+	GetHECConfig()
+	GetService(services chan<- *Service)
+	GetServiceItems(sip string) []ServiceItem
+	GetServiceWithIP(ip string) Service
+	ReadOneMessage(queue string, v any) error
+	ResendAll()
+	SendCommand(command Command) error
+	SendCommandString(command string)
+	SplunkAddHEC(SplunkHttp SplunkConfig) error
+	UpdateService(s Service) error
+	UpdateServiceItem(si ServiceItem) error
+	UpdateServiceItemState(state int, siip string) error
+	UpdateServiceState(state int, sip string) error
+}
 
 type AuthorizationService struct {
 	Bus messagebus.Messagebus
@@ -196,6 +224,48 @@ func (a *AuthorizationClient) GetService(services chan<- *Service) {
 	}
 }
 
+func (a *AuthorizationClient) UpdateService(s Service) error {
+	c := new(Command)
+	c.Command = UPDATESERVICE
+	c.Service = s
+	return a.SendCommand(*c)
+}
+
+func (a *AuthorizationClient) UpdateServiceState(state int, sip string) error {
+	switch state {
+	case CONNECTED, FAILED, LEAKED:
+		a.UpdateService(
+			Service{
+				Ip:    sip,
+				State: state,
+			},
+		)
+	default:
+		return fmt.Errorf("invalid state %d", state)
+	}
+	return nil
+}
+
+func (a *AuthorizationClient) GetServiceWithIP(ip string) Service {
+	recvQueue := "/authorization/services/" + ip
+	c := Command{
+		Command:      GETSERVICEITEMS,
+		ReceiveQueue: recvQueue,
+		Service: Service{
+			Ip: ip,
+		},
+	}
+	a.SendCommand(c)
+
+	service := Service{}
+	err := a.ReadOneMessage(recvQueue, &service)
+	if err != nil {
+		log.Print("Error getting service with ip: ", ip, " err: ", err)
+		return Service{}
+	}
+	return service
+}
+
 func (a *AuthorizationClient) AddServiceItem(si ServiceItem) error {
 	c := new(Command)
 	c.Command = ADDSERVICEITEM
@@ -219,7 +289,7 @@ func (a *AuthorizationClient) UpdateServiceItem(si ServiceItem) error {
 
 func (a *AuthorizationClient) UpdateServiceItemState(state int, siip string) error {
 	switch state {
-	case CONNECTED, FAILED, LEAKED:
+	case SHUTDOWNSENT:
 		a.UpdateServiceItem(
 			ServiceItem{
 				Service: Service{
@@ -234,11 +304,14 @@ func (a *AuthorizationClient) UpdateServiceItemState(state int, siip string) err
 	return nil
 }
 
-func (a *AuthorizationClient) GetServiceItems() []ServiceItem {
-	recvQueue := "/authorization/serviceitems/"
+func (a *AuthorizationClient) GetServiceItems(sip string) []ServiceItem {
+	recvQueue := "/authorization/serviceitems/" + sip
 	command := Command{
 		Command:      GETSERVICEITEMS,
 		ReceiveQueue: recvQueue,
+		ServiceItem: ServiceItem{
+			ServiceIP: sip,
+		},
 	}
 	a.SendCommand(command)
 

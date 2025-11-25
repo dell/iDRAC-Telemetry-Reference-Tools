@@ -38,13 +38,28 @@ func NewCommandChan() chan *auth.Command {
 }
 
 type Service = auth.Service
+type ServiceItem = auth.ServiceItem
+type Command = auth.Command
+type SplunkConfig = auth.SplunkConfig
 
 type AuthorizationClient = auth.AuthorizationClient
 
 type AuthorizationService = auth.AuthorizationService
 
-const SYSTEM_TYPE_IDRAC = auth.IDRAC
+const (
+	SYSTEM_TYPE_IDRAC        = auth.IDRAC
+	SYSTEM_TYPE_IRC          = auth.IRC
+	AuthTypeUsernamePassword = auth.AuthTypeUsernamePassword
 
-const SYSTEM_TYPE_IRC = auth.IRC
+	// Service states
+	STARTING     = auth.STARTING
+	RUNNING      = auth.RUNNING
+	RUNNINGWOTEL = auth.RUNNINGWOTEL
+	TELNOTFOUND  = auth.TELNOTFOUND
+	CONNFAILED   = auth.CONNFAILED
+	LEAKED       = auth.LEAKED
 
-const AuthTypeUsernamePassword = auth.AuthTypeUsernamePassword
+	// ServiceItem states
+	SHUTDOWNSENT   = auth.SHUTDOWNSENT
+	SHUTDOWNFAILED = auth.SHUTDOWNFAILED
+)

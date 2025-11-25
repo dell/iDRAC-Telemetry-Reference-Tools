@@ -46,7 +46,7 @@ func TestGetServiceItems(t *testing.T) {
 		Messages: []string{string(jsonExpSerItems)},
 	}
 	authClient.Bus = mb
-	serviceItems := authClient.GetServiceItems()
+	serviceItems := authClient.GetServiceItems("sip1")
 	if len(serviceItems) != 2 {
 		t.Errorf("GetServiceItems() = %v, want %v", len(serviceItems), len(expectedServiceItems))
 	}

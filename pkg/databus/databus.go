@@ -16,6 +16,7 @@ const (
 )
 
 type DataGroup = databus.DataGroup
+type EventValue = databus.EventValue
 
 func NewCommandChan() chan *databus.Command {
 	return make(chan *databus.Command)
