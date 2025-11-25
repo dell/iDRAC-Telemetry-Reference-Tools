@@ -33,7 +33,7 @@ type RedfishClientInterface interface {
 	GetSysInfo() (hostname string, sku string, model string, fwver string, fqdn string, imgid string, err error)
 	GetSystemId() (string, error)
 	GetUri(uri string) (*RedfishPayload, error)
-	ListenForAlerts(Ctx context.Context, event chan<- *RedfishEvent, isFilter bool)
+	ListenForAlerts(Ctx context.Context, event chan<- *RedfishEvent)
 	ListenForLceEvents(Ctx context.Context, event chan<- *RedfishEvent)
 	ListenForMetricReports(Ctx context.Context, event chan<- *RedfishEvent)
 	StartSSE(Ctx context.Context, event chan<- *RedfishEvent, sseURI string) error
@@ -332,7 +332,7 @@ func (r *RedfishClient) GetSystemId() (string, error) {
 	return "", errors.New("Unable to determine System ID")
 }
 
-func (r *RedfishClient) ListenForAlerts(Ctx context.Context, event chan<- *RedfishEvent, isFilter bool) {
+func (r *RedfishClient) ListenForAlerts(Ctx context.Context, event chan<- *RedfishEvent) {
 	ret := new(RedfishEvent)
 	serviceRoot, err := r.GetUri("/redfish/v1")
 	if err == nil {
@@ -340,13 +340,12 @@ func (r *RedfishClient) ListenForAlerts(Ctx context.Context, event chan<- *Redfi
 		if err == nil {
 			if eventService.Object["ServerSentEventUri"] != nil {
 				sseUri := "https://" + r.Hostname + eventService.Object["ServerSentEventUri"].(string)
-				filter := ""
-				if isFilter {
-					filter = evtSSEFilter
-					if strings.Compare(r.FwVer, "4.00.00.00") < 0 {
-						filter = evtSSEFilter17G
-					}
+
+				filter := evtSSEFilter
+				if strings.Compare(r.FwVer, "4.00.00.00") < 0 {
+					filter = evtSSEFilter17G
 				}
+
 				ret.Err = r.StartSSE(Ctx, event, sseUri+filter)
 
 			} else {

@@ -34,21 +34,21 @@ type RedfishDevice struct {
 	Ctx          context.Context
 }
 
-func (r *RedfishDevice) RestartAlertListener(isFilter bool) {
-	go r.Redfish.ListenForAlerts(r.Ctx, r.Events, isFilter)
+func (r *RedfishDevice) RestartAlertListener() {
+	go r.Redfish.ListenForAlerts(r.Ctx, r.Events)
 }
 
 func (r *RedfishDevice) RestartMetricListener() {
 	go r.Redfish.ListenForMetricReports(r.Ctx, r.Metrics)
 }
 
-func (r *RedfishDevice) StartAlertListener(dataBusService *databus.DataBusService, isFilter bool) {
+func (r *RedfishDevice) StartAlertListener(dataBusService *databus.DataBusService) {
 	if r.Events == nil {
 		r.Events = make(chan *redfish.RedfishEvent, 10)
 	}
 	//timer := time.AfterFunc(time.Minute*5, r.RestartAlertListener)
 	log.Printf("%s: Starting event listener...\n", r.SystemID)
-	go r.Redfish.ListenForAlerts(r.Ctx, r.Events, isFilter)
+	go r.Redfish.ListenForAlerts(r.Ctx, r.Events)
 	for {
 		event := <-r.Events
 		if event == nil {
@@ -64,7 +64,7 @@ func (r *RedfishDevice) StartAlertListener(dataBusService *databus.DataBusServic
 				log.Printf("Sleep 5 minutes before restarting SSE connection for %s\n", r.SystemID)
 				time.Sleep(time.Minute * 5)
 			}
-			r.RestartAlertListener(isFilter)
+			r.RestartAlertListener()
 			continue
 		}
 		r.LastEvent = time.Now()

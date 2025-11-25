@@ -528,55 +528,16 @@ func getRedfishLce(r *RedfishDevice, eventService *redfish.RedfishPayload, dataB
 
 // handleAuthServiceChannel Authenticates to the iDRAC and then launches the telemetry monitoring process via
 // redfishMonitorStart
-// func handleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *databus.DataBusService) {
-// 	for {
-// 		service := <-serviceIn
-// 		if service.Ip == "" {
-// 			log.Println("Service IP is empty")
-// 			continue
-// 		}
-// 		if devices[service.Ip] != nil {
-// 			log.Printf("Device with IP %s already exists", service.Ip)
-// 			continue
-// 		}
-
-// 		log.Print("Got new service = ", service.Ip)
-// 		var r *redfish.RedfishClient
-// 		var err error
-// 		//log.Println(service)
-// 		if service.AuthType == auth.AuthTypeUsernamePassword {
-// 			r, err = redfish.Init(service.Ip, service.Auth["username"], service.Auth["password"])
-// 		} else if service.AuthType == auth.AuthTypeBearerToken {
-// 			r, err = redfish.InitBearer(service.Ip, service.Auth["token"])
-// 		}
-// 		//log.Print(r)
-// 		device := new(RedfishDevice)
-// 		if err != nil {
-// 			log.Printf("%s: Failed to instantiate redfish client %v", service.Ip, err)
-// 			// Creating device for failed password so that it will show up on GUI
-// 			r = new(redfish.RedfishClient)
-// 			r.Hostname = service.Ip
-// 			r.Username = service.Auth["username"]
-// 			r.Password = service.Auth["password"]
-// 			device.State = databus.CONNFAILED
-// 		} else {
-// 			device.State = databus.STARTING
-// 		}
-// 		device.Redfish = r
-// 		device.HasChildren = service.ServiceType == auth.MSM
-// 		ctx, cancel := context.WithCancel(context.Background())
-// 		device.Ctx = ctx
-// 		device.CtxCancel = cancel
-// 		if devices == nil {
-// 			devices = make(map[string]*RedfishDevice)
-// 		}
-// 		devices[service.Ip] = device
-// 		// Only want validated devices to be started
-// 		if err == nil {
-// 			go redfishMonitorStart(device, dataBusService)
-// 		}
-// 	}
-// }
+func handleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *databus.DataBusService, devices prr.RedfishDevices, authClient auth.AuthClientInterface) {
+	prr.InitNewDataGroupsMap()
+	for {
+		service := <-serviceIn
+		device, err := prr.ValidateAndAddDevice(service, devices)
+		if err == nil {
+			go prr.RedfishMonitorStart(device, dataBusService, authClient)
+		}
+	}
+}
 
 // getEnvSettings Retrieve settings from the environment. Notice that configStrings has a set of defaults but those
 // can be overridden by environment variables via this function.
@@ -595,7 +556,7 @@ func main() {
 	//Gather configuration from environment variables
 	getEnvSettings()
 
-	dataGroups = make(map[string]map[string]*databus.DataGroup)
+	// dataGroups = make(map[string]map[string]*databus.DataGroup)
 	authClient := new(auth.AuthorizationClient)
 	dataBusService := new(databus.DataBusService)
 
@@ -620,20 +581,21 @@ func main() {
 
 	authClient.ResendAll()
 	go authClient.GetService(serviceIn)
-	go prr.HandleAuthServiceChannel(serviceIn, dataBusService, devices, true, true, true) // THIS FUNCTION ADDS SERVICE
-	go dataBusService.ReceiveCommand(commands)                                            //nolint: errcheck
+	go handleAuthServiceChannel(serviceIn, dataBusService, devices, authClient) // THIS FUNCTION ADDS SERVICE
+	go dataBusService.ReceiveCommand(commands)                                  //nolint: errcheck
 	for {
 		command := <-commands
 		log.Printf("Received command in redfishread: %s", command.Command)
 		switch command.Command {
 		case databus.GET:
-			dataGroupsMu.Lock()
+
+			dataGroups := prr.DataGroupsMap.GetDataGroups()
 			for _, system := range dataGroups {
 				for _, group := range system {
 					dataBusService.SendGroupToQueue(*group, command.ReceiveQueue)
 				}
 			}
-			dataGroupsMu.Unlock()
+
 		case databus.GETPRODUCERS:
 			producers := make([]*databus.DataProducer, len(devices))
 			i := 0

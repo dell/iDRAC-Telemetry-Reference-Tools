@@ -2,7 +2,9 @@ package redfishread
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 
@@ -36,58 +38,49 @@ func (r RedfishDevices) AddDevice(k string, v *RedfishDevice) {
 
 var DataGroupsMap *pdatabus.DataGroups
 
-// handleAuthServiceChannel Authenticates to the iDRAC and then launches the telemetry monitoring process via
-// redfishMonitorStart
-func HandleAuthServiceChannel(serviceIn chan *auth.Service, dataBusService *databus.DataBusService, devices RedfishDevices, isTelemetry, isAlerts bool, SSEFilter bool) {
+func InitNewDataGroupsMap() {
 	DataGroupsMap = pdatabus.NewDataGroupsMap()
-	for {
-		service := <-serviceIn
-		if service.Ip == "" {
-			log.Println("Service IP is empty")
-			continue
-		}
-		log.Println("service", service)
-		if devices[service.Ip] != nil {
-			log.Printf("Device with IP %s already exists", service.Ip)
-			continue
-		}
+}
 
-		log.Print("Got new service = ", service.Ip)
-		var r redfish.RedfishClientInterface
-		var err error
-		//log.Println(service)
-		if service.AuthType == auth.AuthTypeUsernamePassword {
-			r, err = redfish.Init(service.Ip, service.Auth["username"], service.Auth["password"], service.ServiceType)
-		} else if service.AuthType == auth.AuthTypeBearerToken {
-			r, err = redfish.InitBearer(service.Ip, service.Auth["token"])
-		}
-		//log.Print(r)
-		device := new(RedfishDevice)
-		if err != nil {
-			log.Printf("%s: Failed to instantiate redfish client %v", service.Ip, err)
-			// Creating device for failed password so that it will show up on GUI
-			// r = new(redfish.RedfishClient)
-			// r.Hostname = service.Ip
-			// r.Username = service.Auth["username"]
-			// r.Password = service.Auth["password"]
-			device.State = databus.CONNFAILED
-		} else {
-			device.State = databus.STARTING
-		}
-		device.Redfish = r
-		device.HasChildren = service.ServiceType == auth.MSM
-		ctx, cancel := context.WithCancel(context.Background())
-		device.Ctx = ctx
-		device.CtxCancel = cancel
-		if devices == nil {
-			devices = NewRedfishDevices()
-		}
-		devices.AddDevice(service.Ip, device)
-		// Only want validated devices to be started
-		if err == nil {
-			go redfishMonitorStart(device, dataBusService, isTelemetry, isAlerts, SSEFilter)
-		}
+func ValidateAndAddDevice(service *auth.Service, devices RedfishDevices) (*RedfishDevice, error) {
+	if service.Ip == "" {
+		log.Println("Service IP is empty")
+		return nil, fmt.Errorf("ServiceIP is empty")
 	}
+	log.Println("service", service)
+	if devices[service.Ip] != nil {
+		log.Printf("Device with IP %s already exists", service.Ip)
+		return nil, fmt.Errorf("Device with IP %s already exists", service.Ip)
+	}
+
+	log.Print("Got new service = ", service.Ip)
+	var r redfish.RedfishClientInterface
+	var err error
+	//log.Println(service)
+	if service.AuthType == auth.AuthTypeUsernamePassword {
+		r, err = redfish.Init(service.Ip, service.Auth["username"], service.Auth["password"], service.ServiceType)
+	} else if service.AuthType == auth.AuthTypeBearerToken {
+		r, err = redfish.InitBearer(service.Ip, service.Auth["token"])
+	}
+	//log.Print(r)
+	device := new(RedfishDevice)
+	if err != nil {
+		log.Printf("%s: Failed to instantiate redfish client %v", service.Ip, err)
+		// Creating device for failed password so that it will show up on GUI
+		device.State = auth.CONNFAILED
+	} else {
+		device.State = auth.STARTING
+	}
+	device.Redfish = r
+	device.HasChildren = service.ServiceType == auth.MSM
+	ctx, cancel := context.WithCancel(context.Background())
+	device.Ctx = ctx
+	device.CtxCancel = cancel
+	if devices == nil {
+		devices = NewRedfishDevices()
+	}
+	devices.AddDevice(service.Ip, device)
+	return device, err
 }
 
 // populateChildChassis If the device is a chassis, we also have to obtain IDs / info for all children in that chassis
@@ -118,7 +111,7 @@ func populateChildChassis(r *RedfishDevice, serviceRoot *redfish.RedfishPayload)
 // Take an instance of a Redfish device, get its system ID, get any child devices if it is a chassis, and then start
 // listening for SSE events. NOTE: This expects that someone has enabled Telemetry reports and started the telemetry
 // service externally.
-func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusService, isTelemetry, isAlerts bool, SSEFilter bool) {
+func RedfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusService, authClient auth.AuthClientInterface) {
 	systemID, err := r.Redfish.GetSystemId()
 	if err != nil || systemID == "" {
 		log.Printf("%s: Failed to get system id! %v\n", r.Redfish.GetHostname(), err)
@@ -151,27 +144,31 @@ func redfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 		populateChildChassis(r, serviceRoot)
 	}
 	//Does this system support Telemetry?
-	// telemetryService, err := serviceRoot.GetPropertyByName("TelemetryService")
-	// if err != nil {
-	// 	log.Println("TODO: Fake some basic telemetry...") // TODO
-	// 	r.State = databus.TELNOTFOUND
-	// } else {
-	// 	log.Printf("%s: Using Telemetry Service...\n", r.Redfish.GetHostname())
-	// 	//go getRedfishLce(r, telemetryService, dataBusService)
-	// 	getTelemetry(r, telemetryService, dataBusService, isTelemetry, isAlerts, SSEFilter)
-	// }
-
-	getTelemetry(r, dataBusService, isTelemetry, isAlerts, SSEFilter)
+	_, err = serviceRoot.GetPropertyByName("TelemetryService")
+	if err != nil {
+		log.Println("TelemetryService not found, getting only Alerts - ", r.Redfish.GetHostname()) // TODO
+		r.State = auth.RUNNINGWOTEL
+		getAlerts(r, dataBusService)
+	} else {
+		log.Printf("%s: Using Telemetry Service...\n", r.Redfish.GetHostname())
+		authClient.UpdateServiceState(auth.RUNNING, r.Redfish.GetHostname())
+		getTelemetry(r, dataBusService)
+		getAlerts(r, dataBusService)
+	}
 }
 
-// getTelemetry Starts the service which will listen for SSE reports from the iDRAC
-func getTelemetry(r *RedfishDevice, dataBusService *databus.DataBusService, isTelemetry, isAlerts bool, SSEFilter bool) {
-	r.State = databus.RUNNING
-	if isAlerts {
-		go r.StartAlertListener(dataBusService, SSEFilter)
-	}
-	if isTelemetry {
-		go r.StartMetricListener(dataBusService)
-	}
+// getTelemetry Starts the service which will listen for SSE reports from the RedfishDevice
+func getTelemetry(r *RedfishDevice, dataBusService *databus.DataBusService) {
+	r.State = auth.RUNNING
+	go r.StartMetricListener(dataBusService)
+}
 
+// getAlerts Starts the service which will listen for redfis alerts from the RedfishDevice
+func getAlerts(r *RedfishDevice, dataBusService *databus.DataBusService) {
+	inclAlerts := os.Getenv("INCLUDE_ALERTS")
+	if inclAlerts != "true" {
+		return
+	}
+	r.State = auth.RUNNING
+	go r.StartAlertListener(dataBusService)
 }
