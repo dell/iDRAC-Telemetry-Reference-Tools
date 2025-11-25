@@ -43,8 +43,8 @@ type Command = auth.Command
 type SplunkConfig = auth.SplunkConfig
 
 type AuthorizationClient = auth.AuthorizationClient
-
 type AuthorizationService = auth.AuthorizationService
+type AuthClientInterface = auth.AuthClientInterface
 
 const (
 	SYSTEM_TYPE_IDRAC        = auth.IDRAC
