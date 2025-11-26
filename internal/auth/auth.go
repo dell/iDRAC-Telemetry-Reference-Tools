@@ -123,6 +123,23 @@ type AuthorizationClient struct {
 	Bus messagebus.Messagebus
 }
 
+func (as *AuthorizationService) SendAllServices(services []Service) error {
+	// Convert the slice of services to JSON
+	jsonStr, err := json.Marshal(services)
+	if err != nil {
+		log.Printf("Failed to marshal services: %v", err)
+		return err
+	}
+
+	// Send the JSON message to the queue
+	err = as.Bus.SendMessage(jsonStr, EventQueue)
+	if err != nil {
+		log.Printf("Failed to send services to queue %s: %v", EventQueue, err)
+		return err
+	}
+	return nil
+}
+
 func (as *AuthorizationService) SendService(service Service) error {
 	return as.SendServiceWithQ(service, EventQueue)
 }
@@ -269,15 +286,15 @@ func (ac *AuthorizationClient) UpdateServiceState(state string, sip string) erro
 }
 
 func (ac *AuthorizationClient) GetAllServices() []Service {
-	recvQueue := "/authorization/services/all"
+	// recvQueue := "/authorization/services/all"
 	c := Command{
 		Command:      GETALLSERVICES,
-		ReceiveQueue: recvQueue,
+		ReceiveQueue: EventQueue,
 	}
 	ac.SendCommand(c)
 
 	services := []Service{}
-	err := ac.ReadOneMessage(recvQueue, &services)
+	err := ac.ReadOneMessage(EventQueue, &services)
 	if err != nil {
 		log.Print("Error getting all services: ", err)
 		return []Service{}
