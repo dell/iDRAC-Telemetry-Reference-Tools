@@ -105,6 +105,61 @@ func (i *IRCRedfishClient) valueToPayload(value any) *RedfishPayload {
 	return ret
 }
 
+func (i *IRCRedfishClient) GetSysInfo() (hostname, sku, model, fwver, fqdn, imgid string, err error) {
+	serviceRoot, err := i.GetUri("/redfish/v1/Systems/System.Embedded.1?$select=HostName,SKU,Model")
+	if err != nil {
+		return
+	}
+	//TODO: update to IRC
+	if serviceRoot.Object["HostName"] != nil {
+		hostname = serviceRoot.Object["HostName"].(string)
+	}
+	if serviceRoot.Object["SKU"] != nil {
+		sku = serviceRoot.Object["SKU"].(string)
+	}
+	if serviceRoot.Object["Model"] != nil {
+		model = serviceRoot.Object["Model"].(string)
+	}
+
+	serviceRoot, err = i.GetUri("/redfish/v1/Managers/IRC/EthernetInterfaces/mgmt0?$select=IPv4Addresses")
+	if err != nil {
+		return
+	}
+	log.Printf("serviceroot IPv4Addresses %v", serviceRoot)
+	//IRC
+	if serviceRoot.Object["IPv4Addresses"] != nil {
+		ips := i.valueToPayload(serviceRoot.Object["IPv4Addresses"])
+		log.Printf("IPv4Addresses %v", ips)
+		if len(ips.Array) > 0 {
+			ipInfo := i.valueToPayload(ips.Array[0])
+			log.Printf("ipInfo %v", ipInfo)
+			if ipInfo.Object["Address"] != nil {
+				fqdn = ipInfo.Object["Address"].(string)
+			}
+		}
+	}
+
+	serviceRoot, err = i.GetUri("/redfish/v1/Managers/iDRAC.Embedded.1?$select=FirmwareVersion,Links")
+	if err != nil {
+		return
+	}
+	//iDRAC
+	if serviceRoot.Object["FirmwareVersion"] != nil {
+		fwver = serviceRoot.Object["FirmwareVersion"].(string)
+	}
+
+	if serviceRoot.Object["Links"] != nil {
+		act, ok := serviceRoot.Object["Links"].(map[string]interface{})["ActiveSoftwareImage"]
+		if ok {
+			imgid = act.(map[string]interface{})["@odata.id"].(string)
+			if imgid != "" {
+				imgid = imgid[strings.LastIndex(imgid, "/")+1:]
+			}
+		}
+	}
+	return
+}
+
 type RedfishEvent struct {
 	Err     error
 	ID      string
