@@ -105,6 +105,7 @@ type AuthClientInterface interface {
 	DeleteService(service Service) error
 	DeleteServiceItem(si ServiceItem) error
 	GetHECConfig()
+	GetAllServices()
 	GetService(services chan<- *Service)
 	GetServiceItems(sip string) []ServiceItem
 	GetServiceWithIP(ip string) Service
@@ -289,15 +290,16 @@ func (ac *AuthorizationClient) UpdateServiceState(state string, sip string) erro
 }
 
 func (ac *AuthorizationClient) GetAllServices() []Service {
-	// recvQueue := "/authorization/services/all"
+	recvQueue := "/authorization/services/all"
+	fmt.Println("In GetAllServices")
 	c := Command{
 		Command:      GETALLSERVICES,
-		ReceiveQueue: EventQueue,
+		ReceiveQueue: recvQueue,
 	}
 	ac.SendCommand(c)
 
 	services := []Service{}
-	err := ac.ReadOneMessage(EventQueue, &services)
+	err := ac.ReadOneMessage(recvQueue, &services)
 	if err != nil {
 		log.Print("Error getting all services: ", err)
 		return []Service{}
