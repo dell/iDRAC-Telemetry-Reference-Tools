@@ -64,6 +64,7 @@ const (
 	SPLUNKADDHEC  = "splunkaddhec"
 	GETHECCONFIG  = "gethecconfig"
 
+	GETALLSERVICES    = "getallservices"
 	ADDSERVICEITEM    = "addserviceitem"
 	DELETESERVICEITEM = "deleteserviceitem"
 	GETSERVICEITEMS   = "getserviceitems"
@@ -265,6 +266,23 @@ func (ac *AuthorizationClient) UpdateServiceState(state string, sip string) erro
 		return fmt.Errorf("invalid state %s", state)
 	}
 	return nil
+}
+
+func (ac *AuthorizationClient) GetAllServices() []Service {
+	recvQueue := "/authorization/services/all"
+	c := Command{
+		Command:      GETALLSERVICES,
+		ReceiveQueue: recvQueue,
+	}
+	ac.SendCommand(c)
+
+	services := []Service{}
+	err := ac.ReadOneMessage(recvQueue, &services)
+	if err != nil {
+		log.Print("Error getting all services: ", err)
+		return []Service{}
+	}
+	return services
 }
 
 func (ac *AuthorizationClient) GetServiceWithIP(ip string) Service {
