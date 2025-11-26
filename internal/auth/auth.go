@@ -111,6 +111,7 @@ type AuthClientInterface interface {
 	GetServiceWithIP(ip string) Service
 	ReadOneMessage(queue string, v any) error
 	ResendAll()
+	SendAllServices(services []Service, rcvQueue string)
 	SendCommand(command Command) error
 	SendCommandString(command string)
 	SplunkAddHEC(SplunkHttp SplunkConfig) error
@@ -127,7 +128,7 @@ type AuthorizationClient struct {
 	Bus messagebus.Messagebus
 }
 
-func (as *AuthorizationService) SendAllServices(services []Service) error {
+func (as *AuthorizationService) SendAllServices(services []Service, rcvQueue string) error {
 	// Convert the slice of services to JSON
 	jsonStr, err := json.Marshal(services)
 	if err != nil {
@@ -136,9 +137,9 @@ func (as *AuthorizationService) SendAllServices(services []Service) error {
 	}
 
 	// Send the JSON message to the queue
-	err = as.Bus.SendMessage(jsonStr, EventQueue)
+	err = as.Bus.SendMessage(jsonStr, rcvQueue)
 	if err != nil {
-		log.Printf("Failed to send services to queue %s: %v", EventQueue, err)
+		log.Printf("Failed to send services to queue %s: %v", rcvQueue, err)
 		return err
 	}
 	return nil
