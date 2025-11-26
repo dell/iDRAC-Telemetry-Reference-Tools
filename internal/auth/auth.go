@@ -91,6 +91,9 @@ type response struct {
 	Data     interface{} `json:"data"`
 }
 
+// UI -> Configui -> command  queue -> command queue -> listener -> database client //insert
+//
+
 const (
 	CommandQueue = "/authorization/command"
 	EventQueue   = "/authorization"
