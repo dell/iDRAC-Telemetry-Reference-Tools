@@ -47,12 +47,12 @@ type Service struct {
 	AuthType    int               `json:"authType"`
 	Auth        map[string]string `json:"auth"`
 	State       string            `json:"state"`
-	Category    string            `json:"category,omitempty"`
 }
 
 type ServiceItem struct {
 	Service
 	ServiceIP string `json:"serviceIp"` // IP of the service this item belongs to
+	Category  string `json:"category"`  // system type like "idrac", "switch", etc.
 }
 
 const (
