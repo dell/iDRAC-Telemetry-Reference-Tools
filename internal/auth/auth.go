@@ -47,6 +47,7 @@ type Service struct {
 	AuthType    int               `json:"authType"`
 	Auth        map[string]string `json:"auth"`
 	State       string            `json:"state"`
+	Category    string            `json:"category,omitempty"`
 }
 
 type ServiceItem struct {
