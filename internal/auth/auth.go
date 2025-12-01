@@ -113,6 +113,7 @@ type AuthClientInterface interface {
 	ReadOneMessage(queue string, v any) error
 	ResendAll()
 	SendAllServices(services []Service, rcvQueue string)
+	SendServiceItems(sis []ServiceItem, rcvQueue string)
 	SendCommand(command Command) error
 	SendCommandString(command string)
 	SplunkAddHEC(SplunkHttp SplunkConfig) error
@@ -159,8 +160,8 @@ func (as *AuthorizationService) SendServiceWithQ(service Service, queue string) 
 	return err
 }
 
-func (as *AuthorizationService) SendServiceItems(sis []ServiceItem) error {
-	return as.SendServiceItemsWithQ(sis, EventQueue)
+func (as *AuthorizationService) SendServiceItems(sis []ServiceItem, rcvQueue string) error {
+	return as.SendServiceItemsWithQ(sis, rcvQueue)
 }
 
 func (as *AuthorizationService) SendServiceItemsWithQ(sis []ServiceItem, queue string) error {
@@ -379,11 +380,13 @@ func (ac *AuthorizationClient) GetServiceItems(sip string) []ServiceItem {
 	ac.SendCommand(command)
 
 	serviceItems := []ServiceItem{}
+
 	err := ac.ReadOneMessage(recvQueue, &serviceItems)
 	if err != nil {
 		log.Print("Error reading service items: ", err)
 		return nil
 	}
+	fmt.Println("Get associated systems", serviceItems)
 	return serviceItems
 }
 
