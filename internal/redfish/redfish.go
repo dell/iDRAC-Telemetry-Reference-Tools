@@ -70,6 +70,13 @@ func (i *IRCRedfishClient) GetSystemId() (string, error) {
 		return "", err
 	}
 	fmt.Println("managerIRC.object OEM", managersIRC.Object["Oem"])
+	log.Printf("NG:inside getsystemid")
+	log.Printf("managersIRC %v %v", managersIRC, err)
+	fmt.Println("NG:in redfish.go managersIRC", managersIRC, err)
+	if err != nil {
+		return "", err
+	}
+	fmt.Println("NG:managerIRC.object OEM", managersIRC.Object["Oem"])
 	if managersIRC.Object["Oem"] != nil {
 		//log.Printf("%s: Has Oem elem!", r.Hostname)
 		oem := i.valueToPayload(managersIRC.Object["Oem"])
