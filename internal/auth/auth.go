@@ -106,7 +106,7 @@ type AuthClientInterface interface {
 	DeleteService(service Service) error
 	DeleteServiceItem(si ServiceItem) error
 	GetHECConfig()
-	GetAllServices()
+	GetAllServices() []Service
 	GetService(services chan<- *Service)
 	GetServiceItems(sip string) []ServiceItem
 	GetServiceWithIP(ip string) Service
