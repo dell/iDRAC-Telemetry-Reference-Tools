@@ -112,7 +112,6 @@ type AuthClientInterface interface {
 	GetServiceWithIP(ip string) Service
 	ReadOneMessage(queue string, v any) error
 	ResendAll()
-	SendServiceItems(sis []ServiceItem, rcvQueue string) error
 	SendCommand(command Command) error
 	SendCommandString(command string)
 	SplunkAddHEC(SplunkHttp SplunkConfig) error
