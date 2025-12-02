@@ -65,10 +65,11 @@ type iDRACRedfishClient struct {
 
 func (i *IRCRedfishClient) GetSystemId() (string, error) {
 	managersIRC, err := i.GetUri("/redfish/v1/Managers/IRC")
+	fmt.Println("in redfish.go managersIRC", managersIRC)
 	if err != nil {
 		return "", err
 	}
-
+	fmt.Println("managerIRC.object OEM", managersIRC.Object["Oem"])
 	if managersIRC.Object["Oem"] != nil {
 		//log.Printf("%s: Has Oem elem!", r.Hostname)
 		oem := i.valueToPayload(managersIRC.Object["Oem"])
