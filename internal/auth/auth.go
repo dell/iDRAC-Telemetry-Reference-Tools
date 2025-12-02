@@ -277,7 +277,7 @@ func (ac *AuthorizationClient) UpdateService(s Service) error {
 
 func (ac *AuthorizationClient) UpdateServiceState(state string, sip string) error {
 	switch state {
-	case CONNFAILED, STARTING, RUNNING, TELNOTFOUND, RUNNINGWOTEL:
+	case CONNFAILED, STARTING, RUNNING, TELNOTFOUND, RUNNINGWOTEL, LEAKED:
 		ac.UpdateService(
 			Service{
 				Ip:    sip,
