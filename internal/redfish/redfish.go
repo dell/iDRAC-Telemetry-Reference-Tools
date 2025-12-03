@@ -349,7 +349,9 @@ func (r *RedfishClient) GetSysInfo() (hostname, sku, model, fwver, fqdn, imgid s
 }
 
 func (r *RedfishClient) GetSystemId() (string, error) {
+	fmt.Println("reached here inside before Getsystemid for redfishclient")
 	serviceRoot, err := r.GetUri("/redfish/v1")
+	fmt.Println("reached here inside Getsystemid for redfishclient")
 	if err != nil {
 		return "", err
 	}
