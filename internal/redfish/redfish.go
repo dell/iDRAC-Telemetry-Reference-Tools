@@ -65,18 +65,9 @@ type iDRACRedfishClient struct {
 
 func (i *IRCRedfishClient) GetSystemId() (string, error) {
 	managersIRC, err := i.GetUri("/redfish/v1/Managers/IRC")
-	fmt.Println("in redfish.go managersIRC", managersIRC)
 	if err != nil {
 		return "", err
 	}
-	fmt.Println("managerIRC.object OEM", managersIRC.Object["Oem"])
-	log.Printf("NG:inside getsystemid")
-	log.Printf("managersIRC %v %v", managersIRC, err)
-	fmt.Println("NG:in redfish.go managersIRC", managersIRC, err)
-	if err != nil {
-		return "", err
-	}
-	fmt.Println("NG:managerIRC.object OEM", managersIRC.Object["Oem"])
 	if managersIRC.Object["Oem"] != nil {
 		//log.Printf("%s: Has Oem elem!", r.Hostname)
 		oem := i.valueToPayload(managersIRC.Object["Oem"])
@@ -349,9 +340,7 @@ func (r *RedfishClient) GetSysInfo() (hostname, sku, model, fwver, fqdn, imgid s
 }
 
 func (r *RedfishClient) GetSystemId() (string, error) {
-	fmt.Println("reached here inside before Getsystemid for redfishclient")
 	serviceRoot, err := r.GetUri("/redfish/v1")
-	fmt.Println("reached here inside Getsystemid for redfishclient")
 	if err != nil {
 		return "", err
 	}

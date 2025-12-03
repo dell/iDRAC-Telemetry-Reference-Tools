@@ -112,14 +112,12 @@ func populateChildChassis(r *RedfishDevice, serviceRoot *redfish.RedfishPayload)
 // listening for SSE events. NOTE: This expects that someone has enabled Telemetry reports and started the telemetry
 // service externally.
 func RedfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusService, authClient auth.AuthClientInterface) {
-	fmt.Println("RedfishMonitorStart")
-	fmt.Println("r redfish get systemd")
-	log.Printf("inside redfishmontior start")
 	systemID, err := r.Redfish.GetSystemId()
 	if err != nil || systemID == "" {
 		log.Printf("%s: Failed to get system id! %v\n", r.Redfish.GetHostname(), err)
 		return
 	}
+	authClient.UpdateServiceState(auth.RUNNING, r.Redfish.GetHostname())
 	hostName, sku, model, fwver, fqdn, imgid, err := r.Redfish.GetSysInfo()
 	if err != nil || hostName == "" {
 		log.Printf("%s: Failed to get hostName id! %v\n", r.Redfish.GetHostname(), err)
