@@ -65,6 +65,7 @@ const (
 	SPLUNKADDHEC  = "splunkaddhec"
 	GETHECCONFIG  = "gethecconfig"
 
+	GETSERVICEWITHIP  = "getservicewithip"
 	GETALLSERVICES    = "getallservices"
 	ADDSERVICEITEM    = "addserviceitem"
 	DELETESERVICEITEM = "deleteserviceitem"
@@ -311,7 +312,7 @@ func (ac *AuthorizationClient) GetAllServices() []Service {
 func (ac *AuthorizationClient) GetServiceWithIP(ip string) Service {
 	recvQueue := "/authorization/services/" + ip
 	c := Command{
-		Command:      GETSERVICE,
+		Command:      GETSERVICEWITHIP,
 		ReceiveQueue: recvQueue,
 		Service: Service{
 			Ip: ip,

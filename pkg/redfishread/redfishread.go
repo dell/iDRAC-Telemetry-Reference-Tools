@@ -117,7 +117,6 @@ func RedfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 		log.Printf("%s: Failed to get system id! %v\n", r.Redfish.GetHostname(), err)
 		return
 	}
-	authClient.UpdateServiceState(auth.RUNNING, r.Redfish.GetHostname())
 	hostName, sku, model, fwver, fqdn, imgid, err := r.Redfish.GetSysInfo()
 	if err != nil || hostName == "" {
 		log.Printf("%s: Failed to get hostName id! %v\n", r.Redfish.GetHostname(), err)
@@ -149,6 +148,7 @@ func RedfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 	if err != nil {
 		log.Println("TelemetryService not found, getting only Alerts - ", r.Redfish.GetHostname()) // TODO
 		r.State = auth.RUNNINGWOTEL
+		authClient.UpdateServiceState(auth.RUNNING, r.Redfish.GetHostname())
 		getAlerts(r, dataBusService)
 	} else {
 		log.Printf("%s: Using Telemetry Service...\n", r.Redfish.GetHostname())
