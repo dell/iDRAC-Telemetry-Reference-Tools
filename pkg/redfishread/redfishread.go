@@ -148,7 +148,7 @@ func RedfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 	if err != nil {
 		log.Println("TelemetryService not found, getting only Alerts - ", r.Redfish.GetHostname()) // TODO
 		r.State = auth.RUNNINGWOTEL
-		authClient.UpdateServiceState(auth.RUNNING, r.HostName)
+		authClient.UpdateServiceState(auth.RUNNING, r.Redfish.GetHostname())
 		getAlerts(r, dataBusService)
 	} else {
 		log.Printf("%s: Using Telemetry Service...\n", r.Redfish.GetHostname())
