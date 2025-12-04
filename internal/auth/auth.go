@@ -24,7 +24,8 @@ const (
 	RUNNINGWOTEL = "Running Only Alerts"
 	TELNOTFOUND  = "Telemetry Service Not Found"
 	CONNFAILED   = "Connection Failed"
-	LEAKED       = "Leaked"
+	LEAKED       = "Leak Detected"
+	MONITORING   = "Monitoring"
 )
 
 // ServiceItem states
@@ -276,7 +277,7 @@ func (ac *AuthorizationClient) UpdateService(s Service) error {
 
 func (ac *AuthorizationClient) UpdateServiceState(state string, sip string) error {
 	switch state {
-	case CONNFAILED, STARTING, RUNNING, TELNOTFOUND, RUNNINGWOTEL, LEAKED:
+	case CONNFAILED, STARTING, RUNNING, TELNOTFOUND, RUNNINGWOTEL, LEAKED, MONITORING:
 		ac.UpdateService(
 			Service{
 				Ip:    sip,

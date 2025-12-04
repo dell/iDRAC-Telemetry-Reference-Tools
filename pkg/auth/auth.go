@@ -61,6 +61,7 @@ const (
 	TELNOTFOUND  = auth.TELNOTFOUND
 	CONNFAILED   = auth.CONNFAILED
 	LEAKED       = auth.LEAKED
+	MONITORING   = auth.MONITORING
 
 	// ServiceItem states
 	SHUTDOWNSENT   = auth.SHUTDOWNSENT
