@@ -15,6 +15,7 @@ const (
 	EC      = 2
 	IDRAC   = 3
 	IRC     = 4
+	NVLINK  = 5
 )
 
 type Service struct {

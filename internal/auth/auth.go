@@ -40,6 +40,7 @@ const (
 	EC      = disc.EC
 	IDRAC   = disc.IDRAC
 	IRC     = disc.IRC
+	NVLINK  = disc.NVLINK
 )
 
 type Service struct {

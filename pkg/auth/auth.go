@@ -52,6 +52,7 @@ type AuthClientInterface = auth.AuthClientInterface
 const (
 	SYSTEM_TYPE_IDRAC        = auth.IDRAC
 	SYSTEM_TYPE_IRC          = auth.IRC
+	SYSTEM_TYPE_NVLINK       = auth.NVLINK
 	AuthTypeUsernamePassword = auth.AuthTypeUsernamePassword
 
 	// Service states
