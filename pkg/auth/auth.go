@@ -18,6 +18,8 @@ const (
 	DELETESERVICEITEM = auth.DELETESERVICEITEM
 	GETSERVICEITEMS   = auth.GETSERVICEITEMS
 	UPDATESERVICEITEM = auth.UPDATESERVICEITEM
+
+	ADDSYSTEMTYPE = auth.ADDSYSTEMTYPE
 )
 
 func NewAuthClientWithBus(mb messagebus.Messagebus) *auth.AuthorizationClient {
