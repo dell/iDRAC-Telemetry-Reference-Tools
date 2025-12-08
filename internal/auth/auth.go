@@ -71,6 +71,8 @@ const (
 	DELETESERVICEITEM = "deleteserviceitem"
 	GETSERVICEITEMS   = "getserviceitems"
 	UPDATESERVICEITEM = "updateserviceitem"
+
+	ADDSYSTEMTYPE = "addsystemtype"
 )
 
 type SplunkConfig struct {
@@ -79,12 +81,18 @@ type SplunkConfig struct {
 	Index string `json:"index,omitempty"`
 }
 
+type SystemType struct {
+	Type int    `json:"type,omitempty"`
+	Desc string `json:"desc,omitempty"`
+}
+
 type Command struct {
 	Command      string       `json:"command"`
 	SplunkConfig SplunkConfig `json:"Splunkconfig,omitempty"`
 	Service      Service      `json:"service,omitempty"`
 	ServiceItem  ServiceItem  `json:"serviceitem,omitempty"`
 	ReceiveQueue string       `json:"receivequeue,omitempty"`
+	SystemType   SystemType   `json:"systemtype,omitempty"`
 }
 
 type response struct {
@@ -120,6 +128,7 @@ type AuthClientInterface interface {
 	UpdateServiceItem(si ServiceItem) error
 	UpdateServiceItemState(state string, siip string) error
 	UpdateServiceState(state string, sip string) error
+	AddSystemType(sysType int, desc string) error
 }
 
 type AuthorizationService struct {
@@ -405,4 +414,14 @@ func (ac *AuthorizationClient) ReadOneMessage(queue string, v any) error {
 		return err
 	}
 	return nil
+}
+
+func (ac *AuthorizationClient) AddSystemType(sysType int, desc string) error {
+	c := new(Command)
+	c.Command = ADDSYSTEMTYPE
+	c.SystemType = SystemType{
+		Type: sysType,
+		Desc: desc,
+	}
+	return ac.SendCommand(*c)
 }
