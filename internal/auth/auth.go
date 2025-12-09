@@ -336,7 +336,7 @@ func (ac *AuthorizationClient) GetAllServices() []Service {
 	return services
 }
 
-func (ac *AuthorizationClient) GetValveStatus() []auth.ValveState {
+func (ac *AuthorizationClient) GetValveStatus() []ValveState {
 	recvQueue := "/authorization/ValveStatus/all"
 	c := Command{
 		Command:      GETVALVESTATE,
