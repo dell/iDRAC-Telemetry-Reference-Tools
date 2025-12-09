@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/disc"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
 )
