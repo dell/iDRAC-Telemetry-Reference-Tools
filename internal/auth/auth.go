@@ -146,6 +146,17 @@ type AuthorizationClient struct {
 	Bus messagebus.Messagebus
 }
 
+func (as *AuthorizationService) SendValveState(valvestatus []ValveState, rcvQueue string) error {
+
+	jsonStr, _ := json.Marshal(valvestatus)
+	err := as.Bus.SendMessage(jsonStr, rcvQueue)
+	if err != nil {
+		log.Printf("Failed to send valve status to queue %s: %v", rcvQueue, err)
+	}
+	return err
+
+}
+
 func (as *AuthorizationService) SendAllServices(services []Service, rcvQueue string) error {
 	// Convert the slice of services to JSON
 	jsonStr, err := json.Marshal(services)
