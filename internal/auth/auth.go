@@ -135,7 +135,7 @@ type AuthClientInterface interface {
 	UpdateServiceItem(si ServiceItem) error
 	UpdateServiceItemState(state string, siip string) error
 	UpdateServiceState(state string, sip string) error
-	UpdateValveState(ip string, state string) error
+	UpdateValveState(ip string, state1 string, state2 string) error
 	AddSystemType(sysType int, desc string) error
 }
 
