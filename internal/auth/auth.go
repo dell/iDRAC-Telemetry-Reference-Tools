@@ -71,8 +71,9 @@ const (
 	DELETESERVICEITEM = "deleteserviceitem"
 	GETSERVICEITEMS   = "getserviceitems"
 	UPDATESERVICEITEM = "updateserviceitem"
-
-	ADDSYSTEMTYPE = "addsystemtype"
+	UPDATEVALVESTATE  = "updatevalvestate"
+	GETVALVESTATE     = "getvalvestatus"
+	ADDSYSTEMTYPE     = "addsystemtype"
 )
 
 type SplunkConfig struct {
@@ -93,8 +94,14 @@ type Command struct {
 	ServiceItem  ServiceItem  `json:"serviceitem,omitempty"`
 	ReceiveQueue string       `json:"receivequeue,omitempty"`
 	SystemType   SystemType   `json:"systemtype,omitempty"`
+	ValveState   ValveState   `json:"valvestate,omitempty"`
 }
 
+type ValveState struct {
+	Ip      string `json:"ip"`
+	VState1 string `json:"state1"`
+	VState2 string `json:"state2"`
+}
 type response struct {
 	Command  string      `json:"command"`
 	DataType string      `json:"dataType"`
@@ -128,6 +135,7 @@ type AuthClientInterface interface {
 	UpdateServiceItem(si ServiceItem) error
 	UpdateServiceItemState(state string, siip string) error
 	UpdateServiceState(state string, sip string) error
+	UpdateValveState(ip string, state string) error
 	AddSystemType(sysType int, desc string) error
 }
 
@@ -300,6 +308,16 @@ func (ac *AuthorizationClient) UpdateServiceState(state string, sip string) erro
 	return nil
 }
 
+func (ac *AuthorizationClient) UpdateValveState(ip string, state1 string, state2 string) error {
+	c := new(Command)
+	c.Command = UPDATEVALVESTATE
+	c.ValveState = ValveState{
+		Ip:      ip,
+		VState1: state1,
+		VState2: state2,
+	}
+	return ac.SendCommand(*c)
+}
 func (ac *AuthorizationClient) GetAllServices() []Service {
 	recvQueue := "/authorization/services/all"
 	fmt.Println("In GetAllServices")
@@ -316,6 +334,27 @@ func (ac *AuthorizationClient) GetAllServices() []Service {
 		return []Service{}
 	}
 	return services
+}
+
+func (ac *AuthorizationClient) GetValveStatus(ip string) ValveState {
+	recvQueue := "/authorization/ValveStatus/" + ip
+	c := Command{
+		Command:      GETVALVESTATE,
+		ReceiveQueue: recvQueue,
+		ValveState: ValveState{
+			Ip: ip,
+		},
+	}
+	ac.SendCommand(c)
+	valvestatus := ValveState{}
+	err := ac.ReadOneMessage(recvQueue, &valvestatus)
+	if err != nil {
+		log.Print("Error getting valve status ip: ", ip, " err: ", err)
+		return ValveState{}
+
+	}
+	log.Print("valvestatus: ", valvestatus)
+	return valvestatus
 }
 
 func (ac *AuthorizationClient) GetServiceWithIP(ip string) Service {
