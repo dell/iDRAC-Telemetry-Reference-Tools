@@ -47,7 +47,7 @@ type Service = auth.Service
 type ServiceItem = auth.ServiceItem
 type Command = auth.Command
 type SplunkConfig = auth.SplunkConfig
-type Valvestate = auth.ValveState
+type ValveState = auth.ValveState
 
 type AuthorizationClient = auth.AuthorizationClient
 type AuthorizationService = auth.AuthorizationService
