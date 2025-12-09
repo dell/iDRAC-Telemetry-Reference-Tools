@@ -344,11 +344,12 @@ func (ac *AuthorizationClient) GetValveStatus() []auth.ValveState {
 		ReceiveQueue: recvQueue,
 	}
 	ac.SendCommand(c)
-	valvestatus := ValveState{}
+
+	valvestatus := []ValveState{}
 	err := ac.ReadOneMessage(recvQueue, &valvestatus)
 	if err != nil {
 		log.Print("Error getting valve status: ", err)
-		return ValveState{}
+		return []ValveState{}
 
 	}
 	log.Print("valvestatus: ", valvestatus)
