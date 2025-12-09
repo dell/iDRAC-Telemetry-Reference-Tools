@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/disc"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
 )
@@ -336,20 +337,17 @@ func (ac *AuthorizationClient) GetAllServices() []Service {
 	return services
 }
 
-func (ac *AuthorizationClient) GetValveStatus(ip string) ValveState {
-	recvQueue := "/authorization/ValveStatus/" + ip
+func (ac *AuthorizationClient) GetValveStatus() []auth.ValveState {
+	recvQueue := "/authorization/ValveStatus/all"
 	c := Command{
 		Command:      GETVALVESTATE,
 		ReceiveQueue: recvQueue,
-		ValveState: ValveState{
-			Ip: ip,
-		},
 	}
 	ac.SendCommand(c)
 	valvestatus := ValveState{}
 	err := ac.ReadOneMessage(recvQueue, &valvestatus)
 	if err != nil {
-		log.Print("Error getting valve status ip: ", ip, " err: ", err)
+		log.Print("Error getting valve status: ", err)
 		return ValveState{}
 
 	}
