@@ -74,6 +74,7 @@ const (
 	UPDATEVALVESTATE  = "updatevalvestate"
 	GETVALVESTATE     = "getvalvestatus"
 	ADDSYSTEMTYPE     = "addsystemtype"
+	GETSYSTEMTYPES    = "getsystemtypes"
 )
 
 type SplunkConfig struct {
@@ -134,6 +135,7 @@ type AuthClientInterface interface {
 	UpdateServiceState(state string, sip string) error
 	UpdateValveState(ip string, state1 string, state2 string) error
 	AddSystemType(sysType int, desc string) error
+	GetAllSystemTypes() []SystemType
 }
 
 type AuthorizationService struct {
@@ -152,6 +154,16 @@ func (as *AuthorizationService) SendValveState(valvestatus []ValveState, rcvQueu
 	}
 	return err
 
+}
+
+func (as *AuthorizationService) SendSystemTypes(systemtypes []SystemType, rcvQueue string) error {
+
+	jsonStr, _ := json.Marshal(systemtypes)
+	err := as.Bus.SendMessage(jsonStr, rcvQueue)
+	if err != nil {
+		log.Printf("Failed to send system types to queue %s: %v", rcvQueue, err)
+	}
+	return err
 }
 
 func (as *AuthorizationService) SendAllServices(services []Service, rcvQueue string) error {
@@ -344,6 +356,23 @@ func (ac *AuthorizationClient) GetAllServices() []Service {
 	return services
 }
 
+func (ac *AuthorizationClient) GetAllSystemTypes() []SystemType {
+	recvQueue := "/authorization/SystemTypes/all"
+	c := Command{
+		Command:      GETSYSTEMTYPES,
+		ReceiveQueue: recvQueue,
+	}
+	ac.SendCommand(c)
+
+	systemtype := []SystemType{}
+	err := ac.ReadOneMessage(recvQueue, &systemtype)
+	if err != nil {
+		log.Print("Error getting all services: ", err)
+		return []SystemType{}
+	}
+	return systemtype
+
+}
 func (ac *AuthorizationClient) GetValveStatus() []ValveState {
 	recvQueue := "/authorization/ValveStatus/all"
 	c := Command{

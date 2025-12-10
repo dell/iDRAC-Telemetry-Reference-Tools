@@ -21,6 +21,7 @@ const (
 	GETVALVESTATE     = auth.GETVALVESTATE
 	UPDATEVALVESTATE  = auth.UPDATEVALVESTATE
 	ADDSYSTEMTYPE     = auth.ADDSYSTEMTYPE
+	GETSYSTEMTYPES    = auth.GETSYSTEMTYPES
 )
 
 func NewAuthClientWithBus(mb messagebus.Messagebus) *auth.AuthorizationClient {
