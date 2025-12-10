@@ -53,7 +53,8 @@ type Service struct {
 
 type ServiceItem struct {
 	Service
-	ServiceIP string `json:"serviceIp"` // IP of the service this item belongs to
+	ServiceIP      string `json:"serviceIp"`
+	Systemtypedesc string `json:"systemtypedesc"`
 }
 
 const (
