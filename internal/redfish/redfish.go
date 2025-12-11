@@ -43,6 +43,7 @@ type RedfishClientInterface interface {
 	GetHostname() string
 	SetFwVer(ver string)
 	GetUsername() string
+	GetPassword() string
 }
 
 type RedfishClient struct {
@@ -230,6 +231,10 @@ func (r *RedfishClient) SetFwVer(ver string) {
 
 func (r *RedfishClient) GetUsername() string {
 	return r.Username
+}
+
+func (r *RedfishClient) GetPassword() string {
+	return r.Password
 }
 
 func (r *RedfishClient) addAuthToRequest(req *http.Request) {
