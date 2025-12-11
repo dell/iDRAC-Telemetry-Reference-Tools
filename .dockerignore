@@ -1,5 +1,6 @@
 *
 !cmd
+!pkg
 !internal
 !go.*
 !index.html

@@ -30,6 +30,7 @@ RUN groupadd -g ${GROUP_ID} ${GROUPNAME}
 RUN useradd -l -u ${USER_ID} -g ${GROUPNAME} ${USERNAME}
 
 COPY internal /build/internal
+COPY pkg /build/pkg
 COPY cmd/${CMD} /build/cmd/${CMD}
 COPY go.* /build/
 

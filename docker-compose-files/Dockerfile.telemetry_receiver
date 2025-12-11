@@ -17,6 +17,7 @@ RUN go mod download
 
 # Copy source code
 COPY ./cmd ./cmd
+COPY ./pkg ./pkg
 COPY ./internal ./internal
 
 # Tidy and download dependencies after source is available
