@@ -42,8 +42,7 @@ class TestDockerContainer:
         The function takes a container name as a parameter, which is a value from the setup_container_list list.
         The function returns None.
     """
-    @pytest.mark.parametrize("container", setup_container_list)
-    def test_build_setup(self, container):
+    def do_setup(self, container):
         print(f"Setting up container for option: {container}")
         cmd1 = "../docker-compose-files/compose.sh setup " + container
         out = local_exec(cmd1)
@@ -62,7 +61,9 @@ class TestDockerContainer:
     @pytest.mark.parametrize("container", container_list)
     def test_docker_container_start_stop(self, container):
         print(f"Starting container: {container}")
-        out = local_exec("../docker-compose-files/compose.sh start " + container)
+        if container in setup_container_list:
+            self.do_setup(container)
+        out = local_exec("../docker-compose-files/compose.sh start " + container + " --build")
         time.sleep(5)
         assert "Created" in out or "Started" in out, f"{container} not started successfully: {out}"
         print(f"{container} started successfully")
@@ -101,7 +102,7 @@ class TestDockerContainer:
     """
         This function tests the cleanup of a Docker network. It takes no parameters and returns None.
     """
-    def test_cleanup_network():
+    def test_cleanup_network(self):
         local_exec("docker network rm idrac-telemetry-reference-tools_host-bridge-net || true")
         networks = local_exec("docker network ls --format '{{.Name}}'")
         assert "idrac-telemetry-reference-tools_host-bridge-net" not in networks

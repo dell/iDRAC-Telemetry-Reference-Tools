@@ -199,7 +199,7 @@ echo "    --otel-pump"
   shift
 done
 
-testvercomp $(docker-compose --version | cut -d ' ' -f 4 | sed 's/^v//') 2.2.0 '>'
+testvercomp $(docker compose version | cut -d ' ' -f 4 | sed 's/^v//') 2.2.0 '>'
 set -e
 
 # re-read env settings so we dont regenerate them unnecessarily
@@ -225,7 +225,7 @@ echo "MYSQL_PASSWORD=${MYSQL_PASSWORD}" >> $topdir/.env
 echo "DOCKER_PROMETHEUS_INIT_ADMIN_TOKEN=${DOCKER_PROMETHEUS_INIT_ADMIN_TOKEN}" >> $topdir/.env
 echo "DOCKER_PROMETHEUS_INIT_PASSWORD=${DOCKER_PROMETHEUS_INIT_PASSWORD}" >> $topdir/.env
 
-# init Splink env variables if not set to avoid warnings from docker-compose for other pumps
+# init Splink env variables if not set to avoid warnings from docker compose for other pumps
 #if [ -n $SPLUNK ]; then
   if [ -z $SPLUNK_HEC_URL ]; then
     export SPLUNK_HEC_URL=
@@ -294,7 +294,7 @@ touch $topdir/docker-compose-files/container-info-promgrafana.txt
 
 case $1 in
   rm)
-    docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} rm -f
+    docker compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} rm -f
     ;;
 
   setup)
@@ -344,11 +344,11 @@ case $1 in
         echo -n "Removing volume: $volume"
         docker volume rm $volume
       fi
-      docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG} ${DETACH_ARG}
+      docker compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG} ${DETACH_ARG}
       ;;
 
   stop)
-    docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} stop
+    docker compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} stop
     ;;
 
   start)
@@ -364,9 +364,9 @@ case $1 in
 
     echo "Set up environment file in $topdir/.env"
     echo "To run manually, run the following command line:"
-    echo "docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG} ${DETACH_ARG}"
+    echo "docker compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG} ${DETACH_ARG}"
     echo
-    docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG} ${DETACH_ARG}
+    docker compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} up ${BUILD_ARG} ${DETACH_ARG}
     ;;
 
   *)
@@ -391,7 +391,7 @@ influx_setup_finish() {
 
     echo "grafana container setup done for datasource and dashboards. Shutting down."
 
-    docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} stop
+    docker compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} stop
 
 #  echo "Removing completed setup containers that are no longer needed"
     docker container rm -v $(docker container ls -a --filter ancestor=idrac-telemetry-reference-tools/setup -q)
@@ -403,13 +403,13 @@ prometheus_setup_finish() {
     echo "Waiting for grafana container setup Prometheus DATA_SOURCE & DASHBOARD to finish"
     sleep 1
   done
-
+    echo "Prometheus pump container setup done. "
     echo "grafana container setup done for datasource and dashboards. Shutting down."
 
-    docker-compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} stop
+    docker compose --project-directory $topdir -f $scriptdir/docker-compose.yml ${PROFILE_ARG} stop
 
 #  echo "Removing completed setup containers that are no longer needed"
-    docker container rm -v $(docker container ls -a --filter ancestor=idrac-telemetry-reference-tools/setupprometheus -q)
+    docker container rm -v $(docker container ls -a --filter ancestor=idrac-telemetry-reference-tools/setupprometheus --filter ancestor=idrac-telemetry-reference-tools/setup -q)
 }
 
 $POST_ACTION

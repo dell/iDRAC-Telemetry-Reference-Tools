@@ -426,7 +426,9 @@ services:
       - prometheus-test-db
       - timescale-test-db
     depends_on:
-      - influx
+      influx:
+        condition: service_started
+        required: false
     environment:
       <<: [*influx-env, *prometheus-env, *grafana-env]
       GF_INSTALL_PLUGINS: grafana-polystat-panel
@@ -444,8 +446,12 @@ services:
       - setup-influx-test-db
       - setup-prometheus-test-db
     depends_on:
-      - influx
-      - grafana
+      influx:
+        condition: service_started
+        required: false
+      grafana:
+        condition: service_started
+        required: true
     restart: "no"
     environment:
       <<: [*influx-env, *prometheus-env, *influx-setup-env, *prometheus-setup-env, *grafana-env]
@@ -557,7 +563,6 @@ services:
       - setup-prometheus-test-db
     depends_on:
       - prometheus
-      - activemq
     restart: "no"
     environment:
       <<: [*prometheus-env, *prometheus-setup-env]
