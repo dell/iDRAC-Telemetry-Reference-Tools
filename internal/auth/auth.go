@@ -84,10 +84,7 @@ type SplunkConfig struct {
 	Index string `json:"index,omitempty"`
 }
 
-type SystemType struct {
-	Type int    `json:"type,omitempty"`
-	Desc string `json:"desc,omitempty"`
-}
+type SystemType string
 
 type Command struct {
 	Command      string       `json:"command"`
@@ -135,7 +132,7 @@ type AuthClientInterface interface {
 	UpdateServiceItemState(state string, siip string) error
 	UpdateServiceState(state string, sip string) error
 	UpdateValveState(ip string, state1 string, state2 string) error
-	AddSystemType(sysType int, desc string) error
+	AddSystemType(sysType string) error
 	GetAllSystemTypes() []SystemType
 }
 
@@ -491,12 +488,9 @@ func (ac *AuthorizationClient) ReadOneMessage(queue string, v any) error {
 	return nil
 }
 
-func (ac *AuthorizationClient) AddSystemType(sysType int, desc string) error {
+func (ac *AuthorizationClient) AddSystemType(sysType string) error {
 	c := new(Command)
 	c.Command = ADDSYSTEMTYPE
-	c.SystemType = SystemType{
-		Type: sysType,
-		Desc: desc,
-	}
+	c.SystemType = SystemType(sysType)
 	return ac.SendCommand(*c)
 }
