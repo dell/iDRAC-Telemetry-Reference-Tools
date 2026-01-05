@@ -55,6 +55,8 @@ type ServiceItem struct {
 	Service
 	ServiceIP      string `json:"serviceIp"`
 	Systemtypedesc string `json:"systemtypedesc"`
+	ShutdownType   string `json:"shutdownType"`
+	Timeout        int    `json:"timeout"`
 }
 
 const (
