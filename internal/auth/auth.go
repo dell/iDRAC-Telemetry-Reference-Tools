@@ -78,6 +78,8 @@ const (
 	GETVALVESTATE     = "getvalvestatus"
 	ADDSYSTEMTYPE     = "addsystemtype"
 	GETSYSTEMTYPES    = "getsystemtypes"
+
+	UPDATESERVICEX = "updateservicex"
 )
 
 type SplunkConfig struct {
@@ -129,10 +131,12 @@ type AuthClientInterface interface {
 	SendCommand(command Command) error
 	SendCommandString(command string)
 	SplunkAddHEC(SplunkHttp SplunkConfig) error
+	UpdateServiceX(s Service) error
 	UpdateService(s Service) error
 	UpdateServiceItem(si ServiceItem) error
 	UpdateServiceItemState(state string, siip string) error
 	UpdateServiceState(state string, sip string) error
+	UpdateServiceXState(state string, ip string) error
 	UpdateValveState(ip string, state1 string, state2 string) error
 	AddSystemType(sysType string) error
 	GetAllSystemTypes() []SystemType
@@ -424,6 +428,22 @@ func (ac *AuthorizationClient) DeleteServiceItem(si ServiceItem) error {
 	c.Command = DELETESERVICEITEM
 	c.ServiceItem = si
 	return ac.SendCommand(*c)
+}
+
+func (ac *AuthorizationClient) UpdateServiceX(s Service) error {
+	c := new(Command)
+	c.Command = UPDATESERVICEX
+	c.Service = s
+	return ac.SendCommand(*c)
+}
+
+func (ac *AuthorizationClient) UpdateServiceXState(state string, ip string) error {
+	return ac.UpdateServiceX(
+		Service{
+			Ip:    ip,
+			State: state,
+		},
+	)
 }
 
 func (ac *AuthorizationClient) UpdateServiceItem(si ServiceItem) error {

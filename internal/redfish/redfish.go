@@ -191,7 +191,12 @@ func Init(hostname string, username string, password string, serviceType int) (R
 			},
 		}
 	default:
-		return nil, errors.New("Unknown service type")
+		ret = &RedfishClient{
+			Hostname:   hostname,
+			Username:   username,
+			Password:   password,
+			HttpClient: &http.Client{Transport: tr},
+		}
 	}
 
 	//Allow a max of 5 connections in the http client connection pool
