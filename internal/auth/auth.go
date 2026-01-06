@@ -32,6 +32,8 @@ const (
 const (
 	SHUTDOWNSENT   = "Shutdown Sent"
 	SHUTDOWNFAILED = "Shutdown Failed"
+	POWERSTATEON   = "Power Status On"
+	POWERSTATEOFF  = "Power Status Off"
 )
 
 const (
@@ -455,7 +457,7 @@ func (ac *AuthorizationClient) UpdateServiceItem(si ServiceItem) error {
 
 func (ac *AuthorizationClient) UpdateServiceItemState(state string, siip string) error {
 	switch state {
-	case SHUTDOWNSENT, SHUTDOWNFAILED:
+	case SHUTDOWNSENT, SHUTDOWNFAILED, CONNFAILED, RUNNING, POWERSTATEON, POWERSTATEOFF:
 		ac.UpdateServiceItem(
 			ServiceItem{
 				Service: Service{
