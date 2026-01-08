@@ -140,6 +140,7 @@ func parseRedfishEvents(events *redfish.RedfishPayload, r *RedfishDevice, dataBu
 	log.Printf("RedFish Events Found for parsing: %v\n", eventData)
 
 	group := new(databus.DataGroup)
+	group.HostID = r.Redfish.GetHostname()
 	group.HostName = r.HostName
 	group.FQDN = r.FQDN
 	group.System = r.SystemID

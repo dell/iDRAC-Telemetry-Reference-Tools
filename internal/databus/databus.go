@@ -51,6 +51,7 @@ type EventValue struct {
 }
 
 type DataGroup struct {
+	HostID    string
 	ID        string
 	Label     string
 	Sequence  string

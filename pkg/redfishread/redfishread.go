@@ -115,6 +115,7 @@ func RedfishMonitorStart(r *RedfishDevice, dataBusService *databus.DataBusServic
 	systemID, err := r.Redfish.GetSystemId()
 	if err != nil || systemID == "" {
 		log.Printf("%s: Failed to get system id! %v\n", r.Redfish.GetHostname(), err)
+		authClient.UpdateServiceState(auth.CONNFAILED, r.Redfish.GetHostname())
 		return
 	}
 	hostName, sku, model, fwver, fqdn, imgid, err := r.Redfish.GetSysInfo()
