@@ -30,9 +30,6 @@ func (mb *MockMessageBus) SendMessage(message []byte, queue string) error {
 }
 
 func (mb *MockMessageBus) ReceiveMessage(message chan<- string, queue string) (messagebus.Subscription, error) {
-	if len(mb.Messages) == 0 {
-		return nil, nil
-	}
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		for {

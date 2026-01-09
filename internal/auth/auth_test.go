@@ -23,6 +23,17 @@ func TestReadOneMessage(t *testing.T) {
 	if gotMessage == nil || *gotMessage != expectedMessage {
 		t.Errorf("ReadOneMessage() = %v, want %v", gotMessage, expectedMessage)
 	}
+
+	// Test timeout condition
+	emptyMb := &mock.MockMessageBus{
+		Messages: []string{},
+	}
+	authClient.Bus = emptyMb
+	var timeoutMessage *string
+	err = authClient.ReadOneMessage("", &timeoutMessage)
+	if err == nil {
+		t.Errorf("ReadOneMessage() expected timeout error, got nil")
+	}
 }
 
 func TestGetServiceItems(t *testing.T) {

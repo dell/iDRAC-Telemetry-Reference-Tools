@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/disc"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
@@ -15,6 +16,7 @@ const (
 	AuthTypeUsernamePassword = 1
 	AuthTypeXAuthToken       = 2
 	AuthTypeBearerToken      = 3
+	ReadTimeout              = 5
 )
 
 // Service states
@@ -502,7 +504,9 @@ func (ac *AuthorizationClient) GetServiceItemWithIP(siip string) ServiceItem {
 		Command:      GETSERVICEITEM,
 		ReceiveQueue: recvQueue,
 		ServiceItem: ServiceItem{
-			ServiceIP: siip,
+			Service: Service{
+				Ip: siip,
+			},
 		},
 	}
 	ac.SendCommand(command)
@@ -528,15 +532,19 @@ func (ac *AuthorizationClient) ReadOneMessage(queue string, v any) error {
 		log.Println("Error receiving message: ", err)
 		return err
 	}
-	message := <-messages
+	defer sub.Close()
 
-	sub.Close()
-	err = json.Unmarshal([]byte(message), v)
-	if err != nil {
-		log.Print("Error unmarshalling message: ", err)
-		return err
+	select {
+	case message := <-messages:
+		err = json.Unmarshal([]byte(message), v)
+		if err != nil {
+			log.Print("Error unmarshalling message: ", err)
+			return err
+		}
+		return nil
+	case <-time.After(ReadTimeout * time.Second):
+		return fmt.Errorf("timeout waiting for message from queue %s", queue)
 	}
-	return nil
 }
 
 func (ac *AuthorizationClient) AddSystemType(sysType string) error {
