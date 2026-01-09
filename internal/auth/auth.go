@@ -75,6 +75,7 @@ const (
 	ADDSERVICEITEM    = "addserviceitem"
 	DELETESERVICEITEM = "deleteserviceitem"
 	GETSERVICEITEMS   = "getserviceitems"
+	GETSERVICEITEM    = "getserviceitem"
 	UPDATESERVICEITEM = "updateserviceitem"
 	UPDATEVALVESTATE  = "updatevalvestate"
 	GETVALVESTATE     = "getvalvestatus"
@@ -128,6 +129,7 @@ type AuthClientInterface interface {
 	GetService(services chan<- *Service)
 	GetServiceItems(sip string) []ServiceItem
 	GetServiceWithIP(ip string) Service
+	GetServiceItemWithIP(siip string) ServiceItem
 	ReadOneMessage(queue string, v any) error
 	ResendAll()
 	SendCommand(command Command) error
@@ -492,6 +494,31 @@ func (ac *AuthorizationClient) GetServiceItems(sip string) []ServiceItem {
 	}
 	fmt.Println("Get associated systems", serviceItems)
 	return serviceItems
+}
+
+func (ac *AuthorizationClient) GetServiceItemWithIP(siip string) ServiceItem {
+	recvQueue := "/authorization/serviceitems/" + siip
+	command := Command{
+		Command:      GETSERVICEITEM,
+		ReceiveQueue: recvQueue,
+		ServiceItem: ServiceItem{
+			ServiceIP: siip,
+		},
+	}
+	ac.SendCommand(command)
+
+	serviceItems := []ServiceItem{}
+
+	err := ac.ReadOneMessage(recvQueue, &serviceItems)
+	if err != nil {
+		log.Print("Error reading service items: ", err)
+		return ServiceItem{}
+	}
+	if len(serviceItems) != 1 {
+		log.Print("Error reading service items: Found multiple items for ip ", siip)
+		return ServiceItem{}
+	}
+	return serviceItems[0]
 }
 
 func (ac *AuthorizationClient) ReadOneMessage(queue string, v any) error {
