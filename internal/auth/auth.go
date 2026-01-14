@@ -244,14 +244,15 @@ func (as *AuthorizationService) ReceiveCommand(commands chan<- *Command) error {
 // uniqueReplyQueue returns a unique, per-request reply destination suitable
 // for request/reply.
 //
-// This is used to support concurrent callers without reply stealing on shared
-// destinations.
+// The reply destination must be a normal queue/topic name that both the
+// requester and responder can use. Avoid broker-managed temporary destination
+// semantics here.
 func uniqueReplyQueue(prefix string) string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		return fmt.Sprintf("/temp-queue/%s-%d", prefix, time.Now().UnixNano())
+		return fmt.Sprintf("/authorization/reply/%s-%d", prefix, time.Now().UnixNano())
 	}
-	return "/temp-queue/" + prefix + "-" + hex.EncodeToString(b)
+	return "/authorization/reply/" + prefix + "-" + hex.EncodeToString(b)
 }
 
 type AuthorizationClient struct {
