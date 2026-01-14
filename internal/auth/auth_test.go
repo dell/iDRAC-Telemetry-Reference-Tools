@@ -36,6 +36,55 @@ func TestReadOneMessage(t *testing.T) {
 	}
 }
 
+func TestRequestReply(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		expectedReply := "ok"
+		jsonExpectedReply, _ := json.Marshal(expectedReply)
+		mb := &mock.MockMessageBus{
+			Messages: []string{string(jsonExpectedReply)},
+		}
+		authClient := new(AuthorizationClient)
+		authClient.Bus = mb
+
+		recvQueue := "/temp-queue/test"
+		cmd := Command{Command: "testcmd", ReceiveQueue: recvQueue}
+
+		var gotReply string
+		err := authClient.requestReply(cmd, &gotReply)
+		if err != nil {
+			t.Fatalf("requestReply() error = %v", err)
+		}
+		if gotReply != expectedReply {
+			t.Fatalf("requestReply() got reply %q, want %q", gotReply, expectedReply)
+		}
+
+		if len(mb.Messages) != 1 {
+			t.Fatalf("expected 1 sent message, got %d", len(mb.Messages))
+		}
+		var gotCmd Command
+		if err := json.Unmarshal([]byte(mb.Messages[0]), &gotCmd); err != nil {
+			t.Fatalf("failed to unmarshal sent command: %v", err)
+		}
+		if gotCmd.Command != cmd.Command {
+			t.Fatalf("sent command = %q, want %q", gotCmd.Command, cmd.Command)
+		}
+		if gotCmd.ReceiveQueue != cmd.ReceiveQueue {
+			t.Fatalf("sent ReceiveQueue = %q, want %q", gotCmd.ReceiveQueue, cmd.ReceiveQueue)
+		}
+	})
+
+	t.Run("missing receivequeue", func(t *testing.T) {
+		mb := &mock.MockMessageBus{}
+		authClient := new(AuthorizationClient)
+		authClient.Bus = mb
+
+		err := authClient.requestReply(Command{Command: "testcmd"}, new(string))
+		if err == nil {
+			t.Fatalf("requestReply() expected error, got nil")
+		}
+	})
+}
+
 func TestGetServiceItems(t *testing.T) {
 	authClient := new(AuthorizationClient)
 	expectedServiceItems := []ServiceItem{

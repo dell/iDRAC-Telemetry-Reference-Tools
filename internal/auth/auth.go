@@ -3,6 +3,8 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -151,9 +153,6 @@ type AuthClientInterface interface {
 type AuthorizationService struct {
 	Bus messagebus.Messagebus
 }
-type AuthorizationClient struct {
-	Bus messagebus.Messagebus
-}
 
 func (as *AuthorizationService) SendValveState(valvestatus []ValveState, rcvQueue string) error {
 
@@ -240,6 +239,82 @@ func (as *AuthorizationService) ReceiveCommand(commands chan<- *Command) error {
 		commands <- command
 	}
 	return nil
+}
+
+// uniqueReplyQueue returns a unique, per-request reply destination suitable
+// for request/reply.
+//
+// This is used to support concurrent callers without reply stealing on shared
+// destinations.
+func uniqueReplyQueue(prefix string) string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("/temp-queue/%s-%d", prefix, time.Now().UnixNano())
+	}
+	return "/temp-queue/" + prefix + "-" + hex.EncodeToString(b)
+}
+
+type AuthorizationClient struct {
+	Bus messagebus.Messagebus
+}
+
+// ReadOneMessage subscribes to the given queue and waits for a single
+// message which is unmarshalled into v.
+func (ac *AuthorizationClient) ReadOneMessage(queue string, v any) error {
+	messages := make(chan string, 1)
+	sub, err := ac.Bus.ReceiveMessage(messages, queue)
+	if err != nil {
+		log.Println("Error receiving message: ", err)
+		return err
+	}
+	defer sub.Close()
+
+	select {
+	case message := <-messages:
+		err = json.Unmarshal([]byte(message), v)
+		if err != nil {
+			log.Print("Error unmarshalling message: ", err)
+			return err
+		}
+		return nil
+	case <-time.After(ReadTimeout * time.Second):
+		return fmt.Errorf("timeout waiting for message from queue %s", queue)
+	}
+}
+
+// requestReply performs a request/reply interaction.
+//
+// It subscribes to cmd.ReceiveQueue, then publishes cmd, then waits for a
+// single reply message that is unmarshalled into v.
+func (ac *AuthorizationClient) requestReply(cmd Command, v any) error {
+	queue := cmd.ReceiveQueue
+	if queue == "" {
+		return fmt.Errorf("ReceiveQueue must be set")
+	}
+
+	messages := make(chan string, 1)
+	sub, err := ac.Bus.ReceiveMessage(messages, queue)
+	if err != nil {
+		log.Println("Error receiving message: ", err)
+		return err
+	}
+	defer sub.Close()
+
+	if err := ac.SendCommand(cmd); err != nil {
+		return err
+	}
+
+	select {
+	case message := <-messages:
+		err = json.Unmarshal([]byte(message), v)
+		if err != nil {
+			log.Print("Error unmarshalling message: ", err)
+			return err
+		}
+		return nil
+	case <-time.After(ReadTimeout * time.Second):
+		return fmt.Errorf("timeout waiting for message from queue %s", queue)
+	}
 }
 
 func (ac *AuthorizationClient) GetHECConfig() {
@@ -348,17 +423,17 @@ func (ac *AuthorizationClient) UpdateValveState(ip string, state1 string, state2
 	}
 	return ac.SendCommand(*c)
 }
+
+// GetAllServices retrieves all configured services using request/reply.
 func (ac *AuthorizationClient) GetAllServices() []Service {
-	recvQueue := "/authorization/services/all"
+	recvQueue := uniqueReplyQueue("authorization-getallservices")
 	fmt.Println("In GetAllServices")
 	c := Command{
 		Command:      GETALLSERVICES,
 		ReceiveQueue: recvQueue,
 	}
-	ac.SendCommand(c)
-
 	services := []Service{}
-	err := ac.ReadOneMessage(recvQueue, &services)
+	err := ac.requestReply(c, &services)
 	if err != nil {
 		log.Print("Error getting all services: ", err)
 		return []Service{}
@@ -366,44 +441,43 @@ func (ac *AuthorizationClient) GetAllServices() []Service {
 	return services
 }
 
+// GetAllSystemTypes retrieves all configured system types using
+// request/reply.
 func (ac *AuthorizationClient) GetAllSystemTypes() []SystemType {
-	recvQueue := "/authorization/SystemTypes/all"
+	recvQueue := uniqueReplyQueue("authorization-getsystemtypes")
 	c := Command{
 		Command:      GETSYSTEMTYPES,
 		ReceiveQueue: recvQueue,
 	}
-	ac.SendCommand(c)
-
 	systemtype := []SystemType{}
-	err := ac.ReadOneMessage(recvQueue, &systemtype)
+	err := ac.requestReply(c, &systemtype)
 	if err != nil {
 		log.Print("Error getting all services: ", err)
 		return []SystemType{}
 	}
 	return systemtype
-
 }
+
+// GetValveStatus retrieves the current valve status using request/reply.
 func (ac *AuthorizationClient) GetValveStatus() []ValveState {
-	recvQueue := "/authorization/ValveStatus/all"
+	recvQueue := uniqueReplyQueue("authorization-getvalvestatus")
 	c := Command{
 		Command:      GETVALVESTATE,
 		ReceiveQueue: recvQueue,
 	}
-	ac.SendCommand(c)
-
 	valvestatus := []ValveState{}
-	err := ac.ReadOneMessage(recvQueue, &valvestatus)
+	err := ac.requestReply(c, &valvestatus)
 	if err != nil {
 		log.Print("Error getting valve status: ", err)
 		return []ValveState{}
-
 	}
 	log.Print("valvestatus: ", valvestatus)
 	return valvestatus
 }
 
+// GetServiceWithIP retrieves one service by IP using request/reply.
 func (ac *AuthorizationClient) GetServiceWithIP(ip string) Service {
-	recvQueue := "/authorization/services/" + ip
+	recvQueue := uniqueReplyQueue("authorization-getservice")
 	c := Command{
 		Command:      GETSERVICE,
 		ReceiveQueue: recvQueue,
@@ -411,10 +485,8 @@ func (ac *AuthorizationClient) GetServiceWithIP(ip string) Service {
 			Ip: ip,
 		},
 	}
-	ac.SendCommand(c)
-
 	service := Service{}
-	err := ac.ReadOneMessage(recvQueue, &service)
+	err := ac.requestReply(c, &service)
 	if err != nil {
 		log.Print("Error getting service with ip: ", ip, " err: ", err)
 		return Service{}
@@ -476,8 +548,10 @@ func (ac *AuthorizationClient) UpdateServiceItemState(state string, siip string)
 	return nil
 }
 
+// GetServiceItems retrieves the associated systems for a service IP using
+// request/reply.
 func (ac *AuthorizationClient) GetServiceItems(sip string) []ServiceItem {
-	recvQueue := "/authorization/serviceitems/" + sip
+	recvQueue := uniqueReplyQueue("authorization-getserviceitems")
 	command := Command{
 		Command:      GETSERVICEITEMS,
 		ReceiveQueue: recvQueue,
@@ -485,11 +559,8 @@ func (ac *AuthorizationClient) GetServiceItems(sip string) []ServiceItem {
 			ServiceIP: sip,
 		},
 	}
-	ac.SendCommand(command)
-
 	serviceItems := []ServiceItem{}
-
-	err := ac.ReadOneMessage(recvQueue, &serviceItems)
+	err := ac.requestReply(command, &serviceItems)
 	if err != nil {
 		log.Print("Error reading service items: ", err)
 		return nil
@@ -498,8 +569,10 @@ func (ac *AuthorizationClient) GetServiceItems(sip string) []ServiceItem {
 	return serviceItems
 }
 
+// GetServiceItemWithIP retrieves exactly one service item by IP using
+// request/reply.
 func (ac *AuthorizationClient) GetServiceItemWithIP(siip string) ServiceItem {
-	recvQueue := "/authorization/serviceitems/" + siip
+	recvQueue := uniqueReplyQueue("authorization-getserviceitem")
 	command := Command{
 		Command:      GETSERVICEITEM,
 		ReceiveQueue: recvQueue,
@@ -509,11 +582,8 @@ func (ac *AuthorizationClient) GetServiceItemWithIP(siip string) ServiceItem {
 			},
 		},
 	}
-	ac.SendCommand(command)
-
 	serviceItems := []ServiceItem{}
-
-	err := ac.ReadOneMessage(recvQueue, &serviceItems)
+	err := ac.requestReply(command, &serviceItems)
 	if err != nil {
 		log.Print("Error reading service items: ", err)
 		return ServiceItem{}
@@ -523,28 +593,6 @@ func (ac *AuthorizationClient) GetServiceItemWithIP(siip string) ServiceItem {
 		return ServiceItem{}
 	}
 	return serviceItems[0]
-}
-
-func (ac *AuthorizationClient) ReadOneMessage(queue string, v any) error {
-	messages := make(chan string)
-	sub, err := ac.Bus.ReceiveMessage(messages, queue)
-	if err != nil {
-		log.Println("Error receiving message: ", err)
-		return err
-	}
-	defer sub.Close()
-
-	select {
-	case message := <-messages:
-		err = json.Unmarshal([]byte(message), v)
-		if err != nil {
-			log.Print("Error unmarshalling message: ", err)
-			return err
-		}
-		return nil
-	case <-time.After(ReadTimeout * time.Second):
-		return fmt.Errorf("timeout waiting for message from queue %s", queue)
-	}
 }
 
 func (ac *AuthorizationClient) AddSystemType(sysType string) error {
