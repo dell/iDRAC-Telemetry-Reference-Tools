@@ -577,6 +577,10 @@ func main() {
 	serviceIn := make(chan *auth.Service, 10)
 	commands := make(chan *databus.Command)
 
+	// devices is used to answer GETPRODUCERS requests (UI Systems list).
+	// It must be initialized once so additions in handleAuthServiceChannel are visible here.
+	devices = prr.NewRedfishDevices()
+
 	log.Print("Redfish Telemetry Read Service is initialized")
 
 	authClient.ResendAll()
