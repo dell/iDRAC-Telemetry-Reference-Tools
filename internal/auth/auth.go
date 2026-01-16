@@ -71,6 +71,7 @@ const (
 	DELETESERVICE = "deleteservice"
 	UPDATESERVICE = "updateservice"
 	GETSERVICE    = "getservice"
+	UPDATELOGIN   = "updatelogin"
 	TERMINATE     = "terminate"
 	SPLUNKADDHEC  = "splunkaddhec"
 	GETHECCONFIG  = "gethecconfig"
@@ -85,6 +86,7 @@ const (
 	GETVALVESTATE     = "getvalvestatus"
 	ADDSYSTEMTYPE     = "addsystemtype"
 	GETSYSTEMTYPES    = "getsystemtypes"
+	GETLOGIN          = "getlogin"
 
 	UPDATESERVICEX = "updateservicex"
 )
@@ -105,6 +107,7 @@ type Command struct {
 	ReceiveQueue string       `json:"receivequeue,omitempty"`
 	SystemType   SystemType   `json:"systemtype,omitempty"`
 	ValveState   ValveState   `json:"valvestate,omitempty"`
+	Login        Login        `json:"login,omitempty"`
 }
 
 type ValveState struct {
@@ -116,6 +119,11 @@ type response struct {
 	Command  string      `json:"command"`
 	DataType string      `json:"dataType"`
 	Data     interface{} `json:"data"`
+}
+type Login struct {
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+	JwtVersion string `json:"jwtVersion"`
 }
 
 const (
@@ -146,8 +154,10 @@ type AuthClientInterface interface {
 	UpdateServiceState(state string, sip string) error
 	UpdateServiceXState(state string, ip string) error
 	UpdateValveState(ip string, state1 string, state2 string) error
+	UpdateLogin(l Login) error
 	AddSystemType(sysType string) error
 	GetAllSystemTypes() []SystemType
+	GetLogin() Login
 }
 
 type AuthorizationService struct {
@@ -399,6 +409,16 @@ func (ac *AuthorizationClient) UpdateService(s Service) error {
 	return ac.SendCommand(*c)
 }
 
+func (ac *AuthorizationClient) UpdateLogin(l Login) error {
+	c := new(Command)
+	c.Command = UPDATELOGIN
+	c.Service.Auth = map[string]string{
+		"username": l.Username,
+		"password": l.Password,
+	}
+	return ac.SendCommand(*c)
+}
+
 func (ac *AuthorizationClient) UpdateServiceState(state string, sip string) error {
 	switch state {
 	case CONNFAILED, STARTING, RUNNING, TELNOTFOUND, RUNNINGWOTEL, LEAKED, MONITORING:
@@ -493,6 +513,21 @@ func (ac *AuthorizationClient) GetServiceWithIP(ip string) Service {
 		return Service{}
 	}
 	return service
+}
+
+func (ac *AuthorizationClient) GetLogin() Login {
+	recvQueue := uniqueReplyQueue("authorization-getlogin")
+	c := Command{
+		Command:      GETLOGIN,
+		ReceiveQueue: recvQueue,
+	}
+	login := Login{}
+	err := ac.requestReply(c, &login)
+	if err != nil {
+		log.Print("Error getting login: ", err)
+		return Login{}
+	}
+	return login
 }
 
 func (ac *AuthorizationClient) AddServiceItem(si ServiceItem) error {
