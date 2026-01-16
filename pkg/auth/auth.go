@@ -24,6 +24,7 @@ const (
 	UPDATEVALVESTATE  = auth.UPDATEVALVESTATE
 	ADDSYSTEMTYPE     = auth.ADDSYSTEMTYPE
 	GETSYSTEMTYPES    = auth.GETSYSTEMTYPES
+	GETLOGIN          = auth.GETLOGIN
 
 	UPDATESERVICEX = auth.UPDATESERVICEX
 )
@@ -54,6 +55,7 @@ type Command = auth.Command
 type SplunkConfig = auth.SplunkConfig
 type ValveState = auth.ValveState
 type SystemType = auth.SystemType
+type Login = auth.Login
 
 type AuthorizationClient = auth.AuthorizationClient
 type AuthorizationService = auth.AuthorizationService
