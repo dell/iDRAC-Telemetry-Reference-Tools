@@ -412,10 +412,7 @@ func (ac *AuthorizationClient) UpdateService(s Service) error {
 func (ac *AuthorizationClient) UpdateLogin(l Login) error {
 	c := new(Command)
 	c.Command = UPDATELOGIN
-	c.Service.Auth = map[string]string{
-		"username": l.Username,
-		"password": l.Password,
-	}
+	c.Login = l
 	return ac.SendCommand(*c)
 }
 
