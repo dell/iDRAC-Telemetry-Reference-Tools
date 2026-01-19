@@ -228,6 +228,15 @@ func (as *AuthorizationService) SendServiceItemsWithQ(sis []ServiceItem, queue s
 	return err
 }
 
+func (as *AuthorizationService) SendLogin(login Login, queue string) error {
+	jsonStr, _ := json.Marshal(login)
+	err := as.Bus.SendMessage(jsonStr, queue)
+	if err != nil {
+		log.Printf("Failed to send login %v", err)
+	}
+	return err
+}
+
 func (as *AuthorizationService) ReceiveCommand(commands chan<- *Command) error {
 	messages := make(chan string, 10)
 
