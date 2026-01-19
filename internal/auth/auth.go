@@ -123,7 +123,7 @@ type response struct {
 type Login struct {
 	Username   string `json:"username"`
 	Password   string `json:"password"`
-	JwtVersion string `json:"jwtVersion"`
+	JwtVersion int    `json:"jwtVersion"`
 }
 
 const (
