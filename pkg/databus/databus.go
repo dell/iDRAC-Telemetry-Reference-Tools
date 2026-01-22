@@ -39,8 +39,8 @@ func (d *DataGroups) GetDataGroups() map[string]map[string]*databus.DataGroup {
 }
 
 func (d *DataGroups) AddDataGroup(sysId string, group *databus.DataGroup) {
-	d.Mu.RLock()
-	defer d.Mu.RUnlock()
+	d.Mu.Lock()
+	defer d.Mu.Unlock()
 	if d.Groups[sysId] == nil {
 		d.Groups[sysId] = make(map[string]*databus.DataGroup)
 	}
