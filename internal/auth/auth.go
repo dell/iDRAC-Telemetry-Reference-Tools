@@ -318,7 +318,13 @@ func (ac *AuthorizationClient) requestReply(cmd Command, v any) error {
 		log.Println("Error receiving message: ", err)
 		return err
 	}
-	defer sub.Close()
+	defer func() {
+		for len(messages) > 0 {
+			msg := <-messages
+			log.Println("Draining message from channel:", msg)
+		}
+		sub.Close()
+	}()
 
 	if err := ac.SendCommand(cmd); err != nil {
 		return err
