@@ -60,11 +60,13 @@ func (m *StompMessagebus) SendMessageWithHeaders(message []byte, queue string, h
 }
 
 func (m *StompMessagebus) ReceiveMessage(message chan<- string, queue string) (messagebus.Subscription, error) {
+	log.Printf("KKD: Subscribing to queue: %s", queue)
 	sub, err := m.conn.Subscribe(queue, stomp.AckAuto)
 	if err != nil {
+		log.Printf("KKD: Failed to subscribe to queue: %s, error: %v", queue, err)
 		return nil, err
 	}
-
+	log.Printf("KKD: Successfully subscribed to queue: %s", queue)
 	m.subs = append(m.subs, sub)
 
 	go m.RecieveLoop(sub, message)

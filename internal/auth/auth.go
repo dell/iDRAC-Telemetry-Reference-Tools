@@ -323,7 +323,7 @@ func (ac *AuthorizationClient) requestReply(cmd Command, v any) error {
 	if err := ac.SendCommand(cmd); err != nil {
 		return err
 	}
-
+	log.Println("KKD: Sent command: ", cmd)
 	select {
 	case message := <-messages:
 		err = json.Unmarshal([]byte(message), v)
@@ -504,6 +504,7 @@ func (ac *AuthorizationClient) GetValveStatus() []ValveState {
 
 // GetServiceWithIP retrieves one service by IP using request/reply.
 func (ac *AuthorizationClient) GetServiceWithIP(ip string) Service {
+	log.Println("KKD: Getting service with IP: ", ip)
 	recvQueue := uniqueReplyQueue("authorization-getservice")
 	c := Command{
 		Command:      GETSERVICE,
@@ -518,6 +519,7 @@ func (ac *AuthorizationClient) GetServiceWithIP(ip string) Service {
 		log.Print("Error getting service with ip: ", ip, " err: ", err)
 		return Service{}
 	}
+	log.Println("KKD: Got service with IP: ", ip, " service: ", service)
 	return service
 }
 
