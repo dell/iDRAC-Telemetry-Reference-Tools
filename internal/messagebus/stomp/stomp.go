@@ -79,9 +79,11 @@ func (m *StompMessagebus) RecieveLoop(sub *stomp.Subscription, message chan<- st
 	for {
 		msg := <-sub.C
 		if msg == nil {
+			log.Printf("KKD: RecieveLoop exiting (nil msg) for %s", sub.Destination())
 			break
 		} else if msg.Err != nil {
 			//This can timeout... just keep going...
+			log.Printf("KKD: RecieveLoop got error: %v", msg.Err)
 			continue
 		}
 		message <- string(msg.Body)
@@ -90,6 +92,7 @@ func (m *StompMessagebus) RecieveLoop(sub *stomp.Subscription, message chan<- st
 		// 	log.Printf("ACK failed! %v", err)
 		// }
 	}
+	log.Printf("KKD: RecieveLoop ended for %s", sub.Destination())
 }
 
 func (m *StompMessagebus) Close() error {
@@ -103,5 +106,11 @@ func (m *StompMessagebus) Close() error {
 }
 
 func (m *StompSubscription) Close() error {
-	return m.sub.Unsubscribe()
+	log.Println("KKD: Unsubscribing from queue: ", m.sub.Destination())
+	err := m.sub.Unsubscribe()
+	if err != nil {
+		log.Printf("Failed to unsubscribe %v", err)
+	}
+	log.Println("KKD: Successfully unsubscribed from queue: ", m.sub.Destination())
+	return err
 }
