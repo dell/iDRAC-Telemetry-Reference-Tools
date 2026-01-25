@@ -107,6 +107,10 @@ func (m *StompMessagebus) Close() error {
 
 func (m *StompSubscription) Close() error {
 	log.Println("KKD: Unsubscribing from queue: ", m.sub.Destination())
+	if !m.sub.Active() {
+		log.Println("KKD: Subscription is not active, skipping unsubscribe", m.sub.Destination())
+		return nil
+	}
 	err := m.sub.Unsubscribe()
 	if err != nil {
 		log.Printf("Failed to unsubscribe %v", err)
