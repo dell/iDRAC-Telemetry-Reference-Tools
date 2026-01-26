@@ -319,9 +319,10 @@ func (ac *AuthorizationClient) requestReply(cmd Command, v any) error {
 		return err
 	}
 	defer func() {
+		log.Println("KKD: Draining message from channel:", queue, "messages:", len(messages))
 		for len(messages) > 0 {
 			msg := <-messages
-			log.Println("Draining message from channel:", msg)
+			log.Println("KKD: Draining message from channel:", msg)
 		}
 		sub.Close()
 	}()
