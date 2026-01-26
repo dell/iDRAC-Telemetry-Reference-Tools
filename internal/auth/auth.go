@@ -3,8 +3,7 @@
 package auth
 
 import (
-	"crypto/rand"
-	"encoding/hex"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,6 +11,8 @@ import (
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/disc"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/service"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/wire"
 )
 
 const (
@@ -127,8 +128,9 @@ type Login struct {
 }
 
 const (
-	CommandQueue = "/authorization/command"
-	EventQueue   = "/authorization"
+	CommandQueue = "/queue/authorization/command"
+	EventQueue   = "/queue/authorization"
+	ReplyPrefix  = "/queue/authorization/reply."
 )
 
 type AuthClientInterface interface {
@@ -138,7 +140,7 @@ type AuthClientInterface interface {
 	DeleteServiceItem(si ServiceItem) error
 	GetHECConfig()
 	GetAllServices() []Service
-	GetService(services chan<- *Service)
+	GetService(ctx context.Context, services chan<- *Service)
 	GetServiceItems(sip string) []ServiceItem
 	GetServiceWithIP(ip string) Service
 	GetServiceItemWithIP(siip string) ServiceItem
@@ -161,7 +163,14 @@ type AuthClientInterface interface {
 }
 
 type AuthorizationService struct {
-	Bus messagebus.Messagebus
+	*service.BaseService
+}
+
+// NewAuthorizationService creates a new AuthorizationService with the given message bus
+func NewAuthorizationService(bus messagebus.Messagebus) *AuthorizationService {
+	return &AuthorizationService{
+		BaseService: service.NewBaseService(bus, CommandQueue),
+	}
 }
 
 func (as *AuthorizationService) SendValveState(valvestatus []ValveState, rcvQueue string) error {
@@ -237,6 +246,21 @@ func (as *AuthorizationService) SendLogin(login Login, queue string) error {
 	return err
 }
 
+// BroadcastService broadcasts a service update to EventQueue using envelope format
+func (as *AuthorizationService) BroadcastService(svc Service) error {
+	env, err := wire.NewEnvelope("service", svc)
+	if err != nil {
+		return err
+	}
+	return as.SendEnvelope(EventQueue, env)
+}
+
+// ReceiveEnvelope receives commands as envelopes from the command queue
+func (as *AuthorizationService) ReceiveEnvelope(envelopes chan<- wire.Envelope) error {
+	return as.BaseService.ReceiveCommand(envelopes)
+}
+
+// ReceiveCommand receives commands from the command queue (legacy format)
 func (as *AuthorizationService) ReceiveCommand(commands chan<- *Command) error {
 	messages := make(chan string, 10)
 
@@ -260,22 +284,15 @@ func (as *AuthorizationService) ReceiveCommand(commands chan<- *Command) error {
 	return nil
 }
 
-// uniqueReplyQueue returns a unique, per-request reply destination suitable
-// for request/reply.
-//
-// The reply destination must be a normal queue/topic name that both the
-// requester and responder can use. Avoid broker-managed temporary destination
-// semantics here.
-func uniqueReplyQueue(prefix string) string {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return fmt.Sprintf("/authorization/reply/%s-%d", prefix, time.Now().UnixNano())
-	}
-	return "/authorization/reply/" + prefix + "-" + hex.EncodeToString(b)
+type AuthorizationClient struct {
+	*service.BaseClient
 }
 
-type AuthorizationClient struct {
-	Bus messagebus.Messagebus
+// NewAuthorizationClient creates a new AuthorizationClient with the given message bus
+func NewAuthorizationClient(bus messagebus.Messagebus, clientName string) *AuthorizationClient {
+	return &AuthorizationClient{
+		BaseClient: service.NewBaseClient(bus, CommandQueue, ReplyPrefix, clientName, ReadTimeout*time.Second),
+	}
 }
 
 // ReadOneMessage subscribes to the given queue and waits for a single
@@ -289,48 +306,6 @@ func (ac *AuthorizationClient) ReadOneMessage(queue string, v any) error {
 	}
 	defer sub.Close()
 
-	select {
-	case message := <-messages:
-		err = json.Unmarshal([]byte(message), v)
-		if err != nil {
-			log.Print("Error unmarshalling message: ", err)
-			return err
-		}
-		return nil
-	case <-time.After(ReadTimeout * time.Second):
-		return fmt.Errorf("timeout waiting for message from queue %s", queue)
-	}
-}
-
-// requestReply performs a request/reply interaction.
-//
-// It subscribes to cmd.ReceiveQueue, then publishes cmd, then waits for a
-// single reply message that is unmarshalled into v.
-func (ac *AuthorizationClient) requestReply(cmd Command, v any) error {
-	queue := cmd.ReceiveQueue
-	if queue == "" {
-		return fmt.Errorf("ReceiveQueue must be set")
-	}
-
-	messages := make(chan string, 1)
-	sub, err := ac.Bus.ReceiveMessage(messages, queue)
-	if err != nil {
-		log.Println("Error receiving message: ", err)
-		return err
-	}
-	defer func() {
-		log.Println("KKD: Draining message from channel:", queue, "messages:", len(messages))
-		for len(messages) > 0 {
-			msg := <-messages
-			log.Println("KKD: Draining message from channel:", msg)
-		}
-		sub.Close()
-	}()
-
-	if err := ac.SendCommand(cmd); err != nil {
-		return err
-	}
-	log.Println("KKD: Sent command: ", cmd)
 	select {
 	case message := <-messages:
 		err = json.Unmarshal([]byte(message), v)
@@ -398,24 +373,27 @@ func (ac *AuthorizationClient) DeleteService(service Service) error {
 	return ac.SendCommand(*c)
 }
 
-func (ac *AuthorizationClient) GetService(services chan<- *Service) {
-	messages := make(chan string, 10)
+// GetService listens for Service broadcasts on EventQueue.
+// The ctx parameter allows cancellation of the listener.
+func (ac *AuthorizationClient) GetService(ctx context.Context, services chan<- *Service) {
+	envelopes := make(chan wire.Envelope, 10)
+	ac.ListenToQueueFiltered(ctx, EventQueue, "service", envelopes)
 
 	go func() {
-		_, err := ac.Bus.ReceiveMessage(messages, EventQueue)
-		if err != nil {
-			log.Printf("Error recieving messages %v", err)
+		defer close(services)
+		for env := range envelopes {
+			var svc Service
+			if err := wire.DecodePayload(env.Payload, &svc); err != nil {
+				log.Printf("Error decoding service: %v", err)
+				continue
+			}
+			select {
+			case services <- &svc:
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
-	for {
-		message := <-messages
-		service := new(Service)
-		err := json.Unmarshal([]byte(message), service)
-		if err != nil {
-			log.Print("Error reading auth queue: ", err)
-		}
-		services <- service
-	}
 }
 
 func (ac *AuthorizationClient) UpdateService(s Service) error {
@@ -460,14 +438,8 @@ func (ac *AuthorizationClient) UpdateValveState(ip string, state1 string, state2
 
 // GetAllServices retrieves all configured services using request/reply.
 func (ac *AuthorizationClient) GetAllServices() []Service {
-	recvQueue := uniqueReplyQueue("authorization-getallservices")
-	fmt.Println("In GetAllServices")
-	c := Command{
-		Command:      GETALLSERVICES,
-		ReceiveQueue: recvQueue,
-	}
 	services := []Service{}
-	err := ac.requestReply(c, &services)
+	err := ac.Call(GETALLSERVICES, nil, &services)
 	if err != nil {
 		log.Print("Error getting all services: ", err)
 		return []Service{}
@@ -478,66 +450,40 @@ func (ac *AuthorizationClient) GetAllServices() []Service {
 // GetAllSystemTypes retrieves all configured system types using
 // request/reply.
 func (ac *AuthorizationClient) GetAllSystemTypes() []SystemType {
-	recvQueue := uniqueReplyQueue("authorization-getsystemtypes")
-	c := Command{
-		Command:      GETSYSTEMTYPES,
-		ReceiveQueue: recvQueue,
-	}
-	systemtype := []SystemType{}
-	err := ac.requestReply(c, &systemtype)
+	systemtypes := []SystemType{}
+	err := ac.Call(GETSYSTEMTYPES, nil, &systemtypes)
 	if err != nil {
-		log.Print("Error getting all services: ", err)
+		log.Print("Error getting all system types: ", err)
 		return []SystemType{}
 	}
-	return systemtype
+	return systemtypes
 }
 
 // GetValveStatus retrieves the current valve status using request/reply.
 func (ac *AuthorizationClient) GetValveStatus() []ValveState {
-	recvQueue := uniqueReplyQueue("authorization-getvalvestatus")
-	c := Command{
-		Command:      GETVALVESTATE,
-		ReceiveQueue: recvQueue,
-	}
 	valvestatus := []ValveState{}
-	err := ac.requestReply(c, &valvestatus)
+	err := ac.Call(GETVALVESTATE, nil, &valvestatus)
 	if err != nil {
 		log.Print("Error getting valve status: ", err)
 		return []ValveState{}
 	}
-	log.Print("valvestatus: ", valvestatus)
 	return valvestatus
 }
 
 // GetServiceWithIP retrieves one service by IP using request/reply.
 func (ac *AuthorizationClient) GetServiceWithIP(ip string) Service {
-	log.Println("KKD: Getting service with IP: ", ip)
-	recvQueue := uniqueReplyQueue("authorization-getservice")
-	c := Command{
-		Command:      GETSERVICE,
-		ReceiveQueue: recvQueue,
-		Service: Service{
-			Ip: ip,
-		},
-	}
-	service := Service{}
-	err := ac.requestReply(c, &service)
+	svc := Service{}
+	err := ac.Call(GETSERVICE, Service{Ip: ip}, &svc)
 	if err != nil {
 		log.Print("Error getting service with ip: ", ip, " err: ", err)
 		return Service{}
 	}
-	log.Println("KKD: Got service with IP: ", ip, " service: ", service)
-	return service
+	return svc
 }
 
 func (ac *AuthorizationClient) GetLogin() Login {
-	recvQueue := uniqueReplyQueue("authorization-getlogin")
-	c := Command{
-		Command:      GETLOGIN,
-		ReceiveQueue: recvQueue,
-	}
 	login := Login{}
-	err := ac.requestReply(c, &login)
+	err := ac.Call(GETLOGIN, nil, &login)
 	if err != nil {
 		log.Print("Error getting login: ", err)
 		return Login{}
@@ -602,39 +548,20 @@ func (ac *AuthorizationClient) UpdateServiceItemState(state string, siip string)
 // GetServiceItems retrieves the associated systems for a service IP using
 // request/reply.
 func (ac *AuthorizationClient) GetServiceItems(sip string) []ServiceItem {
-	recvQueue := uniqueReplyQueue("authorization-getserviceitems")
-	command := Command{
-		Command:      GETSERVICEITEMS,
-		ReceiveQueue: recvQueue,
-		ServiceItem: ServiceItem{
-			ServiceIP: sip,
-		},
-	}
 	serviceItems := []ServiceItem{}
-	err := ac.requestReply(command, &serviceItems)
+	err := ac.Call(GETSERVICEITEMS, ServiceItem{ServiceIP: sip}, &serviceItems)
 	if err != nil {
 		log.Print("Error reading service items: ", err)
 		return nil
 	}
-	fmt.Println("Get associated systems", serviceItems)
 	return serviceItems
 }
 
 // GetServiceItemWithIP retrieves exactly one service item by IP using
 // request/reply.
 func (ac *AuthorizationClient) GetServiceItemWithIP(siip string) ServiceItem {
-	recvQueue := uniqueReplyQueue("authorization-getserviceitem")
-	command := Command{
-		Command:      GETSERVICEITEM,
-		ReceiveQueue: recvQueue,
-		ServiceItem: ServiceItem{
-			Service: Service{
-				Ip: siip,
-			},
-		},
-	}
 	serviceItems := []ServiceItem{}
-	err := ac.requestReply(command, &serviceItems)
+	err := ac.Call(GETSERVICEITEM, ServiceItem{Service: Service{Ip: siip}}, &serviceItems)
 	if err != nil {
 		log.Print("Error reading service items: ", err)
 		return ServiceItem{}
