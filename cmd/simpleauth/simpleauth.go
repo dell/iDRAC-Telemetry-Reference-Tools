@@ -16,6 +16,7 @@ import (
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/disc"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/wire"
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
 )
@@ -104,7 +105,7 @@ func handleDiscServiceChannel(serviceIn chan *disc.Service, config *ini.File, au
 			}
 		}
 		//log.Print("Got Service = ", *authService)
-		_ = authorizationService.SendService(*authService)
+		_ = authorizationService.BroadcastService(*authService)
 		if authServices == nil {
 			authServices = make(map[string]auth.Service)
 		}
@@ -128,7 +129,7 @@ func main() {
 
 	flag.Parse()
 
-	config, err := ini.Load("/extrabin/"+*configName)
+	config, err := ini.Load("/extrabin/" + *configName)
 	if err != nil {
 		log.Fatalf("Fail to read file: %v", err)
 	}
@@ -137,7 +138,7 @@ func main() {
 	getEnvSettings()
 
 	discoveryClient := new(disc.DiscoveryClient)
-	authorizationService := new(auth.AuthorizationService)
+	var authorizationService *auth.AuthorizationService
 
 	for {
 		stompPort, _ := strconv.Atoi(configStrings["mbport"])
@@ -147,27 +148,27 @@ func main() {
 			time.Sleep(5 * time.Second)
 		} else {
 			discoveryClient.Bus = mb
-			authorizationService.Bus = mb
+			authorizationService = auth.NewAuthorizationService(mb)
 			defer mb.Close()
 			break
 		}
 	}
 	serviceIn := make(chan *disc.Service, 10)
-	commands := make(chan *auth.Command)
+	envelopes := make(chan wire.Envelope)
 
 	log.Print("Auth Service is initialized")
 
 	discoveryClient.ResendAll()
 	go discoveryClient.GetService(serviceIn)
 	go handleDiscServiceChannel(serviceIn, config, authorizationService)
-	go authorizationService.ReceiveCommand(commands) //nolint: errcheck
+	go authorizationService.ReceiveEnvelope(envelopes) //nolint: errcheck
 	for {
-		command := <-commands
-		log.Printf("in simpleauth, Received command: %s", command.Command)
-		switch command.Command {
+		env := <-envelopes
+		log.Printf("in simpleauth, Received command: %s", env.Type)
+		switch env.Type {
 		case auth.RESEND:
 			for _, element := range authServices {
-				go authorizationService.SendService(element) //nolint: errcheck
+				go authorizationService.BroadcastService(element) //nolint: errcheck
 			}
 		case auth.TERMINATE:
 			os.Exit(0)

@@ -4,7 +4,6 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -144,10 +143,7 @@ type AuthClientInterface interface {
 	GetServiceItems(sip string) []ServiceItem
 	GetServiceWithIP(ip string) Service
 	GetServiceItemWithIP(siip string) ServiceItem
-	ReadOneMessage(queue string, v any) error
 	ResendAll()
-	SendCommand(command Command) error
-	SendCommandString(command string)
 	SplunkAddHEC(SplunkHttp SplunkConfig) error
 	UpdateServiceX(s Service) error
 	UpdateService(s Service) error
@@ -173,79 +169,6 @@ func NewAuthorizationService(bus messagebus.Messagebus) *AuthorizationService {
 	}
 }
 
-func (as *AuthorizationService) SendValveState(valvestatus []ValveState, rcvQueue string) error {
-
-	jsonStr, _ := json.Marshal(valvestatus)
-	err := as.Bus.SendMessage(jsonStr, rcvQueue)
-	if err != nil {
-		log.Printf("Failed to send valve status to queue %s: %v", rcvQueue, err)
-	}
-	return err
-
-}
-
-func (as *AuthorizationService) SendSystemTypes(systemtypes []SystemType, rcvQueue string) error {
-
-	jsonStr, _ := json.Marshal(systemtypes)
-	err := as.Bus.SendMessage(jsonStr, rcvQueue)
-	if err != nil {
-		log.Printf("Failed to send system types to queue %s: %v", rcvQueue, err)
-	}
-	return err
-}
-
-func (as *AuthorizationService) SendAllServices(services []Service, rcvQueue string) error {
-	// Convert the slice of services to JSON
-	jsonStr, err := json.Marshal(services)
-	if err != nil {
-		log.Printf("Failed to marshal services: %v", err)
-		return err
-	}
-
-	// Send the JSON message to the queue
-	err = as.Bus.SendMessage(jsonStr, rcvQueue)
-	if err != nil {
-		log.Printf("Failed to send services to queue %s: %v", rcvQueue, err)
-		return err
-	}
-	return nil
-}
-
-func (as *AuthorizationService) SendService(service Service) error {
-	return as.SendServiceWithQ(service, EventQueue)
-}
-
-func (as *AuthorizationService) SendServiceWithQ(service Service, queue string) error {
-	jsonStr, _ := json.Marshal(service)
-	err := as.Bus.SendMessage(jsonStr, queue)
-	if err != nil {
-		log.Printf("Failed to send service %v", err)
-	}
-	return err
-}
-
-func (as *AuthorizationService) SendServiceItems(sis []ServiceItem, rcvQueue string) error {
-	return as.SendServiceItemsWithQ(sis, rcvQueue)
-}
-
-func (as *AuthorizationService) SendServiceItemsWithQ(sis []ServiceItem, queue string) error {
-	jsonStr, _ := json.Marshal(sis)
-	err := as.Bus.SendMessage(jsonStr, queue)
-	if err != nil {
-		log.Printf("Failed to send service %v", err)
-	}
-	return err
-}
-
-func (as *AuthorizationService) SendLogin(login Login, queue string) error {
-	jsonStr, _ := json.Marshal(login)
-	err := as.Bus.SendMessage(jsonStr, queue)
-	if err != nil {
-		log.Printf("Failed to send login %v", err)
-	}
-	return err
-}
-
 // BroadcastService broadcasts a service update to EventQueue using envelope format
 func (as *AuthorizationService) BroadcastService(svc Service) error {
 	env, err := wire.NewEnvelope("service", svc)
@@ -260,30 +183,6 @@ func (as *AuthorizationService) ReceiveEnvelope(envelopes chan<- wire.Envelope) 
 	return as.BaseService.ReceiveCommand(envelopes)
 }
 
-// ReceiveCommand receives commands from the command queue (legacy format)
-func (as *AuthorizationService) ReceiveCommand(commands chan<- *Command) error {
-	messages := make(chan string, 10)
-
-	go func() {
-		_, err := as.Bus.ReceiveMessage(messages, CommandQueue)
-		if err != nil {
-			log.Printf("Error recieving messages %v", err)
-		}
-	}()
-	for {
-		message := <-messages
-		command := new(Command)
-		err := json.Unmarshal([]byte(message), command)
-		if err != nil {
-			log.Print("Error reading command queue: ", err)
-			log.Printf("Message %#v\n", message)
-			return err
-		}
-		commands <- command
-	}
-	return nil
-}
-
 type AuthorizationClient struct {
 	*service.BaseClient
 }
@@ -295,82 +194,29 @@ func NewAuthorizationClient(bus messagebus.Messagebus, clientName string) *Autho
 	}
 }
 
-// ReadOneMessage subscribes to the given queue and waits for a single
-// message which is unmarshalled into v.
-func (ac *AuthorizationClient) ReadOneMessage(queue string, v any) error {
-	messages := make(chan string, 1)
-	sub, err := ac.Bus.ReceiveMessage(messages, queue)
-	if err != nil {
-		log.Println("Error receiving message: ", err)
-		return err
-	}
-	defer sub.Close()
-
-	select {
-	case message := <-messages:
-		err = json.Unmarshal([]byte(message), v)
-		if err != nil {
-			log.Print("Error unmarshalling message: ", err)
-			return err
-		}
-		return nil
-	case <-time.After(ReadTimeout * time.Second):
-		return fmt.Errorf("timeout waiting for message from queue %s", queue)
-	}
-}
-
+// GetHECConfig sends a fire-and-forget request to get HEC config
 func (ac *AuthorizationClient) GetHECConfig() {
-	ac.SendCommandString(GETHECCONFIG)
+	ac.Send(GETHECCONFIG, nil)
 }
 
-func (as *AuthorizationService) Sendconfig(config SplunkConfig) error {
-	jsonStr, _ := json.Marshal(config)
-	err := as.Bus.SendMessage(jsonStr, EventQueue)
-	if err != nil {
-		log.Printf("Failed to send service %v", err)
-	}
-	return err
-
-}
-
-func (ac *AuthorizationClient) SendCommand(command Command) error {
-	jsonStr, _ := json.Marshal(command)
-	err := ac.Bus.SendMessage(jsonStr, CommandQueue)
-	if err != nil {
-		log.Printf("Failed to send command %v", err)
-	}
-	return err
-}
-
-func (ac *AuthorizationClient) SendCommandString(command string) {
-	c := new(Command)
-	c.Command = command
-	ac.SendCommand(*c)
-}
-
+// ResendAll sends a fire-and-forget request to resend all services
 func (ac *AuthorizationClient) ResendAll() {
-	ac.SendCommandString(RESEND)
+	ac.Send(RESEND, nil)
 }
 
-func (ac *AuthorizationClient) SplunkAddHEC(SplunkHttp SplunkConfig) error {
-	c := new(Command)
-	c.Command = SPLUNKADDHEC
-	c.SplunkConfig = SplunkHttp
-	return ac.SendCommand(*c)
+// SplunkAddHEC sends a fire-and-forget request to add Splunk HEC config
+func (ac *AuthorizationClient) SplunkAddHEC(splunkHttp SplunkConfig) error {
+	return ac.Send(SPLUNKADDHEC, splunkHttp)
 }
 
+// AddService sends a fire-and-forget request to add a service
 func (ac *AuthorizationClient) AddService(service Service) error {
-	c := new(Command)
-	c.Command = ADDSERVICE
-	c.Service = service
-	return ac.SendCommand(*c)
+	return ac.Send(ADDSERVICE, service)
 }
 
+// DeleteService sends a fire-and-forget request to delete a service
 func (ac *AuthorizationClient) DeleteService(service Service) error {
-	c := new(Command)
-	c.Command = DELETESERVICE
-	c.Service = service
-	return ac.SendCommand(*c)
+	return ac.Send(DELETESERVICE, service)
 }
 
 // GetService listens for Service broadcasts on EventQueue.
@@ -396,18 +242,14 @@ func (ac *AuthorizationClient) GetService(ctx context.Context, services chan<- *
 	}()
 }
 
+// UpdateService sends a fire-and-forget request to update a service
 func (ac *AuthorizationClient) UpdateService(s Service) error {
-	c := new(Command)
-	c.Command = UPDATESERVICE
-	c.Service = s
-	return ac.SendCommand(*c)
+	return ac.Send(UPDATESERVICE, s)
 }
 
+// UpdateLogin sends a fire-and-forget request to update login credentials
 func (ac *AuthorizationClient) UpdateLogin(l Login) error {
-	c := new(Command)
-	c.Command = UPDATELOGIN
-	c.Login = l
-	return ac.SendCommand(*c)
+	return ac.Send(UPDATELOGIN, l)
 }
 
 func (ac *AuthorizationClient) UpdateServiceState(state string, sip string) error {
@@ -425,15 +267,13 @@ func (ac *AuthorizationClient) UpdateServiceState(state string, sip string) erro
 	return nil
 }
 
+// UpdateValveState sends a fire-and-forget request to update valve state
 func (ac *AuthorizationClient) UpdateValveState(ip string, state1 string, state2 string) error {
-	c := new(Command)
-	c.Command = UPDATEVALVESTATE
-	c.ValveState = ValveState{
+	return ac.Send(UPDATEVALVESTATE, ValveState{
 		Ip:      ip,
 		VState1: state1,
 		VState2: state2,
-	}
-	return ac.SendCommand(*c)
+	})
 }
 
 // GetAllServices retrieves all configured services using request/reply.
@@ -491,25 +331,19 @@ func (ac *AuthorizationClient) GetLogin() Login {
 	return login
 }
 
+// AddServiceItem sends a fire-and-forget request to add a service item
 func (ac *AuthorizationClient) AddServiceItem(si ServiceItem) error {
-	c := new(Command)
-	c.Command = ADDSERVICEITEM
-	c.ServiceItem = si
-	return ac.SendCommand(*c)
+	return ac.Send(ADDSERVICEITEM, si)
 }
 
+// DeleteServiceItem sends a fire-and-forget request to delete a service item
 func (ac *AuthorizationClient) DeleteServiceItem(si ServiceItem) error {
-	c := new(Command)
-	c.Command = DELETESERVICEITEM
-	c.ServiceItem = si
-	return ac.SendCommand(*c)
+	return ac.Send(DELETESERVICEITEM, si)
 }
 
+// UpdateServiceX sends a fire-and-forget request to update a service (extended)
 func (ac *AuthorizationClient) UpdateServiceX(s Service) error {
-	c := new(Command)
-	c.Command = UPDATESERVICEX
-	c.Service = s
-	return ac.SendCommand(*c)
+	return ac.Send(UPDATESERVICEX, s)
 }
 
 func (ac *AuthorizationClient) UpdateServiceXState(state string, ip string) error {
@@ -521,11 +355,9 @@ func (ac *AuthorizationClient) UpdateServiceXState(state string, ip string) erro
 	)
 }
 
+// UpdateServiceItem sends a fire-and-forget request to update a service item
 func (ac *AuthorizationClient) UpdateServiceItem(si ServiceItem) error {
-	c := new(Command)
-	c.Command = UPDATESERVICEITEM
-	c.ServiceItem = si
-	return ac.SendCommand(*c)
+	return ac.Send(UPDATESERVICEITEM, si)
 }
 
 func (ac *AuthorizationClient) UpdateServiceItemState(state string, siip string) error {
@@ -573,9 +405,7 @@ func (ac *AuthorizationClient) GetServiceItemWithIP(siip string) ServiceItem {
 	return serviceItems[0]
 }
 
+// AddSystemType sends a fire-and-forget request to add a system type
 func (ac *AuthorizationClient) AddSystemType(sysType string) error {
-	c := new(Command)
-	c.Command = ADDSYSTEMTYPE
-	c.SystemType = SystemType(sysType)
-	return ac.SendCommand(*c)
+	return ac.Send(ADDSYSTEMTYPE, SystemType(sysType))
 }

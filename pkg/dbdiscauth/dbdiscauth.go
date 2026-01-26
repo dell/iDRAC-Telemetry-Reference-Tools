@@ -55,6 +55,6 @@ func AddServiceToDB(db *sql.DB, service auth.Service, authService *auth.Authoriz
 	if err != nil {
 		return err
 	}
-	_ = authService.SendService(service)
+	_ = authService.BroadcastService(service)
 	return nil
 }

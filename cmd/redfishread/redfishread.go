@@ -557,8 +557,8 @@ func main() {
 	getEnvSettings()
 
 	// dataGroups = make(map[string]map[string]*databus.DataGroup)
-	authClient := new(auth.AuthorizationClient)
 	dataBusService := new(databus.DataBusService)
+	var authClient *auth.AuthorizationClient
 
 	for {
 		stompPort, _ := strconv.Atoi(configStrings["mbport"])
@@ -567,7 +567,7 @@ func main() {
 			log.Printf("Could not connect to message bus: %s", err)
 			time.Sleep(5 * time.Second)
 		} else {
-			authClient.Bus = mb
+			authClient = auth.NewAuthorizationClient(mb, "redfishread")
 			dataBusService.Bus = mb
 			defer mb.Close()
 			break
@@ -584,7 +584,7 @@ func main() {
 	log.Print("Redfish Telemetry Read Service is initialized")
 
 	authClient.ResendAll()
-	go authClient.GetService(serviceIn)
+	go authClient.GetService(context.Background(), serviceIn)
 	go handleAuthServiceChannel(serviceIn, dataBusService, devices, authClient) // THIS FUNCTION ADDS SERVICE
 	go dataBusService.ReceiveCommand(commands)                                  //nolint: errcheck
 	for {

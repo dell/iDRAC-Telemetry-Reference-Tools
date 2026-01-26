@@ -29,16 +29,12 @@ const (
 	UPDATESERVICEX = auth.UPDATESERVICEX
 )
 
-func NewAuthClientWithBus(mb messagebus.Messagebus) *auth.AuthorizationClient {
-	return &auth.AuthorizationClient{
-		Bus: mb,
-	}
+func NewAuthClientWithBus(mb messagebus.Messagebus, clientName string) *auth.AuthorizationClient {
+	return auth.NewAuthorizationClient(mb, clientName)
 }
 
 func NewAuthServiceWithBus(mb messagebus.Messagebus) *auth.AuthorizationService {
-	return &auth.AuthorizationService{
-		Bus: mb,
-	}
+	return auth.NewAuthorizationService(mb)
 }
 
 func NewServiceChan(n int) chan *auth.Service {

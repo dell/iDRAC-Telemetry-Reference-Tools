@@ -426,7 +426,6 @@ func main() {
 	getEnvSettings()
 
 	systemHandler := new(SystemHandler)
-	systemHandler.AuthClient = new(auth.AuthorizationClient)
 	systemHandler.DataBus = new(databus.DataBusClient)
 	systemHandler.ConfigBus = new(config.ConfigClient)
 
@@ -438,7 +437,7 @@ func main() {
 			log.Printf("Could not connect to message bus: %s", err)
 			time.Sleep(5 * time.Second)
 		} else {
-			systemHandler.AuthClient.Bus = mb
+			systemHandler.AuthClient = auth.NewAuthorizationClient(mb, "configui")
 			systemHandler.DataBus.Bus = mb
 			systemHandler.ConfigBus.Bus = mb
 			defer mb.Close()

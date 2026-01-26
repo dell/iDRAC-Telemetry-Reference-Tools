@@ -16,6 +16,7 @@ import (
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/wire"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/pkg/dbdiscauth"
 )
 
@@ -103,21 +104,21 @@ func getHECInstancesFromDB(db *sql.DB) ([]auth.SplunkConfig, error) {
 
 // splunk configuration are getting added in the database
 // TO DO: Update it in the db
-func splunkAddHECToDB(db *sql.DB, SplunkConfig auth.SplunkConfig, authService *auth.AuthorizationService) error {
+func splunkAddHECToDB(db *sql.DB, splunkConfig auth.SplunkConfig, authService *auth.AuthorizationService) error {
 	stmt, err := db.Prepare("INSERT INTO HttpEventCollector(url, `key`, `index`) VALUES(?, ?, ?)")
 	if err != nil {
 		return err
 	}
-	// jsonStr, err := json.Marshal(SplunkConfig)
-	// if err != nil {
-	// 	return err
-	// }
-	_, err = stmt.Exec(SplunkConfig.Url, SplunkConfig.Key, SplunkConfig.Index)
+	_, err = stmt.Exec(splunkConfig.Url, splunkConfig.Key, splunkConfig.Index)
 	if err != nil {
 		return err
 	}
-	_ = authService.Sendconfig(SplunkConfig)
-	return nil
+	// Broadcast the config using envelope format
+	env, err := wire.NewEnvelope("splunkconfig", splunkConfig)
+	if err != nil {
+		return err
+	}
+	return authService.SendEnvelope(auth.EventQueue, env)
 }
 
 func getEnvSettings() {
@@ -209,10 +210,8 @@ func main() {
 	//Gather configuration from environment variables
 	getEnvSettings()
 
-	//Setu authorization service
-	authorizationService := new(auth.AuthorizationService)
-
 	//Initialize messagebus
+	var authorizationService *auth.AuthorizationService
 	for {
 		stompPort, _ := strconv.Atoi(configStrings["mbport"])
 		mb, err := stomp.NewStompMessageBus(configStrings["mbhost"], stompPort)
@@ -220,7 +219,7 @@ func main() {
 			log.Printf("Could not connect to message bus: %s", err)
 			time.Sleep(5 * time.Second)
 		} else {
-			authorizationService.Bus = mb
+			authorizationService = auth.NewAuthorizationService(mb)
 			defer mb.Close()
 			break
 		}
@@ -240,17 +239,17 @@ func main() {
 		log.Print("Failed to get db entries: ", err)
 	} else {
 		for _, element := range authServices {
-			go authorizationService.SendService(element) //nolint: errcheck
+			go authorizationService.BroadcastService(element) //nolint: errcheck
 		}
 	}
 
-	//Process ADDSERVICE and RESEND requests for authorization services
-	commands := make(chan *auth.Command)
-	go authorizationService.ReceiveCommand(commands) //nolint: errcheck
+	//Process commands using the new envelope format
+	envelopes := make(chan wire.Envelope)
+	go authorizationService.ReceiveEnvelope(envelopes) //nolint: errcheck
 	for {
-		command := <-commands
-		log.Printf("Received command in dbdiscauth: %s", command.Command)
-		switch command.Command {
+		env := <-envelopes
+		log.Printf("Received command in dbdiscauth: %s", env.Type)
+		switch env.Type {
 		case auth.RESEND:
 			authServices, err := dbdiscauth.GetInstancesFromDB(db)
 			if err != nil {
@@ -258,20 +257,35 @@ func main() {
 				break
 			}
 			for _, element := range authServices {
-				go authorizationService.SendService(element) //nolint: errcheck
+				go authorizationService.BroadcastService(element) //nolint: errcheck
 			}
 		case auth.ADDSERVICE:
-			err = dbdiscauth.AddServiceToDB(db, command.Service, authorizationService)
+			var service auth.Service
+			if err := wire.DecodePayload(env.Payload, &service); err != nil {
+				log.Print("Failed to decode service payload: ", err)
+				break
+			}
+			err = dbdiscauth.AddServiceToDB(db, service, authorizationService)
 			if err != nil {
 				log.Print("Addservice,Failed to write db entries: ", err)
 			}
 		case auth.DELETESERVICE:
-			err = dbdiscauth.DeleteServiceFromDB(db, command.Service, authorizationService)
+			var service auth.Service
+			if err := wire.DecodePayload(env.Payload, &service); err != nil {
+				log.Print("Failed to decode service payload: ", err)
+				break
+			}
+			err = dbdiscauth.DeleteServiceFromDB(db, service, authorizationService)
 			if err != nil {
 				log.Print("Deleteservice Failed to delete db entries: ", err)
 			}
 		case auth.SPLUNKADDHEC:
-			err = splunkAddHECToDB(db, command.SplunkConfig, authorizationService)
+			var splunkConfig auth.SplunkConfig
+			if err := wire.DecodePayload(env.Payload, &splunkConfig); err != nil {
+				log.Print("Failed to decode splunk config payload: ", err)
+				break
+			}
+			err = splunkAddHECToDB(db, splunkConfig, authorizationService)
 			if err != nil {
 				log.Print("AddHec Failed to write db entries: ", err)
 			}

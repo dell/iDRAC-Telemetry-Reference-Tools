@@ -7,36 +7,8 @@ import (
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/mock"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/service"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/wire"
 )
-
-func TestReadOneMessage(t *testing.T) {
-	expectedMessage := "Check"
-	jsonExpectedMessage, _ := json.Marshal(expectedMessage)
-	mb := mock.NewMockMessageBus()
-	mb.AddQueueMessage("test-queue", string(jsonExpectedMessage))
-	authClient := &AuthorizationClient{
-		BaseClient: service.NewBaseClient(mb, CommandQueue, ReplyPrefix, "test", 5*time.Second),
-	}
-	var gotMessage *string
-	err := authClient.ReadOneMessage("test-queue", &gotMessage)
-	if err != nil {
-		t.Errorf("ReadOneMessage() error = %v", err)
-	}
-	if gotMessage == nil || *gotMessage != expectedMessage {
-		t.Errorf("ReadOneMessage() = %v, want %v", gotMessage, expectedMessage)
-	}
-
-	// Test timeout condition
-	emptyMb := mock.NewMockMessageBus()
-	authClient = &AuthorizationClient{
-		BaseClient: service.NewBaseClient(emptyMb, CommandQueue, ReplyPrefix, "test", 100*time.Millisecond),
-	}
-	var timeoutMessage *string
-	err = authClient.ReadOneMessage("test-queue", &timeoutMessage)
-	if err == nil {
-		t.Errorf("ReadOneMessage() expected timeout error, got nil")
-	}
-}
 
 func TestCall(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
@@ -113,21 +85,25 @@ func TestAddServiceItem(t *testing.T) {
 		t.Errorf("AddServiceItem() error = %v", err)
 	}
 
-	// Verify message was sent to command queue
+	// Verify message was sent to command queue as envelope
 	messages := mb.GetMessages(CommandQueue)
 	if len(messages) != 1 {
 		t.Fatalf("expected 1 message, got %d", len(messages))
 	}
 
-	var gotCom Command
-	if err := json.Unmarshal([]byte(messages[0]), &gotCom); err != nil {
-		t.Fatalf("failed to unmarshal command: %v", err)
+	var env wire.Envelope
+	if err := json.Unmarshal([]byte(messages[0]), &env); err != nil {
+		t.Fatalf("failed to unmarshal envelope: %v", err)
 	}
-	if gotCom.ServiceItem.ServiceIP != expectedSI.ServiceIP {
-		t.Errorf("ServiceIP = %v, want %v", gotCom.ServiceItem.ServiceIP, expectedSI.ServiceIP)
+	if env.Type != ADDSERVICEITEM {
+		t.Errorf("Type = %v, want %v", env.Type, ADDSERVICEITEM)
 	}
-	if gotCom.Command != ADDSERVICEITEM {
-		t.Errorf("Command = %v, want %v", gotCom.Command, ADDSERVICEITEM)
+	var gotSI ServiceItem
+	if err := wire.DecodePayload(env.Payload, &gotSI); err != nil {
+		t.Fatalf("failed to decode payload: %v", err)
+	}
+	if gotSI.ServiceIP != expectedSI.ServiceIP {
+		t.Errorf("ServiceIP = %v, want %v", gotSI.ServiceIP, expectedSI.ServiceIP)
 	}
 }
 
@@ -145,21 +121,25 @@ func TestUpdateServiceItem(t *testing.T) {
 		t.Errorf("UpdateServiceItem() error = %v", err)
 	}
 
-	// Verify message was sent to command queue
+	// Verify message was sent to command queue as envelope
 	messages := mb.GetMessages(CommandQueue)
 	if len(messages) != 1 {
 		t.Fatalf("expected 1 message, got %d", len(messages))
 	}
 
-	var gotCom Command
-	if err := json.Unmarshal([]byte(messages[0]), &gotCom); err != nil {
-		t.Fatalf("failed to unmarshal command: %v", err)
+	var env wire.Envelope
+	if err := json.Unmarshal([]byte(messages[0]), &env); err != nil {
+		t.Fatalf("failed to unmarshal envelope: %v", err)
 	}
-	if gotCom.ServiceItem.ServiceIP != expectedSI.ServiceIP {
-		t.Errorf("ServiceIP = %v, want %v", gotCom.ServiceItem.ServiceIP, expectedSI.ServiceIP)
+	if env.Type != UPDATESERVICEITEM {
+		t.Errorf("Type = %v, want %v", env.Type, UPDATESERVICEITEM)
 	}
-	if gotCom.Command != UPDATESERVICEITEM {
-		t.Errorf("Command = %v, want %v", gotCom.Command, UPDATESERVICEITEM)
+	var gotSI ServiceItem
+	if err := wire.DecodePayload(env.Payload, &gotSI); err != nil {
+		t.Fatalf("failed to decode payload: %v", err)
+	}
+	if gotSI.ServiceIP != expectedSI.ServiceIP {
+		t.Errorf("ServiceIP = %v, want %v", gotSI.ServiceIP, expectedSI.ServiceIP)
 	}
 }
 
@@ -177,20 +157,24 @@ func TestDeleteServiceItem(t *testing.T) {
 		t.Errorf("DeleteServiceItem() error = %v", err)
 	}
 
-	// Verify message was sent to command queue
+	// Verify message was sent to command queue as envelope
 	messages := mb.GetMessages(CommandQueue)
 	if len(messages) != 1 {
 		t.Fatalf("expected 1 message, got %d", len(messages))
 	}
 
-	var gotCom Command
-	if err := json.Unmarshal([]byte(messages[0]), &gotCom); err != nil {
-		t.Fatalf("failed to unmarshal command: %v", err)
+	var env wire.Envelope
+	if err := json.Unmarshal([]byte(messages[0]), &env); err != nil {
+		t.Fatalf("failed to unmarshal envelope: %v", err)
 	}
-	if gotCom.ServiceItem.ServiceIP != expectedSI.ServiceIP {
-		t.Errorf("ServiceIP = %v, want %v", gotCom.ServiceItem.ServiceIP, expectedSI.ServiceIP)
+	if env.Type != DELETESERVICEITEM {
+		t.Errorf("Type = %v, want %v", env.Type, DELETESERVICEITEM)
 	}
-	if gotCom.Command != DELETESERVICEITEM {
-		t.Errorf("Command = %v, want %v", gotCom.Command, DELETESERVICEITEM)
+	var gotSI ServiceItem
+	if err := wire.DecodePayload(env.Payload, &gotSI); err != nil {
+		t.Fatalf("failed to decode payload: %v", err)
+	}
+	if gotSI.ServiceIP != expectedSI.ServiceIP {
+		t.Errorf("ServiceIP = %v, want %v", gotSI.ServiceIP, expectedSI.ServiceIP)
 	}
 }
