@@ -89,6 +89,9 @@ const (
 	GETLOGIN          = "getlogin"
 
 	UPDATESERVICEX = "updateservicex"
+
+	// Message type for services
+	SERVICE = "service"
 )
 
 type SplunkConfig struct {
@@ -171,7 +174,8 @@ func NewAuthorizationService(bus messagebus.Messagebus) *AuthorizationService {
 
 // BroadcastService broadcasts a service update to EventQueue using envelope format
 func (as *AuthorizationService) BroadcastService(svc Service) error {
-	env, err := wire.NewEnvelope("service", svc)
+	// TODO see if the type can be reused
+	env, err := wire.NewEnvelope(SERVICE, svc)
 	if err != nil {
 		return err
 	}
@@ -223,7 +227,7 @@ func (ac *AuthorizationClient) DeleteService(service Service) error {
 // The ctx parameter allows cancellation of the listener.
 func (ac *AuthorizationClient) GetService(ctx context.Context, services chan<- *Service) {
 	envelopes := make(chan wire.Envelope, 10)
-	ac.ListenToQueueFiltered(ctx, EventQueue, "service", envelopes)
+	ac.ListenToQueueFiltered(ctx, EventQueue, SERVICE, envelopes)
 
 	go func() {
 		defer close(services)
