@@ -60,13 +60,10 @@ func (m *StompMessagebus) SendMessageWithHeaders(message []byte, queue string, h
 }
 
 func (m *StompMessagebus) ReceiveMessage(message chan<- string, queue string) (messagebus.Subscription, error) {
-	log.Printf("KKD: Subscribing to queue: %s", queue)
 	sub, err := m.conn.Subscribe(queue, stomp.AckAuto)
 	if err != nil {
-		log.Printf("KKD: Failed to subscribe to queue: %s, error: %v", queue, err)
 		return nil, err
 	}
-	log.Printf("KKD: Successfully subscribed to queue: %s", queue)
 	m.subs = append(m.subs, sub)
 
 	go m.RecieveLoop(sub, message)
@@ -77,25 +74,15 @@ func (m *StompMessagebus) ReceiveMessage(message chan<- string, queue string) (m
 
 func (m *StompMessagebus) RecieveLoop(sub *stomp.Subscription, message chan<- string) {
 	for {
-		log.Printf("KKD: RecieveLoop waiting for message on %s", sub.Destination())
 		msg := <-sub.C
 		if msg == nil {
-			log.Printf("KKD: RecieveLoop exiting (nil msg) for %s", sub.Destination())
 			break
 		} else if msg.Err != nil {
 			//This can timeout... just keep going...
-			log.Printf("KKD: RecieveLoop got error: %v", msg.Err)
 			continue
 		}
-		log.Printf("KKD: RecieveLoop received message: %s", string(msg.Body))
 		message <- string(msg.Body)
-		log.Printf("KKD: RecieveLoop sent message to channel for %s", sub.Destination())
-		// err := m.conn.Ack(msg)
-		// if err != nil {
-		// 	log.Printf("ACK failed! %v", err)
-		// }
 	}
-	log.Printf("KKD: RecieveLoop ended for %s", sub.Destination())
 }
 
 func (m *StompMessagebus) Close() error {
@@ -109,15 +96,8 @@ func (m *StompMessagebus) Close() error {
 }
 
 func (m *StompSubscription) Close() error {
-	log.Println("KKD: Unsubscribing from queue: ", m.sub.Destination())
 	if !m.sub.Active() {
-		log.Println("KKD: Subscription is not active, skipping unsubscribe", m.sub.Destination())
 		return nil
 	}
-	err := m.sub.Unsubscribe()
-	if err != nil {
-		log.Printf("Failed to unsubscribe %v", err)
-	}
-	log.Println("KKD: Successfully unsubscribed from queue: ", m.sub.Destination())
-	return err
+	return m.sub.Unsubscribe()
 }
