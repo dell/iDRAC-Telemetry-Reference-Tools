@@ -59,8 +59,8 @@ func NewDataBusServiceWithBus(mb messagebus.Messagebus) *databus.DataBusService 
 	return databus.NewDataBusService(mb)
 }
 
-func NewDataBusClientWithBus(mb messagebus.Messagebus) *databus.DataBusClient {
-	return databus.NewDataBusClient(mb, "default")
+func NewDataBusClientWithBus(mb messagebus.Messagebus, clientName string) *databus.DataBusClient {
+	return databus.NewDataBusClient(mb, clientName)
 }
 
 func NewDataProducers(n int) []*databus.DataProducer {
