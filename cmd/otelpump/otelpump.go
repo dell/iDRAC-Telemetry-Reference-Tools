@@ -698,8 +698,7 @@ func main() {
 		time.Sleep(time.Minute)
 	}
 
-	dbClient := new(databus.DataBusClient)
-	dbClient.Bus = mb
+	dbClient := databus.NewDataBusClient(mb, "otelpump")
 	configService := config.NewConfigService(mb, "/otelpump/config", configItems)
 
 	dbClient.Subscribe("/otel")

@@ -32,7 +32,12 @@ type SystemHandler struct {
 }
 
 func getSystemList(c *gin.Context, s *SystemHandler) {
-	producers := s.DataBus.GetProducers("/configui/databus_in")
+	producers, err := s.DataBus.GetProducers()
+	if err != nil {
+		log.Printf("Failed to get producers %v", err)
+		c.JSON(500, gin.H{"error": "Failed to get producers"})
+		return
+	}
 	c.JSON(200, producers)
 }
 
@@ -357,7 +362,7 @@ func deleteSystem(c *gin.Context, s *SystemHandler) {
 				log.Println("Failed to delete service parse json: ", serviceerr)
 				_ = c.AbortWithError(500, err)
 			}
-			s.DataBus.DeleteProducer("/configui/databus_in", service)
+			s.DataBus.DeleteProducer(service)
 
 		}
 		c.JSON(200, gin.H{"success": "true"})
@@ -426,7 +431,6 @@ func main() {
 	getEnvSettings()
 
 	systemHandler := new(SystemHandler)
-	systemHandler.DataBus = new(databus.DataBusClient)
 	systemHandler.ConfigBus = new(config.ConfigClient)
 
 	//Initialize messagebus
@@ -438,7 +442,7 @@ func main() {
 			time.Sleep(5 * time.Second)
 		} else {
 			systemHandler.AuthClient = auth.NewAuthorizationClient(mb, "configui")
-			systemHandler.DataBus.Bus = mb
+			systemHandler.DataBus = databus.NewDataBusClient(mb, "configui")
 			systemHandler.ConfigBus.Bus = mb
 			defer mb.Close()
 			break

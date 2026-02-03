@@ -245,7 +245,7 @@ func main() {
 
 	//Process commands using the new envelope format
 	envelopes := make(chan wire.Envelope)
-	go authorizationService.ReceiveEnvelope(envelopes) //nolint: errcheck
+	go authorizationService.ReceiveEnvelopes(envelopes) //nolint: errcheck
 	for {
 		env := <-envelopes
 		log.Printf("Received command in dbdiscauth: %s", env.Type)

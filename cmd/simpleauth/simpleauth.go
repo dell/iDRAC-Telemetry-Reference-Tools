@@ -161,7 +161,7 @@ func main() {
 	discoveryClient.ResendAll()
 	go discoveryClient.GetService(serviceIn)
 	go handleDiscServiceChannel(serviceIn, config, authorizationService)
-	go authorizationService.ReceiveEnvelope(envelopes) //nolint: errcheck
+	go authorizationService.ReceiveEnvelopes(envelopes) //nolint: errcheck
 	for {
 		env := <-envelopes
 		log.Printf("in simpleauth, Received command: %s", env.Type)

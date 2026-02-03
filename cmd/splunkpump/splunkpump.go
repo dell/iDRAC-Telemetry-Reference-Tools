@@ -254,8 +254,7 @@ func main() {
 		time.Sleep(time.Minute)
 	}
 
-	dbClient := new(databus.DataBusClient)
-	dbClient.Bus = mb
+	dbClient := databus.NewDataBusClient(mb, "splunkpump")
 
 	// Queue to get config data set by configui.go - /splunkpump/config
 	configService := config.NewConfigService(mb, "/splunkpump/config", configItems)

@@ -156,7 +156,7 @@ func main() {
 	//Gather configuration from environment variables
 	getEnvSettings()
 
-	dbClient := new(databus.DataBusClient)
+	var dbClient *databus.DataBusClient
 	for {
 		stompPort, _ := strconv.Atoi(configStrings["mbport"])
 		mb, err := stomp.NewStompMessageBus(configStrings["mbhost"], stompPort)
@@ -164,7 +164,7 @@ func main() {
 			log.Printf("Could not connect to message bus: %s", err)
 			time.Sleep(5 * time.Second)
 		} else {
-			dbClient.Bus = mb
+			dbClient = databus.NewDataBusClient(mb, "timescalepump")
 			defer mb.Close()
 			break
 		}

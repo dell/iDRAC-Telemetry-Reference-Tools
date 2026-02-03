@@ -15,6 +15,8 @@ import (
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/databus"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/service"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/wire"
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/redfish"
@@ -557,7 +559,7 @@ func main() {
 	getEnvSettings()
 
 	// dataGroups = make(map[string]map[string]*databus.DataGroup)
-	dataBusService := new(databus.DataBusService)
+	var dataBusService *databus.DataBusService
 	var authClient *auth.AuthorizationClient
 
 	for {
@@ -568,14 +570,14 @@ func main() {
 			time.Sleep(5 * time.Second)
 		} else {
 			authClient = auth.NewAuthorizationClient(mb, "redfishread")
-			dataBusService.Bus = mb
+			dataBusService = databus.NewDataBusService(mb)
 			defer mb.Close()
 			break
 		}
 	}
 
 	serviceIn := make(chan *auth.Service, 10)
-	commands := make(chan *databus.Command)
+	envelopes := make(chan service.Envelope)
 
 	// devices is used to answer GETPRODUCERS requests (UI Systems list).
 	// It must be initialized once so additions in handleAuthServiceChannel are visible here.
@@ -586,17 +588,17 @@ func main() {
 	authClient.ResendAll()
 	go authClient.GetService(context.Background(), serviceIn)
 	go handleAuthServiceChannel(serviceIn, dataBusService, devices, authClient) // THIS FUNCTION ADDS SERVICE
-	go dataBusService.ReceiveCommand(commands)                                  //nolint: errcheck
+	go dataBusService.ReceiveEnvelopes(envelopes)                               //nolint: errcheck
 	for {
-		command := <-commands
-		log.Printf("Received command in redfishread: %s", command.Command)
-		switch command.Command {
+		env := <-envelopes
+		log.Println("Received command in redfishread", "command", env.Type)
+		switch env.Type {
 		case databus.GET:
 
 			dataGroups := prr.DataGroupsMap.GetDataGroups()
 			for _, system := range dataGroups {
 				for _, group := range system {
-					dataBusService.SendGroupToQueue(*group, command.ReceiveQueue)
+					dataBusService.Reply(env, *group)
 				}
 			}
 
@@ -612,15 +614,16 @@ func main() {
 				producers[i] = producer
 				i = i + 1
 			}
-			err := dataBusService.SendProducersToQueue(producers, command.ReceiveQueue)
-			if err != nil {
-				log.Printf("aft SendProducersToQueue got error,so continue")
-			}
+			dataBusService.Reply(env, producers)
 		case databus.DELETEPRODUCER:
-			devices[command.ServiceIP].CtxCancel()
-			log.Printf("service has been cancelled, Ctx = %v", devices[command.ServiceIP].Ctx)
-			time.Sleep(2 * time.Second)
-			delete(devices, command.ServiceIP)
+			var service auth.Service
+			if err := wire.DecodePayload(env.Payload, &service); err != nil {
+				log.Printf("Failed decoding DELETEPRODUCER payload: %v", err)
+				continue
+			}
+			devices[service.Ip].CtxCancel()
+			log.Printf("service has been cancelled, Ctx = %v", devices[service.Ip].Ctx)
+			delete(devices, service.Ip)
 		case auth.TERMINATE:
 			os.Exit(0)
 		}

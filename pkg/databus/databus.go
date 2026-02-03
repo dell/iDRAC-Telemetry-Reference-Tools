@@ -5,6 +5,7 @@ import (
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/databus"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/service"
 )
 
 const (
@@ -18,9 +19,10 @@ const (
 type DataGroup = databus.DataGroup
 type EventValue = databus.EventValue
 type DataBusService = databus.DataBusService
+type Envelope = service.Envelope
 
-func NewCommandChan() chan *databus.Command {
-	return make(chan *databus.Command)
+func NewCommandChan() chan Envelope {
+	return make(chan Envelope)
 }
 
 type DataGroups struct {
@@ -54,15 +56,11 @@ func NewDataGroupsMap() *DataGroups {
 }
 
 func NewDataBusServiceWithBus(mb messagebus.Messagebus) *databus.DataBusService {
-	return &databus.DataBusService{
-		Bus: mb,
-	}
+	return databus.NewDataBusService(mb)
 }
 
 func NewDataBusClientWithBus(mb messagebus.Messagebus) *databus.DataBusClient {
-	return &databus.DataBusClient{
-		Bus: mb,
-	}
+	return databus.NewDataBusClient(mb, "default")
 }
 
 func NewDataProducers(n int) []*databus.DataProducer {

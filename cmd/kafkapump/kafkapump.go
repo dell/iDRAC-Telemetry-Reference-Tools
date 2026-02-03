@@ -262,8 +262,7 @@ func main() {
 		time.Sleep(time.Minute)
 	}
 
-	dbClient := new(databus.DataBusClient)
-	dbClient.Bus = mb
+	dbClient := databus.NewDataBusClient(mb, "kafkapump")
 	configService := config.NewConfigService(mb, "/kafkapump/config", configItems)
 
 	dbClient.Subscribe("/kafka")
