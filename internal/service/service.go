@@ -70,11 +70,31 @@ func (bc *BaseClient) SendEnvelope(queue string, env Envelope) error {
 
 // Send sends a message without expecting a reply
 func (bc *BaseClient) Send(msgType string, payload any) error {
+	return bc.SendTo(bc.CommandQueue, msgType, payload)
+}
+
+// SendTo sends a message to a specific queue without expecting a reply
+func (bc *BaseClient) SendTo(queue, msgType string, payload any) error {
 	env, err := wire.NewEnvelope(msgType, payload)
 	if err != nil {
 		return err
 	}
-	return bc.SendEnvelope(bc.CommandQueue, env)
+	return bc.SendEnvelope(queue, env)
+}
+
+// SendWithReplyTo sends a message to the default command queue with a ReplyTo override
+func (bc *BaseClient) SendWithReplyTo(msgType string, payload any, replyTo string) error {
+	return bc.SendToWithReplyTo(bc.CommandQueue, msgType, payload, replyTo)
+}
+
+// SendToWithReplyTo sends a message to a specific queue with a ReplyTo override
+func (bc *BaseClient) SendToWithReplyTo(queue, msgType string, payload any, replyTo string) error {
+	env, err := wire.NewEnvelope(msgType, payload)
+	if err != nil {
+		return err
+	}
+	env.ReplyTo = replyTo
+	return bc.SendEnvelope(queue, env)
 }
 
 // initReplyListener initializes the reply listener for request/reply patterns
@@ -153,67 +173,6 @@ func (bc *BaseClient) Call(msgType string, payload any, resp any) error {
 	}
 }
 
-// SendEnvelope sends an envelope to the specified queue
-func (bs *BaseService) SendEnvelope(queue string, env Envelope) error {
-	jsonStr, err := wire.EncodeEnvelope(env)
-	if err != nil {
-		return err
-	}
-	err = bs.Bus.SendMessage(jsonStr, queue)
-	if err != nil {
-		log.Printf("Failed to send message to queue %s: %v", queue, err)
-	}
-	return err
-}
-
-// Reply sends a successful reply to a request
-func (bs *BaseService) Reply(req Envelope, payload any) error {
-	if req.ReplyTo == "" {
-		return fmt.Errorf("reply queue missing")
-	}
-	env, err := wire.ReplyOK(req, payload)
-	if err != nil {
-		return err
-	}
-	return bs.SendEnvelope(req.ReplyTo, env)
-}
-
-// ReplyError sends an error reply to a request
-func (bs *BaseService) ReplyError(req Envelope, replyErr error) error {
-	if req.ReplyTo == "" {
-		return fmt.Errorf("reply queue missing")
-	}
-	env := wire.ReplyErr(req, replyErr)
-	return bs.SendEnvelope(req.ReplyTo, env)
-}
-
-// ReceiveCommand receives and decodes commands from the command queue
-func (bs *BaseService) ReceiveCommand(commands chan<- Envelope) error {
-	return bs.ListenToQueue(bs.CommandQueue, commands)
-}
-
-// ListenToQueue provides a generic method to continuously listen to any queue and decode envelopes
-func (bs *BaseService) ListenToQueue(queueName string, envelopes chan<- Envelope) error {
-	messages := make(chan string, 10)
-
-	go func() {
-		_, err := bs.Bus.ReceiveMessage(messages, queueName)
-		if err != nil {
-			log.Printf("Error receiving messages from queue %s: %v", queueName, err)
-		}
-	}()
-	for {
-		message := <-messages
-		env, err := wire.DecodeEnvelope([]byte(message))
-		if err != nil {
-			log.Printf("Error decoding envelope from queue %s: %v", queueName, err)
-			log.Printf("Message %#v\n", message)
-			continue
-		}
-		envelopes <- env
-	}
-}
-
 // ListenToQueueFiltered provides a method to listen to any queue and filter envelopes by type
 // Uses context for standard Go cancellation pattern
 func (bc *BaseClient) ListenToQueueFiltered(ctx context.Context, queueName string, messageType string, envelopes chan<- Envelope) {
@@ -252,4 +211,82 @@ func (bc *BaseClient) ListenToQueueFiltered(ctx context.Context, queueName strin
 			}
 		}
 	}()
+}
+
+// SendEnvelope sends an envelope to the specified queue
+func (bs *BaseService) SendEnvelope(queue string, env Envelope) error {
+	jsonStr, err := wire.EncodeEnvelope(env)
+	if err != nil {
+		return err
+	}
+	err = bs.Bus.SendMessage(jsonStr, queue)
+	if err != nil {
+		log.Printf("Failed to send message to queue %s: %v", queue, err)
+	}
+	return err
+}
+
+// Send sends a message on the service command queue
+func (bs *BaseService) Send(msgType string, payload any) error {
+	return bs.SendTo(bs.CommandQueue, msgType, payload)
+}
+
+// SendTo sends to an arbitrary queue without expecting a reply
+func (bs *BaseService) SendTo(queue string, msgType string, payload any) error {
+	env, err := wire.NewEnvelope(msgType, payload)
+	if err != nil {
+		return err
+	}
+	return bs.SendEnvelope(queue, env)
+}
+
+// Reply sends a successful reply to a request
+func (bs *BaseService) Reply(req Envelope, payload any) error {
+	if req.ReplyTo == "" {
+		return fmt.Errorf("reply queue missing")
+	}
+	env, err := wire.ReplyOK(req, payload)
+	if err != nil {
+		return err
+	}
+	return bs.SendEnvelope(req.ReplyTo, env)
+}
+
+// ReplyError sends an error reply to a request
+func (bs *BaseService) ReplyError(req Envelope, replyErr error) error {
+	if req.ReplyTo == "" {
+		return fmt.Errorf("reply queue missing")
+	}
+	env := wire.ReplyErr(req, replyErr)
+	return bs.SendEnvelope(req.ReplyTo, env)
+}
+
+// ReceiveEnvelopes receives and decodes commands from the command queue
+func (bs *BaseService) ReceiveEnvelopes(envelopes chan<- Envelope) error {
+	return bs.ListenToQueue(bs.CommandQueue, envelopes, nil)
+}
+
+// ListenToQueue provides a generic method to continuously listen to any queue and decode envelopes
+func (bs *BaseService) ListenToQueue(queueName string, envelopes chan<- Envelope, hook func(Envelope)) error {
+	messages := make(chan string, 10)
+
+	go func() {
+		_, err := bs.Bus.ReceiveMessage(messages, queueName)
+		if err != nil {
+			log.Printf("Error receiving messages from queue %s: %v", queueName, err)
+		}
+	}()
+	for {
+		message := <-messages
+		env, err := wire.DecodeEnvelope([]byte(message))
+		if err != nil {
+			log.Printf("Error decoding envelope from queue %s: %v", queueName, err)
+			log.Printf("Message %#v\n", message)
+			continue
+		}
+		if hook != nil {
+			hook(env)
+		}
+		envelopes <- env
+	}
 }

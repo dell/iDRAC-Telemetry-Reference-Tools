@@ -3,15 +3,15 @@
 package databus
 
 import (
-	"encoding/json"
-	"fmt"
+	"context"
 	"log"
+	"slices"
 	"time"
-
-	"github.com/mitchellh/mapstructure"
 
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/service"
+	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/wire"
 )
 
 type DataValue struct {
@@ -75,201 +75,135 @@ type DataProducer struct {
 }
 
 const (
+	// commands
 	GET            = "get"
 	SUBSCRIBE      = "subscribe"
 	GETPRODUCERS   = "getproducers"
 	DELETEPRODUCER = "deleteproducers"
 	TERMINATE      = "terminate"
+
+	// message types
+	DATAGROUP = "datagroup"
 )
 
-type Command struct {
-	Command      string `json:"command"`
-	ReceiveQueue string `json:"ReceiveQueue"`
-	ReportData   string `json:"reportdata,omitempty"`
-	ServiceIP    string `json:"serviceIP,omitempty"`
-}
-
-type Response struct {
-	Command  string      `json:"command"`
-	DataType string      `json:"dataType"`
-	Data     interface{} `json:"data"`
-}
-
-const CommandQueue = "/databus"
+const (
+	CommandQueue = "/queue/databus/command"
+	ReplyPrefix  = "/queue/databus/reply."
+)
 
 type DataBusService struct {
+	*service.BaseService
 	Recievers []string
-	Bus       messagebus.Messagebus
 }
 
 type DataBusClient struct {
-	Bus messagebus.Messagebus
+	*service.BaseClient
 }
 
-func (d *DataBusService) SendResponse(queue string, command string, dataType string, data interface{}) error {
-	res := new(Response)
-	res.Command = command
-	res.DataType = dataType
-	res.Data = data
-	jsonStr, _ := json.Marshal(res)
-	err := d.Bus.SendMessage(jsonStr, queue)
-	if err != nil {
-		log.Printf("Failed to send response %v", err)
-	}
-	return err
-}
-
-func (d *DataBusService) SendMultipleResponses(command string, dataType string, data interface{}) {
-	res := new(Response)
-	res.Command = command
-	res.DataType = dataType
-	res.Data = data
-	jsonStr, _ := json.Marshal(res)
-	for _, queue := range d.Recievers {
-		err := d.Bus.SendMessage(jsonStr, queue)
-		if err != nil {
-			log.Printf("Failed to send response %v", err)
-		}
+// NewDataBusService constructs a DataBusService backed by the supplied message bus.
+// The service listens on CommandQueue and keeps track of subscriber reply queues.
+func NewDataBusService(bus messagebus.Messagebus) *DataBusService {
+	return &DataBusService{
+		BaseService: service.NewBaseService(bus, CommandQueue),
+		Recievers:   []string{},
 	}
 }
 
+// NewDataBusClient constructs a DataBusClient that issues databus commands via
+// BaseClient helpers and uses ReplyPrefix to generate unique reply queues.
+func NewDataBusClient(bus messagebus.Messagebus, clientName string) *DataBusClient {
+	return &DataBusClient{
+		BaseClient: service.NewBaseClient(bus, CommandQueue, ReplyPrefix, clientName, 5*time.Second),
+	}
+}
+
+// handleEnvelope routes envelopes to auxiliary hook logic; currently it ensures
+// SUBSCRIBE commands update the receivers list before the envelope reaches
+// downstream handlers.
+func (d *DataBusService) handleEnvelope(env service.Envelope) {
+	if env.Type == SUBSCRIBE {
+		d.HandleSubscribeEnvelope(env)
+	}
+}
+
+// SendGroup broadcasts a DataGroup to every queue recorded in the receivers list.
+// Failures to deliver to individual queues are logged and do not stop the fan-out.
 func (d *DataBusService) SendGroup(group DataGroup) {
-	d.SendMultipleResponses(SUBSCRIBE, "DataGroup", group)
-}
-
-func (d *DataBusService) SendGroupToQueue(group DataGroup, queue string) {
-	d.SendResponse(queue, GET, "DataGroup", group)
-}
-
-func (d *DataBusService) SendProducersToQueue(producer []*DataProducer, queue string) error {
-	err := d.SendResponse(queue, GETPRODUCERS, "DataProducer", producer)
-	return err
-}
-
-func (d *DataBusService) ReceiveCommand(commands chan<- *Command) error {
-	messages := make(chan string, 10)
-
-	go func() {
-		_, err := d.Bus.ReceiveMessage(messages, CommandQueue)
-		if err != nil {
-			log.Printf("Error recieving messages %v", err)
-		}
-	}()
-	for {
-		message := <-messages
-		command := new(Command)
-		err := json.Unmarshal([]byte(message), command)
-		if err != nil {
-			log.Printf("Error reading command queue: ", err)
-			//return err
-		}
-		if command.Command == SUBSCRIBE {
-			found := false
-			for _, rec := range d.Recievers {
-				if rec == command.ReceiveQueue {
-					found = true
-				}
-			}
-			if !found {
-				d.Recievers = append(d.Recievers, command.ReceiveQueue)
-			}
-		} else {
-			commands <- command
+	for _, queue := range d.Recievers {
+		if err := d.SendGroupToQueue(group, queue); err != nil {
+			log.Printf("Failed to deliver datagroup to %s: %v", queue, err)
 		}
 	}
-	return nil
 }
 
-func (d *DataBusClient) SendCommand(command Command) {
-	jsonStr, _ := json.Marshal(command)
-	err := d.Bus.SendMessage(jsonStr, CommandQueue)
-	if err != nil {
-		log.Printf("Failed to send command %v", err)
+// SendGroupToQueue sends a single DataGroup to the specified queue using the
+// BaseService SendTo helper.
+func (d *DataBusService) SendGroupToQueue(group DataGroup, queue string) error {
+	return d.SendTo(queue, DATAGROUP, group)
+}
+
+// ReceiveEnvelopes starts listening on the databus command queue and streams
+// decoded envelopes into the provided channel. SUBSCRIBE envelopes trigger the
+// internal hook before being forwarded downstream.
+func (d *DataBusService) ReceiveEnvelopes(envelopes chan<- service.Envelope) error {
+	return d.BaseService.ListenToQueue(CommandQueue, envelopes, d.handleEnvelope)
+}
+
+// HandleSubscribeEnvelope records the ReplyTo queue of a SUBSCRIBE command so
+// subsequent broadcasts can reach that client. Empty or duplicate queues are
+// ignored.
+func (d *DataBusService) HandleSubscribeEnvelope(env service.Envelope) {
+	queue := env.ReplyTo
+	if queue == "" {
+		return
 	}
-}
-
-func (d *DataBusClient) Get(queue string) {
-	var command Command
-	command.Command = GET
-	command.ReceiveQueue = queue
-	d.SendCommand(command)
-}
-
-func (d *DataBusClient) Subscribe(queue string) {
-	var command Command
-	command.Command = SUBSCRIBE
-	command.ReceiveQueue = queue
-	d.SendCommand(command)
-}
-
-func (d *DataBusClient) ReadOneMessage(queue string) string {
-	messages := make(chan string)
-	sub, err := d.Bus.ReceiveMessage(messages, queue)
-	if err != nil {
-		log.Println("Error receiving message: ", err)
-		return ""
+	if slices.Contains(d.Recievers, queue) {
+		return
 	}
-	message := <-messages
-	//log.Println("Got message: ", message)
-	sub.Close()
-	return message
+	d.Recievers = append(d.Recievers, queue)
 }
 
-func (d *DataBusClient) GetResponse(queue string) *Response {
-	message := d.ReadOneMessage(queue)
-	resp := new(Response)
-	err := json.Unmarshal([]byte(message), resp)
-	if err != nil {
-		log.Print("Error reading queue: ", err)
+// Get requests that producers send their current DataGroups, instructing the
+// service to reply to the provided queue.
+func (d *DataBusClient) Get(replyQueue string) error {
+	return d.BaseClient.SendWithReplyTo(GET, nil, replyQueue)
+}
+
+// Subscribe registers the provided queue to receive future DataGroup broadcasts.
+func (d *DataBusClient) Subscribe(replyQueue string) error {
+	return d.BaseClient.SendWithReplyTo(SUBSCRIBE, nil, replyQueue)
+}
+
+// DeleteProducer asks the databus service to stop forwarding updates for the
+// specified service, typically after a producer disconnects.
+func (d *DataBusClient) DeleteProducer(service auth.Service) error {
+	return d.BaseClient.Call(DELETEPRODUCER, service, nil)
+}
+
+// GetProducers synchronously requests the list of active data producers.
+func (d *DataBusClient) GetProducers() ([]DataProducer, error) {
+	var producers []DataProducer
+	if err := d.BaseClient.Call(GETPRODUCERS, nil, &producers); err != nil {
+		return nil, err
 	}
-
-	return resp
+	return producers, nil
 }
 
-func (d *DataBusClient) DeleteProducer(queue string, service auth.Service) {
-	fmt.Println("Entered Delete Producer")
-	var command Command
-	command.Command = DELETEPRODUCER
-	command.ReceiveQueue = queue
-	command.ServiceIP = service.Ip
-	d.SendCommand(command)
-}
-
-func (d *DataBusClient) GetProducers(queue string) []DataProducer {
-	var command Command
-	command.Command = GETPRODUCERS
-	command.ReceiveQueue = queue
-	d.SendCommand(command)
-
-	resp := d.GetResponse(queue)
-	fmt.Printf("%+v", resp)
-
-	producers := []DataProducer{}
-	mapstructure.Decode(resp.Data, &producers)
-	//	return resp.Data.([]DataProducer)
-	return producers
-}
-
+// GetGroup consumes DATAGROUP envelopes from the specified queue, decodes them,
+// and forwards the resulting DataGroups into the caller-provided channel.
 func (d *DataBusClient) GetGroup(groups chan<- *DataGroup, queue string) {
-	messages := make(chan string, 10)
+	ctx := context.Background()
+	envelopes := make(chan service.Envelope, 10)
 
+	go d.BaseClient.ListenToQueueFiltered(ctx, queue, DATAGROUP, envelopes)
 	go func() {
-		_, err := d.Bus.ReceiveMessage(messages, queue)
-		if err != nil {
-			log.Printf("Error recieving messages %v", err)
+		for env := range envelopes {
+			var group DataGroup
+			if err := wire.DecodePayload(env.Payload, &group); err != nil {
+				log.Printf("Error decoding group payload: %v", err)
+				continue
+			}
+			groups <- &group
 		}
 	}()
-	for {
-		message := <-messages
-		resp := new(Response)
-		err := json.Unmarshal([]byte(message), resp)
-		if err != nil {
-			log.Print("Error reading queue: ", err)
-		}
-
-		group := DataGroup{}
-		mapstructure.Decode(resp.Data, &group)
-		//		group := resp.Data.(DataGroup)
-		groups <- &group
-	}
 }

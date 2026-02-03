@@ -182,11 +182,6 @@ func (as *AuthorizationService) BroadcastService(svc Service) error {
 	return as.SendEnvelope(EventQueue, env)
 }
 
-// ReceiveEnvelope receives commands as envelopes from the command queue
-func (as *AuthorizationService) ReceiveEnvelope(envelopes chan<- wire.Envelope) error {
-	return as.BaseService.ReceiveCommand(envelopes)
-}
-
 type AuthorizationClient struct {
 	*service.BaseClient
 }
