@@ -177,7 +177,7 @@ func (d *DataBusClient) Subscribe(replyQueue string) error {
 // DeleteProducer asks the databus service to stop forwarding updates for the
 // specified service, typically after a producer disconnects.
 func (d *DataBusClient) DeleteProducer(service auth.Service) error {
-	return d.BaseClient.Call(DELETEPRODUCER, service, nil)
+	return d.BaseClient.Send(DELETEPRODUCER, service)
 }
 
 // GetProducers synchronously requests the list of active data producers.
