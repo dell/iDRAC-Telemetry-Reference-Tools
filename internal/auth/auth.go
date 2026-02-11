@@ -34,10 +34,10 @@ const (
 
 // ServiceItem states
 const (
-	SHUTDOWNSENT   = "Shutdown Sent"
-	SHUTDOWNFAILED = "Shutdown Failed"
-	POWERSTATEON   = "Power Status On"
-	POWERSTATEOFF  = "Power Status Off"
+	SHUTDOWNRECEIVED = "Shutdown Received"
+	SHUTDOWNFAILED   = "Shutdown Failed"
+	POWERSTATEON     = "Power Status On"
+	POWERSTATEOFF    = "Power Status Off"
 )
 
 const (
@@ -57,12 +57,21 @@ type Service struct {
 	State       string            `json:"state"`
 }
 
+func (s Service) String() string {
+	return fmt.Sprintf("ServiceType: %d, Ip: %s, AuthType: %d, Auth: *****, State: %s", s.ServiceType, s.Ip, s.AuthType, s.State)
+}
+
 type ServiceItem struct {
 	Service
 	ServiceIP          string `json:"serviceIp"`
 	Systemtypedesc     string `json:"systemtypedesc"`
 	IsForcefulshutdown bool   `json:"isforcefulshutdown"`
 	Timeout            int    `json:"timeout"`
+}
+
+func (si ServiceItem) String() string {
+	return fmt.Sprintf("ServiceType: %d, Ip: %s, AuthType: %d, Auth: *****, State: %s, ServiceIP: %s, Systemtypedesc: %s, IsForcefulshutdown: %t, Timeout: %d",
+		si.ServiceType, si.Ip, si.AuthType, si.State, si.ServiceIP, si.Systemtypedesc, si.IsForcefulshutdown, si.Timeout)
 }
 
 const (
@@ -361,7 +370,7 @@ func (ac *AuthorizationClient) UpdateServiceItem(si ServiceItem) error {
 
 func (ac *AuthorizationClient) UpdateServiceItemState(state string, siip string) error {
 	switch state {
-	case SHUTDOWNSENT, SHUTDOWNFAILED, CONNFAILED, RUNNING, POWERSTATEON, POWERSTATEOFF:
+	case SHUTDOWNRECEIVED, SHUTDOWNFAILED, CONNFAILED, RUNNING, POWERSTATEON, POWERSTATEOFF:
 		ac.UpdateServiceItem(
 			ServiceItem{
 				Service: Service{
