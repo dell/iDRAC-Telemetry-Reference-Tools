@@ -5,6 +5,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -17,7 +18,6 @@ import (
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/auth"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/messagebus/stomp"
 	"github.com/dell/iDRAC-Telemetry-Reference-Tools/internal/wire"
-	"github.com/dell/iDRAC-Telemetry-Reference-Tools/pkg/dbdiscauth"
 )
 
 var configStrings = map[string]string{
@@ -50,57 +50,57 @@ func getHECInstancesFromDB(db *sql.DB) ([]auth.SplunkConfig, error) {
 	return ret, nil
 }
 
-// func getInstancesFromDB(db *sql.DB) ([]auth.Service, error) {
-// 	results, err := db.Query("SELECT serviceType, ip, authType, auth FROM services")
-// 	if err != nil {
-// 		return nil, err
-// 	}
+func GetInstancesFromDB(db *sql.DB) ([]auth.Service, error) {
+	results, err := db.Query("SELECT serviceType, ip, authType, auth FROM services")
+	if err != nil {
+		return nil, err
+	}
 
-// 	var ret []auth.Service
-// 	for results.Next() {
-// 		var value auth.Service
-// 		var tmp string
-// 		err = results.Scan(&value.ServiceType, &value.Ip, &value.AuthType, &tmp)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		err := json.Unmarshal([]byte(tmp), &value.Auth)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		ret = append(ret, value)
-// 	}
-// 	return ret, nil
-// }
+	var ret []auth.Service
+	for results.Next() {
+		var value auth.Service
+		var tmp string
+		err = results.Scan(&value.ServiceType, &value.Ip, &value.AuthType, &tmp)
+		if err != nil {
+			return nil, err
+		}
+		err := json.Unmarshal([]byte(tmp), &value.Auth)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, value)
+	}
+	return ret, nil
+}
 
-// func deleteServiceFromDB(db *sql.DB, service auth.Service, authService *auth.AuthorizationService) error {
-// 	stmt, err := db.Prepare("DELETE FROM services WHERE ip = ?")
-// 	if err != nil {
-// 		return err
-// 	}
-// 	_, err = stmt.Exec(service.Ip)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+func DeleteServiceFromDB(db *sql.DB, service auth.Service, authService *auth.AuthorizationService) error {
+	stmt, err := db.Prepare("DELETE FROM services WHERE ip = ?")
+	if err != nil {
+		return err
+	}
+	_, err = stmt.Exec(service.Ip)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
-// func addServiceToDB(db *sql.DB, service auth.Service, authService *auth.AuthorizationService) error {
-// 	stmt, err := db.Prepare("INSERT INTO services(serviceType, ip, authType, auth) VALUES(?, ?, ?, ?)")
-// 	if err != nil {
-// 		return err
-// 	}
-// 	jsonStr, err := json.Marshal(service.Auth)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	_, err = stmt.Exec(service.ServiceType, service.Ip, service.AuthType, string(jsonStr))
-// 	if err != nil {
-// 		return err
-// 	}
-// 	_ = authService.SendService(service)
-// 	return nil
-// }
+func AddServiceToDB(db *sql.DB, service auth.Service, authService *auth.AuthorizationService) error {
+	stmt, err := db.Prepare("INSERT INTO services(serviceType, ip, authType, auth) VALUES(?, ?, ?, ?)")
+	if err != nil {
+		return err
+	}
+	jsonStr, err := json.Marshal(service.Auth)
+	if err != nil {
+		return err
+	}
+	_, err = stmt.Exec(service.ServiceType, service.Ip, service.AuthType, string(jsonStr))
+	if err != nil {
+		return err
+	}
+	_ = authService.BroadcastService(service)
+	return nil
+}
 
 // splunk configuration are getting added in the database
 // TO DO: Update it in the db
@@ -234,7 +234,7 @@ func main() {
 	}
 
 	//Fetch and publish configured services in the database
-	authServices, err := dbdiscauth.GetInstancesFromDB(db)
+	authServices, err := GetInstancesFromDB(db)
 	if err != nil {
 		log.Print("Failed to get db entries: ", err)
 	} else {
@@ -251,7 +251,7 @@ func main() {
 		log.Printf("Received command in dbdiscauth: %s", env.Type)
 		switch env.Type {
 		case auth.RESEND:
-			authServices, err := dbdiscauth.GetInstancesFromDB(db)
+			authServices, err := GetInstancesFromDB(db)
 			if err != nil {
 				log.Print("Failed to get db entries: ", err)
 				break
@@ -265,7 +265,7 @@ func main() {
 				log.Print("Failed to decode service payload: ", err)
 				break
 			}
-			err = dbdiscauth.AddServiceToDB(db, service, authorizationService)
+			err = AddServiceToDB(db, service, authorizationService)
 			if err != nil {
 				log.Print("Addservice,Failed to write db entries: ", err)
 			}
@@ -275,7 +275,7 @@ func main() {
 				log.Print("Failed to decode service payload: ", err)
 				break
 			}
-			err = dbdiscauth.DeleteServiceFromDB(db, service, authorizationService)
+			err = DeleteServiceFromDB(db, service, authorizationService)
 			if err != nil {
 				log.Print("Deleteservice Failed to delete db entries: ", err)
 			}
