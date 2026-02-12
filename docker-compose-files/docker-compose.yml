@@ -30,7 +30,7 @@ x-env-mysql: &mysql-env
 x-env-victoria: &victoria-env
   VICTORIA_USERNAME: ""
   VICTORIA_PASSWORD: ""
-  VICTORIA_METRICS_URL: http://172.0.0.1:8428/api/v1/import/prometheus
+  VICTORIA_METRICS_URL: http://victoriametrics:8428/api/v1/import/prometheus
    
 x-env-messagebus: &messagebus-env
   MESSAGEBUS_HOST: activemq
