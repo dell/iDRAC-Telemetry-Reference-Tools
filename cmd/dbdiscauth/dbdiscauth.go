@@ -50,7 +50,7 @@ func getHECInstancesFromDB(db *sql.DB) ([]auth.SplunkConfig, error) {
 	return ret, nil
 }
 
-func GetInstancesFromDB(db *sql.DB) ([]auth.Service, error) {
+func getInstancesFromDB(db *sql.DB) ([]auth.Service, error) {
 	results, err := db.Query("SELECT serviceType, ip, authType, auth FROM services")
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func GetInstancesFromDB(db *sql.DB) ([]auth.Service, error) {
 	return ret, nil
 }
 
-func DeleteServiceFromDB(db *sql.DB, service auth.Service, authService *auth.AuthorizationService) error {
+func deleteServiceFromDB(db *sql.DB, service auth.Service, authService *auth.AuthorizationService) error {
 	stmt, err := db.Prepare("DELETE FROM services WHERE ip = ?")
 	if err != nil {
 		return err
@@ -85,7 +85,7 @@ func DeleteServiceFromDB(db *sql.DB, service auth.Service, authService *auth.Aut
 	return nil
 }
 
-func AddServiceToDB(db *sql.DB, service auth.Service, authService *auth.AuthorizationService) error {
+func addServiceToDB(db *sql.DB, service auth.Service, authService *auth.AuthorizationService) error {
 	stmt, err := db.Prepare("INSERT INTO services(serviceType, ip, authType, auth) VALUES(?, ?, ?, ?)")
 	if err != nil {
 		return err
@@ -234,7 +234,7 @@ func main() {
 	}
 
 	//Fetch and publish configured services in the database
-	authServices, err := GetInstancesFromDB(db)
+	authServices, err := getInstancesFromDB(db)
 	if err != nil {
 		log.Print("Failed to get db entries: ", err)
 	} else {
@@ -251,7 +251,7 @@ func main() {
 		log.Printf("Received command in dbdiscauth: %s", env.Type)
 		switch env.Type {
 		case auth.RESEND:
-			authServices, err := GetInstancesFromDB(db)
+			authServices, err := getInstancesFromDB(db)
 			if err != nil {
 				log.Print("Failed to get db entries: ", err)
 				break
@@ -265,7 +265,7 @@ func main() {
 				log.Print("Failed to decode service payload: ", err)
 				break
 			}
-			err = AddServiceToDB(db, service, authorizationService)
+			err = addServiceToDB(db, service, authorizationService)
 			if err != nil {
 				log.Print("Addservice,Failed to write db entries: ", err)
 			}
@@ -275,7 +275,7 @@ func main() {
 				log.Print("Failed to decode service payload: ", err)
 				break
 			}
-			err = DeleteServiceFromDB(db, service, authorizationService)
+			err = deleteServiceFromDB(db, service, authorizationService)
 			if err != nil {
 				log.Print("Deleteservice Failed to delete db entries: ", err)
 			}
