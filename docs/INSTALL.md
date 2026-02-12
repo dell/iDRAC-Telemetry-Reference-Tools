@@ -142,18 +142,10 @@ sudo usermod -aG docker $USER
 
 and then log out and back in. Run `docker run hello-world` as the user in question to test your privileges.
 
-### Install docker-compose
+### Install docker compose
 
-You will also need to install docker-compose version 2. The code **will not work** with version 1. Instructions for a standalone installation of 
-docker compose version 2 are [here](https://docs.docker.com/compose/install/standalone/). The following versions of docker-compose have been tested - 
-* 2.3.3
-* 2.6.0
-* 2.17.1
-* 2.20.2
-
-Note - 
-* Standalone docker compose installation is required because backward compatibility for the docker-compose command is needed to run `compose.sh`.
-* Use docker compose version greater than 2.3.3 for a faster container setup. 
+You will also need to install Docker Compose. Instructions for installing Docker Compose are [here](https://docs.docker.com/compose/install/). The following versions of docker compose have been tested - 
+* v5.0.2
 
 ### Deploying the Framework
 
