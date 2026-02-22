@@ -180,10 +180,8 @@ iDRACs
    1. If you are running Elasticsearch, you will also need to open port 5601 for Kibana if you chose to run compose 
       with the `--elk-test-db` option.
    2. If you ran compose with the `--influx-test-db`, `--prometheus-test-db`, or `--timescale-test-db` options you will need to open port 3000 for Grafana.
-5. After you run this, the next step is to specify the iDRACs of the machines you are using. There is a webgui 
-   called `configui` which by default runs on port 8080. Browse to it and click "Add New Service". Alternatively you 
-   can upload a CSV file with three columns and no headers with each line in the format: `host, username, password` 
-   for each iDRAC.
+5. After you run this, the next step is to register the iDRACs you want to monitor. Open a browser to
+   `http://<YOUR_HOST_IP>:8080` (or `http://localhost:8080` if you are on the same host) to reach theRedfish Service Telemetry Configuration Dashboard Page, then click "Add New Service". Alternatively, upload a CSV with one row per iDRAC in the form `host,username,password` (three columns, no header) so each host can be added automatically.
 
 ![](images/2022-03-03-17-26-26.png)
 
@@ -222,14 +220,16 @@ This is not required. It only demonstrates a possible Elasticsearch workflow.
 ![](../images/2022-03-02-06-05-24.png)
 
 ### Post Install for Influx UI
-1. Browse to influx (`http://<YOUR_IP>:8086`) using the admin/DOCKER_INFLUXDB_INIT_PASSWORD ![](../images/Tokens.PNG)
-2. load data ![](../images/Influxdb-loadData.png)
-3. view telmetry metrics from my-org-bucket database ![](../images/Influxdb-my-org-bucket.png)
+1. Browse to influx (`http://<YOUR_IP>:8086`) 
+2. At the OS prompt, run `cat .env` to surface the generated credentials.
+3. Log in with user `admin` and the password shown as `DOCKER_INFLUXDB_INIT_PASSWORD` in the `.env` file (see Tokens screenshot). ![](../images/Tokens.PNG)
+4. load data ![](../images/Influxdb-loadData.png)
+5. view telmetry metrics from my-org-bucket database ![](../images/Influxdb-my-org-bucket.png)
 
 ### Post Install for InfluxDB, Prometheus, or TimescaleDB
 
-1. Browse to Grafana (`http://<YOUR_IP>:3000`)
-2. Add InfluxDB datasource, select the url (`http://influx:8086`) with the header `Authorization: Token DOCKER_INFLUXDB_INIT_ADMIN_TOKEN`, and `organization:my-org`. Correct addition of datasource will show the available buckets. ![](../images/grafanaAddDataSources.png) 
+1. Browse to Grafana (`http://<YOUR_IP>:3000`) and the default grafana username/password is `admin/admin`
+2. Add InfluxDB datasource, select `Query Langaguge "Flux"`, select the url (`http://influx:8086`) with the header `Authorization: Token DOCKER_INFLUXDB_INIT_ADMIN_TOKEN`, and `organization:my-org`. Correct addition of datasource will show the available buckets. ![](../images/grafanaAddDataSources.png) 
 3. Visualize metrics using add panel and wrting query for the respective metric in the Query inspector(quick way is to get the query from the influxUI)
 
 ![](../images/Influx-Grafana-FanRPMReading.png)
