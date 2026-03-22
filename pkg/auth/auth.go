@@ -27,6 +27,19 @@ const (
 	GETLOGIN          = auth.GETLOGIN
 
 	UPDATESERVICEX = auth.UPDATESERVICEX
+
+	// SSE notification constants
+	SSENotification = auth.SSENotification
+	SSEEventsTopic  = auth.SSEEventsTopic
+
+	// UI event names sent via SSE
+	UIEventIRCStateChanged       = auth.UIEventIRCStateChanged
+	UIEventIRCAdded              = auth.UIEventIRCAdded
+	UIEventIRCDeleted            = auth.UIEventIRCDeleted
+	UIEventRacdeviceStateChanged = auth.UIEventRacdeviceStateChanged
+	UIEventRacdeviceAdded        = auth.UIEventRacdeviceAdded
+	UIEventRacdeviceDeleted      = auth.UIEventRacdeviceDeleted
+	UIEventValveStateChanged     = auth.UIEventValveStateChanged
 )
 
 func NewAuthClientWithBus(mb messagebus.Messagebus, clientName string) *auth.AuthorizationClient {
@@ -56,6 +69,7 @@ type Login = auth.Login
 type AuthorizationClient = auth.AuthorizationClient
 type AuthorizationService = auth.AuthorizationService
 type AuthClientInterface = auth.AuthClientInterface
+type UINotification = auth.UINotification
 
 const (
 	SYSTEM_TYPE_IDRAC        = auth.IDRAC
