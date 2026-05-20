@@ -1,8 +1,8 @@
 module github.com/dell/iDRAC-Telemetry-Reference-Tools
 
-go 1.25.8
+go 1.25.9
 
-toolchain go1.25.8
+toolchain go1.25.9
 
 require (
 	github.com/cenkalti/backoff/v4 v4.1.0
