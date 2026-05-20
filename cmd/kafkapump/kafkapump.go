@@ -46,6 +46,7 @@ var configStrings = map[string]string{
 	"mbport":          "61613",
 	"kafkaBroker":     "",
 	"kafkaTopic":      "",
+	"kafkaAlertTopic": "",
 	"kafkaPartition":  "0",
 	"kafkaCACert":     "",
 	"kafkaClientCert": "",
@@ -60,6 +61,11 @@ var configItems = map[string]*config.ConfigEntry{
 		Default: "",
 	},
 	"kafkaTopic": {
+		Set:     configSet,
+		Get:     configGet,
+		Default: "",
+	},
+	"kafkaAlertTopic": {
 		Set:     configSet,
 		Get:     configGet,
 		Default: "",
@@ -96,7 +102,7 @@ func configSet(name string, value interface{}) error {
 	defer configStringsMu.Unlock()
 
 	switch name {
-	case "kafkaBroker", "kafkaTopic", "kafkaPartition", "kafkaCACert", "kafkaClientCert", "kafkaClientKey", "kafkaSkipVerify":
+	case "kafkaBroker", "kafkaTopic", "kafkaAlertTopic", "kafkaPartition", "kafkaCACert", "kafkaClientCert", "kafkaClientKey", "kafkaSkipVerify":
 		configStrings[name] = value.(string)
 	default:
 		return fmt.Errorf("unknown property %s", name)
@@ -106,7 +112,7 @@ func configSet(name string, value interface{}) error {
 
 func configGet(name string) (interface{}, error) {
 	switch name {
-	case "kafkaBroker", "kafkaTopic", "kafkaPartition", "kafkaCACert", "kafkaClientCert", "kafkaClientKey", "kafkaSkipVerify":
+	case "kafkaBroker", "kafkaTopic", "kafkaAlertTopic", "kafkaPartition", "kafkaCACert", "kafkaClientCert", "kafkaClientKey", "kafkaSkipVerify":
 		configStringsMu.RLock()
 		ret := configStrings[name]
 		configStringsMu.RUnlock()
@@ -136,6 +142,10 @@ func getEnvSettings() {
 	if len(kafkaTopic) > 0 {
 		configStrings["kafkaTopic"] = kafkaTopic
 	}
+	kafkaAlertTopic := os.Getenv("KAFKA_ALERT_TOPIC")
+	if len(kafkaAlertTopic) > 0 {
+		configStrings["kafkaAlertTopic"] = kafkaAlertTopic
+	}
 	kafkaPartition := os.Getenv("KAFKA_PARTITION")
 	if len(kafkaPartition) > 0 {
 		configStrings["kafkaPartition"] = kafkaPartition
@@ -164,8 +174,8 @@ func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Message
 	for {
 		group := <-groupsChan // If you are new to GoLang see https://golangdocs.com/channels-in-golang
 		// log.Println("Got a group:  size of metrics alerts ", len(group.Values), len(group.Events))
-		events := make([]*kafkaEvent, len(group.Values)+len(group.Events))
-		for index, value := range group.Values {
+		metricEvents := make([]*kafkaEvent, 0, len(group.Values))
+		for _, value := range group.Values {
 			timestamp, err := time.Parse(time.RFC3339, value.Timestamp)
 			if err != nil {
 				// For why we do this see https://datatracker.ietf.org/doc/html/rfc3339#section-4.3
@@ -200,10 +210,11 @@ func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Message
 			event.Fields.Value = floatVal
 			event.Fields.MetricName = value.Context + "_" + value.ID
 
-			events[index] = event
+			metricEvents = append(metricEvents, event)
 		}
 		// alerts
-		for index, evt := range group.Events {
+		alertEvents := make([]*kafkaEvent, 0, len(group.Events))
+		for _, evt := range group.Events {
 			timestamp, err := time.Parse(time.RFC3339, evt.EventTimestamp)
 			if err != nil {
 				// For why we do this see https://datatracker.ietf.org/doc/html/rfc3339#section-4.3
@@ -226,17 +237,41 @@ func handleGroups(groupsChan chan *databus.DataGroup, kafkamb messagebus.Message
 			event.Fields.Message = evt.Message
 			event.Fields.OriginOfCondition = evt.OriginOfCondition
 
-			events[index] = event
+			alertEvents = append(alertEvents, event)
 		}
-		// send
+
+		// send - check if separate alert topic is configured
 		configStringsMu.RLock()
 		ktopic := configStrings["kafkaTopic"]
+		kalertTopic := configStrings["kafkaAlertTopic"]
 		configStringsMu.RUnlock()
 
-		jsonStr, _ := json.Marshal(events)
-		if err := kafkamb.SendMessage(jsonStr, ktopic); err != nil {
-			log.Printf("SendMessage error, terminating for restart: %v", err)
-			os.Exit(1) // let K8s restart the pod
+		// If alert topic is configured, send metrics and alerts to different topics
+		if kalertTopic != "" {
+			// Send metrics to main topic
+			if len(metricEvents) > 0 {
+				jsonStr, _ := json.Marshal(metricEvents)
+				if err := kafkamb.SendMessage(jsonStr, ktopic); err != nil {
+					log.Printf("SendMessage error (metrics), terminating for restart: %v", err)
+					os.Exit(1) // let K8s restart the pod
+				}
+			}
+			// Send alerts to alert topic
+			if len(alertEvents) > 0 {
+				jsonStr, _ := json.Marshal(alertEvents)
+				if err := kafkamb.SendMessage(jsonStr, kalertTopic); err != nil {
+					log.Printf("SendMessage error (alerts), terminating for restart: %v", err)
+					os.Exit(1) // let K8s restart the pod
+				}
+			}
+		} else {
+			// Backward compatibility: send both to same topic
+			allEvents := append(metricEvents, alertEvents...)
+			jsonStr, _ := json.Marshal(allEvents)
+			if err := kafkamb.SendMessage(jsonStr, ktopic); err != nil {
+				log.Printf("SendMessage error, terminating for restart: %v", err)
+				os.Exit(1) // let K8s restart the pod
+			}
 		}
 
 	}
