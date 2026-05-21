@@ -174,8 +174,31 @@ func (m *KafkaMessagebus) SendMessage(message []byte, queue string) error {
 	if err != nil {
 		log.Println("failed to write messages:", queue, err)
 		if shouldRestartOnErr(err) {
-			log.Println("Fatal broker write error; exiting so Kubernetes restarts the pod")
-			os.Exit(1)
+			// Remove stale connection from cache and attempt reconnection
+			topic := strings.ReplaceAll(queue, "/", "_")
+			m.topicConnMu.Lock()
+			if staleConn, exists := m.conns[topic]; exists {
+				staleConn.Close()
+				delete(m.conns, topic)
+				log.Printf("Removed stale connection for topic %s, attempting reconnect...", topic)
+			}
+			m.topicConnMu.Unlock()
+
+			// Retry once with new connection
+			kconn, err = m.TopicConnect(queue)
+			if err != nil || kconn == nil {
+				log.Println("Reconnection failed; exiting so Kubernetes restarts the pod")
+				os.Exit(1)
+			}
+
+			kconn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			_, err = kconn.WriteMessages(kafka.Message{Value: message})
+			if err != nil {
+				log.Println("Retry failed after reconnection:", queue, err)
+				log.Println("Fatal broker write error; exiting so Kubernetes restarts the pod")
+				os.Exit(1)
+			}
+			log.Printf("Successfully reconnected and sent message to topic %s", topic)
 		}
 	}
 	return err
@@ -200,8 +223,31 @@ func (m *KafkaMessagebus) SendMessageWithHeaders(message []byte, queue string, h
 	if err != nil {
 		log.Println("failed to write messages:", queue, err)
 		if shouldRestartOnErr(err) {
-			log.Println("Fatal broker write error (headers); exiting so Kubernetes restarts the pod")
-			os.Exit(1)
+			// Remove stale connection from cache and attempt reconnection
+			topic := strings.ReplaceAll(queue, "/", "_")
+			m.topicConnMu.Lock()
+			if staleConn, exists := m.conns[topic]; exists {
+				staleConn.Close()
+				delete(m.conns, topic)
+				log.Printf("Removed stale connection for topic %s, attempting reconnect...", topic)
+			}
+			m.topicConnMu.Unlock()
+
+			// Retry once with new connection
+			kconn, err = m.TopicConnect(queue)
+			if err != nil || kconn == nil {
+				log.Println("Reconnection failed (headers); exiting so Kubernetes restarts the pod")
+				os.Exit(1)
+			}
+
+			kconn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			_, err = kconn.WriteMessages(kafka.Message{Value: message, Headers: hdrs})
+			if err != nil {
+				log.Println("Retry failed after reconnection (headers):", queue, err)
+				log.Println("Fatal broker write error (headers); exiting so Kubernetes restarts the pod")
+				os.Exit(1)
+			}
+			log.Printf("Successfully reconnected and sent message with headers to topic %s", topic)
 		}
 	}
 	return err

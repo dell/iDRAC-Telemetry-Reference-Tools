@@ -60,6 +60,7 @@ type MyHec struct {
 type KfkConfig struct {
 	Broker          string `json:"kafkaBroker"`
 	Topic           string `json:"kafkaTopic"`
+	AlertTopic      string `json:"kafkaAlertTopic"`
 	KafkaCACert     string `json:"kafkaCACert"`
 	KafkaClientCert string `json:"kafkaClientCert"`
 	KafkaClientKey  string `json:"kafkaClientKey"`
@@ -94,6 +95,13 @@ func getKafkaBrokerConfig(c *gin.Context, s *SystemHandler) {
 		log.Printf("Failed to get kafkaTopic values %v", err)
 	} else {
 		KafkaConfig.Topic = configValues.Value.(string)
+	}
+
+	configValues, err = s.ConfigBus.Get("kafkaAlertTopic")
+	if err != nil {
+		log.Printf("Failed to get kafkaAlertTopic values %v", err)
+	} else {
+		KafkaConfig.AlertTopic = configValues.Value.(string)
 	}
 
 	configValues, err = s.ConfigBus.Get("kafkaCACert")
@@ -171,6 +179,12 @@ func kafkaConfig(c *gin.Context, s *SystemHandler) {
 		if err != nil {
 			log.Println("Failed to update kafkaTopic config: ", err)
 		}
+	}
+
+	// AlertTopic can be empty to disable separate alert topic
+	_, err = s.ConfigBus.Set("kafkaAlertTopic", tmp.AlertTopic)
+	if err != nil {
+		log.Println("Failed to update kafkaAlertTopic config: ", err)
 	}
 
 	if tmp.KafkaSkipVerify != "" {

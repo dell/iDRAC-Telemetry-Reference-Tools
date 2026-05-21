@@ -11,7 +11,7 @@ require (
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/go-stomp/stomp v2.0.3+incompatible
 	github.com/jackc/pgx/v4 v4.10.1
-	github.com/mitchellh/mapstructure v1.5.0
+	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/prometheus/client_golang v1.11.1
 	github.com/segmentio/kafka-go v0.4.38

@@ -247,6 +247,9 @@ chmod 700 $topdir/.certs
   if [ -z $KAFKA_TOPIC ]; then
     export KAFKA_TOPIC=
   fi
+  if [ -z $KAFKA_ALERT_TOPIC ]; then
+    export KAFKA_ALERT_TOPIC=
+  fi
   if [ -z $KAFKA_PARTITION ]; then
     export KAFKA_PARTITION=
   fi
