@@ -56,7 +56,7 @@ require (
 	github.com/prometheus/procfs v0.6.0 // indirect
 	github.com/ugorji/go/codec v1.2.11 // indirect
 	golang.org/x/net v0.54.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
