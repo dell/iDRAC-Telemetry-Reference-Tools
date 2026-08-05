@@ -1,8 +1,8 @@
 module github.com/dell/iDRAC-Telemetry-Reference-Tools
 
-go 1.25.10
+go 1.25.12
 
-toolchain go1.25.10
+toolchain go1.25.12
 
 require (
 	github.com/cenkalti/backoff/v4 v4.1.0
@@ -15,7 +15,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/prometheus/client_golang v1.11.1
 	github.com/segmentio/kafka-go v0.4.38
-	golang.org/x/crypto v0.52.0
+	golang.org/x/crypto v0.54.0
 	google.golang.org/appengine v1.6.8 // indirect
 	gopkg.in/ini.v1 v1.67.0
 	pack.ag/amqp v0.12.3
@@ -55,9 +55,9 @@ require (
 	github.com/prometheus/common v0.26.0
 	github.com/prometheus/procfs v0.6.0 // indirect
 	github.com/ugorji/go/codec v1.2.11 // indirect
-	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sys v0.44.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
+	golang.org/x/text v0.40.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )
