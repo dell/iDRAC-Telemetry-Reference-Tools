@@ -2,8 +2,6 @@ module github.com/dell/iDRAC-Telemetry-Reference-Tools
 
 go 1.25.12
 
-toolchain go1.25.12
-
 require (
 	github.com/cenkalti/backoff/v4 v4.1.0
 	github.com/elastic/go-elasticsearch/v8 v8.0.0-20201229214741-2366c2514674
@@ -56,7 +54,7 @@ require (
 	github.com/prometheus/procfs v0.6.0 // indirect
 	github.com/ugorji/go/codec v1.2.11 // indirect
 	golang.org/x/net v0.57.0 // indirect
-	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
