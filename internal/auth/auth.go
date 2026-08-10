@@ -142,6 +142,22 @@ const (
 	CommandQueue = "/queue/authorization/command"
 	EventQueue   = "/queue/authorization"
 	ReplyPrefix  = "/queue/authorization/reply."
+
+	// SSE notification topic — published by dbdiscauth after DB writes,
+	// consumed by configui to push real-time updates to the browser.
+	SSEEventsTopic = "/topic/ui.events"
+
+	// SSE event type constants
+	SSENotification = "sse_notification"
+
+	// UI event names sent via SSE
+	UIEventIRCStateChanged       = "irc_state_changed"
+	UIEventIRCAdded              = "irc_added"
+	UIEventIRCDeleted            = "irc_deleted"
+	UIEventRacdeviceStateChanged = "racdevice_state_changed"
+	UIEventRacdeviceAdded        = "racdevice_added"
+	UIEventRacdeviceDeleted      = "racdevice_deleted"
+	UIEventValveStateChanged     = "valve_state_changed"
 )
 
 type AuthClientInterface interface {
@@ -189,6 +205,27 @@ func (as *AuthorizationService) BroadcastService(svc Service) error {
 		return err
 	}
 	return as.SendEnvelope(EventQueue, env)
+}
+
+// UINotification is a lightweight event published to SSEEventsTopic after DB writes.
+// The configui SSE endpoint subscribes and pushes these to browsers in real time.
+type UINotification struct {
+	Event string      `json:"event"` // e.g. "irc_state_changed"
+	Data  interface{} `json:"data"`  // event-specific payload
+}
+
+// PublishUIEvent publishes a UI notification to the SSE topic so connected
+// browsers receive instant updates.
+func (as *AuthorizationService) PublishUIEvent(event string, data interface{}) error {
+	notification := UINotification{
+		Event: event,
+		Data:  data,
+	}
+	env, err := wire.NewEnvelope(SSENotification, notification)
+	if err != nil {
+		return err
+	}
+	return as.SendEnvelope(SSEEventsTopic, env)
 }
 
 type AuthorizationClient struct {
