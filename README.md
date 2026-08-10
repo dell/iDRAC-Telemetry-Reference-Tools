@@ -4,6 +4,7 @@
   - [Navigation](#navigation)
   - [So, what is the point of this repo?](#so-what-is-the-point-of-this-repo)
   - [What is Telemetry?](#what-is-telemetry)
+      - [ List of Supported Metrics (##List of Metric Reports with Metrics:) ]
   - [What do I do with telemetry data?](#what-do-i-do-with-telemetry-data)
   - [What is in this data pipeline?](#what-is-in-this-data-pipeline)
   - [Architecture Details](#architecture-details)
@@ -92,7 +93,7 @@ Output:
 
 }
 
-List of Metric Reports with Metrics:
+##List of Metric Reports with Metrics:
 - StorageDiskSMARTData
   
       • CommandTimeout
