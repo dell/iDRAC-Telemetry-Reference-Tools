@@ -1,6 +1,6 @@
 module github.com/dell/iDRAC-Telemetry-Reference-Tools
 
-go 1.25.12
+go 1.26.10
 
 require (
 	github.com/cenkalti/backoff/v4 v4.1.0
@@ -13,7 +13,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/prometheus/client_golang v1.11.1
 	github.com/segmentio/kafka-go v0.4.38
-	golang.org/x/crypto v0.54.0
+	golang.org/x/crypto v0.58.0
 	google.golang.org/appengine v1.6.8 // indirect
 	gopkg.in/ini.v1 v1.67.0
 	pack.ag/amqp v0.12.3
@@ -53,9 +53,9 @@ require (
 	github.com/prometheus/common v0.26.0
 	github.com/prometheus/procfs v0.6.0 // indirect
 	github.com/ugorji/go/codec v1.2.11 // indirect
-	golang.org/x/net v0.57.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/net v0.61.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )
@@ -75,7 +75,7 @@ require (
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/klauspost/compress v1.17.2 // indirect
+	github.com/klauspost/compress v1.20.3 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
